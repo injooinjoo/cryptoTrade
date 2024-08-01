@@ -1,0 +1,10 @@
+{
+  "instructions_file": "instructions_v5.md",
+  "min_transaction_amount": 5000,
+  "min_krw_balance": 5000,
+  "min_order_size": 0.00001,
+  "trading_parameters": {
+    "RSI_SELL_THRESHOLD": 70,
+    "RSI_BUY_THRESHOLD": 30
+  }
+}
