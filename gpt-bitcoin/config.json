@@ -6,5 +6,11 @@
   "trading_parameters": {
     "RSI_SELL_THRESHOLD": 70,
     "RSI_BUY_THRESHOLD": 30
+  },
+  "twitter_api": {
+    "api_key": "wctYWfLeC7nyIA3SUsrrEceFf",
+    "api_secret": "ixKK5RXuLQCpO7twxlfPsPXxhVuj9NeTpEq903nyncOnZGTv8L",
+    "access_token": "1623990430512869378-ZfEnB2Wfn9dBQQB168thT68RKqxpCD",
+    "access_token_secret": "A3Y1KnkkCuHekyG6m99T197se7we5cWGZjinC0YiGqb90"
   }
 }
