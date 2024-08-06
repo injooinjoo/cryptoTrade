@@ -65,12 +65,11 @@ class PerformanceMonitor:
         return df.tail(n).to_dict(orient='records')
 
     def get_performance_summary(self) -> str:
-        """Generate a summary of recent performance."""
         df = self.load_data()
         if df.empty:
             return "No data available for summary."
 
-        recent_df = df.tail(100)  # 최근 100개의 거래 데이터만 사용
+        recent_df = df.tail(10)  # 최근 10개의 거래 데이터만 사용 (약 100분)
 
         summary = {
             'total_trades': len(recent_df),
@@ -78,11 +77,24 @@ class PerformanceMonitor:
             'sell_trades': len(recent_df[recent_df['decision'] == 'sell']),
             'hold_decisions': len(recent_df[recent_df['decision'] == 'hold']),
             'avg_trade_size': recent_df['percentage'].mean(),
-            'price_change': (recent_df['current_price'].iloc[-1] - recent_df['current_price'].iloc[0]) / recent_df['current_price'].iloc[0] * 100,
-            'balance_change': (recent_df['balance'].iloc[-1] - recent_df['balance'].iloc[0]) / recent_df['balance'].iloc[0] * 100,
-            'most_common_regime': recent_df['regime'].mode().iloc[0],
-            'anomaly_frequency': recent_df['anomalies'].mean() * 100,
-            'last_trade_time': recent_df['timestamp'].iloc[-1]
+            'price_change': (recent_df['current_price'].iloc[-1] - recent_df['current_price'].iloc[0]) /
+                            recent_df['current_price'].iloc[0] * 100,
+            'balance_change': (recent_df['balance'].iloc[-1] - recent_df['balance'].iloc[0]) /
+                              recent_df['balance'].iloc[0] * 100,
         }
 
-        return json.dumps(summary, indent=2)
+        return "\n".join([f"{k}: {v:.2f}" if isinstance(v, float) else f"{k}: {v}" for k, v in summary.items()])
+
+    def get_prediction_accuracy(self) -> float:
+        df = self.load_data()
+        if df.empty:
+            return 0.0
+
+        recent_df = df.tail(100)  # 최근 100개의 거래 데이터만 사용
+        correct_predictions = ((recent_df['decision'] == 'buy') & (
+                    recent_df['current_price'] < recent_df['current_price'].shift(-1))) | \
+                              ((recent_df['decision'] == 'sell') & (
+                                          recent_df['current_price'] > recent_df['current_price'].shift(-1)))
+
+        accuracy = correct_predictions.mean() * 100
+        return accuracy
