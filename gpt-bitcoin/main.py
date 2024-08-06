@@ -7,6 +7,8 @@ from dotenv import load_dotenv
 import os
 from typing import Dict, Any
 
+from discord_notifier import send_discord_message
+from performance_monitor import PerformanceMonitor
 from api_client import UpbitClient, OpenAIClient, OrderManager, PositionManager
 from data_preparation import safe_fetch_multi_timeframe_data
 from trading_logic import analyze_data_with_gpt4, execute_buy, execute_sell, trading_strategy, ml_predictor, rl_agent, \
@@ -71,6 +73,12 @@ def main():
     # 강화학습 에이전트 학습
     # train_rl_agent(rl_agent, historical_data)
 
+    def report_performance():
+        summary = performance_monitor.get_performance_summary()
+        accuracy = performance_monitor.get_prediction_accuracy()
+        message = f"📊 Performance Summary (Last 10 minutes):\n{summary}\n\nPrediction Accuracy: {accuracy:.2f}%"
+        send_discord_message(message)
+
     # 트레이딩 루프
     def trading_loop():
         try:
@@ -114,22 +122,15 @@ def main():
             logger.error(f"Error in trading loop: {e}")
             logger.exception("Traceback:")
 
-    # 성능 요약 보고 함수
-    def report_performance():
-        summary = performance_monitor.get_performance_summary()
-        send_performance_summary(summary)
-        logger.info("Performance summary sent to Discord")
-
     trading_loop()
 
-    # 10분마다 트레이딩 로직 실행
+    # 10분마다 트레이딩 로직 실행 및 성능 보고
     schedule.every(10).minutes.do(trading_loop)
+    schedule.every(10).minutes.do(report_performance)
 
     # 매일 자정에 성능 모니터링 데이터 저장
     schedule.every().day.at("00:00").do(performance_monitor.save_to_file)
 
-    # 6시간마다 성능 요약 보고
-    schedule.every(6).hours.do(report_performance)
 
     # 메인 루프
     logger.info("Starting main loop")
