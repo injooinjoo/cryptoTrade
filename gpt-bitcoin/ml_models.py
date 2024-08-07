@@ -8,12 +8,15 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from tensorflow import keras
+from sklearn.metrics import mean_squared_error
 
 
 class MLPredictor:
     def __init__(self):
         self.model = RandomForestClassifier(n_estimators=100, random_state=42)
         self.scaler = StandardScaler()
+        self.last_accuracy = 0
+        self.last_loss = 0
 
     def prepare_data(self, data: pd.DataFrame) -> Tuple[np.ndarray, np.ndarray]:
         """Prepare the data for training the model."""
@@ -22,13 +25,21 @@ class MLPredictor:
         labels = np.where(data['close'].shift(-1) > data['close'], 1, 0)[:-1]
         return features[:-1], labels
 
-    def train(self, data: pd.DataFrame):
+    def train(self, data: pd.DataFrame) -> Tuple[float, float]:
         """Train the RandomForest model using the provided data."""
         X, y = self.prepare_data(data)
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
         self.model.fit(X_train, y_train)
-        accuracy = self.model.score(X_test, y_test)
-        print(f"Model accuracy: {accuracy}")
+
+        # Calculate accuracy
+        self.last_accuracy = self.model.score(X_test, y_test) * 100
+
+        # Calculate loss (for Random Forest, we'll use mean squared error)
+        y_pred = self.model.predict(X_test)
+        self.last_loss = mean_squared_error(y_test, y_pred)
+
+        print(f"Model accuracy: {self.last_accuracy:.2f}%")
+        return self.last_accuracy, self.last_loss
 
     def predict(self, data: pd.DataFrame) -> int:
         """Predict the next action based on the model."""
@@ -49,6 +60,7 @@ class RLAgent:
         self.learning_rate = 0.001
         self.model = self._build_model()
         self.batch_size = 64  # Increased batch size for faster learning
+        self.recent_rewards = deque(maxlen=100)  # Store recent rewards for monitoring
 
     def _build_model(self):
         model = keras.Sequential([
@@ -59,8 +71,9 @@ class RLAgent:
         model.compile(loss='mse', optimizer=keras.optimizers.Adam(learning_rate=self.learning_rate))
         return model
 
-    def remember(self, state: np.ndarray, action: int, reward: float, next_state: np.ndarray, done: bool):
+    def remember(self, state, action, reward, next_state, done):
         self.memory.append((state, action, reward, next_state, done))
+        self.recent_rewards.append(reward)
 
     def act(self, state: np.ndarray) -> int:
         if np.random.rand() <= self.epsilon:
@@ -90,3 +103,8 @@ class RLAgent:
 
     def save(self, name: str):
         self.model.save_weights(name)
+
+    def get_average_reward(self):
+        if len(self.recent_rewards) == 0:
+            return 0
+        return sum(self.recent_rewards) / len(self.recent_rewards)
