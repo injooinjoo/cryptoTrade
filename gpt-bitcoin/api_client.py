@@ -108,6 +108,32 @@ class UpbitClient:
             logger.error(f"Failed to connect to Upbit API: {e}")
             return False
 
+    def get_orderbook(self, ticker: str):
+        """
+        Get the current orderbook for the specified ticker.
+        """
+        try:
+            logger.info(f"Fetching orderbook for {ticker}")
+            orderbook = pyupbit.get_orderbook(ticker)
+
+            logger.debug(f"Raw orderbook data: {orderbook}")  # 디버그 로깅 추가
+
+            if orderbook is None:
+                logger.warning(f"Received None orderbook for {ticker}")
+                return None
+
+            if isinstance(orderbook, list) and len(orderbook) > 0:
+                return orderbook[0]
+            elif isinstance(orderbook, dict):
+                return orderbook
+            else:
+                logger.warning(f"Unexpected orderbook format for {ticker}: {type(orderbook)}")
+                return orderbook  # 원본 데이터 그대로 반환
+
+        except Exception as e:
+            logger.error(f"Error fetching orderbook for {ticker}: {e}", exc_info=True)
+            return None
+
 
 class OpenAIClient:
     def __init__(self, api_key: str):
