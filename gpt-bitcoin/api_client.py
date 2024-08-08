@@ -193,27 +193,39 @@ class OrderManager:
 
     def _monitor_orders(self):
         while True:
-            current_price = self.upbit_client.get_current_price("KRW-BTC")
-            position = self.position_manager.get_position()
+            try:
+                current_price = self.upbit_client.get_current_price("KRW-BTC")
+                position = self.position_manager.get_position()
 
-            if position['amount'] > 0:
-                for order_id, order in list(self.active_orders.items()):
-                    if current_price <= order['stop_loss'] or current_price >= order['take_profit']:
-                        self._execute_sell(order_id, current_price, position['amount'])
+                if position['amount'] > 0:
+                    for order_id, order in list(self.active_orders.items()):
+                        if current_price <= order['stop_loss']:
+                            self._execute_sell(order_id, current_price, position['amount'], "Stop Loss")
+                        elif current_price >= order['take_profit']:
+                            self._execute_sell(order_id, current_price, position['amount'], "Take Profit")
 
-            time.sleep(10)  # Check every 10 seconds
+                time.sleep(10)  # Check every 10 seconds
+            except Exception as e:
+                logger.error(f"Error in order monitoring: {e}")
 
-    def _execute_sell(self, order_id, current_price, amount):
+    def _execute_sell(self, order_id, current_price, amount, reason):
         try:
-            logger.info(f"Executing sell for order {order_id} at price {current_price}")
-            self.upbit_client.sell_market_order("KRW-BTC", amount)
-            self.remove_order(order_id)
-            self.position_manager.update_position()
+            logger.info(f"Executing sell for order {order_id} at price {current_price} due to {reason}")
+            result = self.upbit_client.sell_market_order("KRW-BTC", amount)
+            if result:
+                logger.info(f"Sell order executed successfully: {result}")
+                self.remove_order(order_id)
+                self.position_manager.update_position()
+            else:
+                logger.warning(f"Sell order execution failed for order {order_id}")
         except Exception as e:
             logger.error(f"Error executing sell for order {order_id}: {e}")
 
     def update_stop_loss_take_profit(self, stop_loss, take_profit):
         self._set_stop_loss_take_profit(stop_loss, take_profit)
+
+    def get_active_orders(self):
+        return self.active_orders
 
 
 class PositionManager:
@@ -222,15 +234,30 @@ class PositionManager:
         self.current_position = self._get_current_position()
 
     def _get_current_position(self):
-        btc_balance = self.upbit_client.get_balance("BTC")
-        avg_buy_price = self.upbit_client.get_avg_buy_price("KRW-BTC")
-        return {
-            'amount': btc_balance,
-            'avg_price': avg_buy_price
-        }
+        try:
+            btc_balance = self.upbit_client.get_balance("BTC")
+            krw_balance = self.upbit_client.get_balance("KRW")
+            btc_current_price = self.upbit_client.get_current_price("KRW-BTC")
+            return {
+                'btc_balance': btc_balance,
+                'krw_balance': krw_balance,
+                'btc_current_price': btc_current_price,
+                'total_balance_krw': (btc_balance * btc_current_price) + krw_balance
+            }
+        except Exception as e:
+            logger.error(f"Error getting current position: {e}")
+            return {'btc_balance': 0, 'krw_balance': 0, 'btc_current_price': 0, 'total_balance_krw': 0}
 
     def update_position(self):
         self.current_position = self._get_current_position()
 
     def get_position(self):
+        self.current_position = self._get_current_position()
         return self.current_position
+
+    def calculate_profit_loss(self):
+        position = self.get_position()
+        if position['amount'] > 0 and position['avg_price'] > 0:
+            profit_loss = ((position['current_price'] - position['avg_price']) / position['avg_price']) * 100
+            return profit_loss
+        return 0

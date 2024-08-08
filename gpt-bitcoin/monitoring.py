@@ -65,3 +65,5 @@ class MonitoringSystem:
             'trading_volume_24h': sum(self.metrics['trading_volume'][-24:]),  # 최근 24시간의 거래량
             'profit_loss_24h': sum(self.metrics['profit_loss'][-24:])  # 최근 24시간의 손익
         }
+
+

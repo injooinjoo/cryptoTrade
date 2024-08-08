@@ -1,5 +1,6 @@
 from typing import Dict, Any, Tuple
 
+import numpy as np
 import pandas as pd
 import json
 from datetime import datetime
@@ -14,7 +15,8 @@ class PerformanceMonitor:
         self.initial_btc_price = self.data['current_price'].iloc[0] if not self.data.empty else None
         self.initial_balance = self.data['balance'].iloc[0] if not self.data.empty else None
 
-    def record(self, decision: dict, current_price: float, balance: float, btc_amount: float, params: dict, regime: str, anomalies: bool):
+    def record(self, decision: dict, current_price: float, balance: float, btc_amount: float,
+               params: dict, regime: str, anomalies: bool, ml_accuracy: float, ml_loss: float):
         new_record = pd.DataFrame([{
             'timestamp': pd.Timestamp.now(),
             'decision': decision.get('decision', 'unknown'),
@@ -25,14 +27,28 @@ class PerformanceMonitor:
             'btc_amount': btc_amount,
             'params': str(params),
             'regime': regime,
-            'anomalies': anomalies
+            'anomalies': anomalies,
+            'dynamic_target': decision.get('dynamic_target', 0),
+            'weighted_decision': decision.get('weighted_decision', 0),
+            'ml_accuracy': ml_accuracy,
+            'ml_loss': ml_loss
         }])
-        self.data = pd.concat([self.data, new_record], ignore_index=True)
+
+        # 모든 값이 NA인 열 제거
+        new_record_cleaned = new_record.dropna(axis=1, how='all')
+
+        # NA 열이 제거된 DataFrame을 사용하여 기존 데이터와 결합
+        self.data = pd.concat([self.data, new_record_cleaned], ignore_index=True)
         self.total_trades += 1
         self.save_to_file()
 
     def save_to_file(self):
         self.data.to_csv(self.file_path, index=False)
+
+    def load_data(self) -> pd.DataFrame:
+        if os.path.exists(self.file_path):
+            return pd.read_csv(self.file_path)
+        return pd.DataFrame()
 
     def get_performance_comparison(self) -> Dict[str, float]:
         if self.data.empty or self.initial_btc_price is None or self.initial_balance is None:
@@ -57,10 +73,32 @@ class PerformanceMonitor:
         summary = self._calculate_summary(self.data)
         summary['total_trades'] = self.total_trades
         summary['successful_trades'] = len(self.data[self.data['decision'] != 'hold'])
-        summary['success_rate'] = (summary['successful_trades'] / summary['total_trades'] * 100) if summary[
-                                                                                                        'total_trades'] > 0 else 0
+        summary['success_rate'] = (summary['successful_trades'] / summary['total_trades'] * 100) if summary['total_trades'] > 0 else 0
 
         return summary
+
+    def get_performance_summary(self) -> str:
+        df = self.load_data()
+        if df.empty:
+            return "데이터가 없습니다."
+
+        recent_df = df.tail(60)  # 최근 10시간의 데이터 (10분 * 60 = 10시간)
+
+        summary = self._calculate_summary(recent_df)
+        summary['avg_ml_accuracy'] = recent_df['ml_accuracy'].mean()
+        summary['avg_ml_loss'] = recent_df['ml_loss'].mean()
+
+        # 최근 거래의 수익률 계산
+        if len(recent_df) > 1:
+            start_balance = recent_df.iloc[0]['balance'] + recent_df.iloc[0]['btc_amount'] * recent_df.iloc[0][
+                'current_price']
+            end_balance = recent_df.iloc[-1]['balance'] + recent_df.iloc[-1]['btc_amount'] * recent_df.iloc[-1][
+                'current_price']
+            summary['recent_return'] = (end_balance - start_balance) / start_balance * 100
+        else:
+            summary['recent_return'] = 0
+
+        return "\n".join([f"{k}: {v:.2f}" if isinstance(v, float) else f"{k}: {v}" for k, v in summary.items()])
 
     def _calculate_summary(self, df: pd.DataFrame) -> Dict[str, Any]:
         return {
@@ -73,35 +111,6 @@ class PerformanceMonitor:
             'balance_change': (df['balance'].iloc[-1] - df['balance'].iloc[0]) /
                               df['balance'].iloc[0] * 100 if len(df) > 1 else 0,
         }
-
-    def load_data(self) -> pd.DataFrame:
-        if os.path.exists(self.file_path):
-            return pd.read_csv(self.file_path)
-        return pd.DataFrame()
-
-    def get_performance_summary(self) -> str:
-        df = self.load_data()
-        if df.empty:
-            return "No data available for summary."
-
-        recent_df = df.tail(10)  # 최근 10개의 거래 데이터만 사용 (약 100분)
-
-        summary = self._calculate_summary(recent_df)
-        return "\n".join([f"{k}: {v:.2f}" if isinstance(v, float) else f"{k}: {v}" for k, v in summary.items()])
-
-    def get_prediction_accuracy(self) -> float:
-        df = self.load_data()
-        if df.empty:
-            return 0.0
-
-        recent_df = df.tail(100)  # 최근 100개의 거래 데이터만 사용
-        correct_predictions = ((recent_df['decision'] == 'buy') & (
-                    recent_df['current_price'] < recent_df['current_price'].shift(-1))) | \
-                              ((recent_df['decision'] == 'sell') & (
-                                          recent_df['current_price'] > recent_df['current_price'].shift(-1)))
-
-        accuracy = correct_predictions.mean() * 100
-        return accuracy
 
     def get_detailed_analysis(self) -> Dict[str, Any]:
         df = self.load_data()
@@ -116,17 +125,23 @@ class PerformanceMonitor:
         up_predictions = df[df['predicted_direction'] == 1]
         down_predictions = df[df['predicted_direction'] == 0]
 
-        analysis = {'up_predictions': {
-            'total': len(up_predictions),
-            'successful': up_predictions['prediction_success'].sum(),
-            'accuracy': up_predictions['prediction_success'].mean() * 100
-        }, 'down_predictions': {
-            'total': len(down_predictions),
-            'successful': down_predictions['prediction_success'].sum(),
-            'accuracy': down_predictions['prediction_success'].mean() * 100
-        }, 'overall_accuracy': df['prediction_success'].mean() * 100,
-            'failure_reasons': (self._analyze_failures(df))[0],
-            'improvement_suggestions': (self._analyze_failures(df))[1]}
+        analysis = {
+            'up_predictions': {
+                'total': len(up_predictions),
+                'successful': up_predictions['prediction_success'].sum(),
+                'accuracy': up_predictions['prediction_success'].mean() * 100
+            },
+            'down_predictions': {
+                'total': len(down_predictions),
+                'successful': down_predictions['prediction_success'].sum(),
+                'accuracy': down_predictions['prediction_success'].mean() * 100
+            },
+            'overall_accuracy': df['prediction_success'].mean() * 100
+        }
+
+        failure_reasons, improvement_suggestions = self._analyze_failures(df)
+        analysis['failure_reasons'] = failure_reasons
+        analysis['improvement_suggestions'] = improvement_suggestions
 
         return analysis
 
@@ -170,3 +185,37 @@ class PerformanceMonitor:
                 improvement_suggestions.append(f"Refine criteria for {decision} decisions")
 
         return ", ".join(failure_reasons), ", ".join(improvement_suggestions)
+
+    def get_detailed_performance_metrics(self) -> Dict[str, Any]:
+        if self.data.empty:
+            return {"error": "데이터가 없습니다."}
+
+        metrics = {
+            "total_trades": len(self.data),
+            "successful_trades": sum(self.data['decision'] != 'hold'),
+            "win_rate": (sum(self.data['decision'] != 'hold') / len(self.data)) * 100,
+            "average_return": self.data['balance'].pct_change().mean() * 100,
+            "sharpe_ratio": self.calculate_sharpe_ratio(),
+            "max_drawdown": self.calculate_max_drawdown(),
+            "profit_loss_ratio": self.calculate_profit_loss_ratio()
+        }
+        return metrics
+
+    def calculate_sharpe_ratio(self) -> float:
+        returns = self.data['balance'].pct_change().dropna()
+        return (returns.mean() / returns.std()) * np.sqrt(252)  # 연간화된 샤프 비율
+
+    def calculate_max_drawdown(self) -> float:
+        balance = self.data['balance']
+        peak = balance.cummax()
+        drawdown = (peak - balance) / peak
+        return drawdown.max()
+
+    def calculate_win_rate(self) -> float:
+        profitable_trades = sum(self.data['balance'].diff() > 0)
+        return (profitable_trades / len(self.data)) * 100
+
+    def calculate_profit_loss_ratio(self) -> float:
+        profits = self.data['balance'].diff()[self.data['balance'].diff() > 0].mean()
+        losses = abs(self.data['balance'].diff()[self.data['balance'].diff() < 0].mean())
+        return profits / losses if losses != 0 else 0

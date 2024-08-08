@@ -1,6 +1,8 @@
 import json
 import logging
 from typing import Dict, Any
+import sys
+from logging.handlers import RotatingFileHandler
 
 logger = logging.getLogger(__name__)
 
@@ -38,14 +40,25 @@ def load_config(file_path: str = "config.json") -> Dict[str, Any]:
 
 
 def setup_logging():
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        handlers=[
-            logging.FileHandler("trading_bot.log"),
-            logging.StreamHandler()
-        ]
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.INFO)
+
+    # 파일 핸들러 설정 (UTF-8 인코딩 사용)
+    file_handler = RotatingFileHandler(
+        "trading_bot.log",
+        maxBytes=10*1024*1024,  # 10MB
+        backupCount=5,
+        encoding='utf-8'
     )
+    file_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    file_handler.setFormatter(file_formatter)
+    root_logger.addHandler(file_handler)
+
+    # 콘솔 핸들러 설정 (ASCII 문자만 사용)
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    console_handler.setFormatter(console_formatter)
+    root_logger.addHandler(console_handler)
 
     # 특정 모듈의 로그 레벨 조정
     logging.getLogger("urllib3").setLevel(logging.WARNING)

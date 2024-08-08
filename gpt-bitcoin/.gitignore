@@ -1,3 +1,4 @@
 .env
+config.json
 *.sqlite
 test.py
