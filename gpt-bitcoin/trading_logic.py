@@ -49,8 +49,8 @@ def preprocess_data_for_json(data):
 
 def evaluate_decisions(recent_decisions, current_price):
     """
-    Evaluate the performance of recent trading decisions.
-    """
+        Evaluate the performance of recent trading decisions.
+        """
     if not recent_decisions:
         return {
             "overall_assessment": "No recent decisions to evaluate",
@@ -65,24 +65,27 @@ def evaluate_decisions(recent_decisions, current_price):
     profit_loss = 0
 
     for decision in recent_decisions:
-        if 'decision' not in decision or 'btc_krw_price_at_decision' not in decision:
-            logger.warning(f"Invalid decision format: {decision}")
+        if 'decision' not in decision or 'btc_krw_price' not in decision:
+            logger.warning(f"Skipping decision due to missing key data: {decision}")
             continue
 
+        price_at_decision = decision['btc_krw_price']
         if decision['decision'] == 'buy':
-            if current_price > decision['btc_krw_price_at_decision']:
+            if current_price > price_at_decision:
                 correct_decisions += 1
-                profit_loss += (current_price - decision['btc_krw_price_at_decision']) / decision['btc_krw_price_at_decision']
+                profit_loss += (current_price - price_at_decision) / price_at_decision
             else:
-                profit_loss -= (decision['btc_krw_price_at_decision'] - current_price) / decision['btc_krw_price_at_decision']
+                profit_loss -= (price_at_decision - current_price) / price_at_decision
         elif decision['decision'] == 'sell':
-            if current_price < decision['btc_krw_price_at_decision']:
+            if current_price < price_at_decision:
                 correct_decisions += 1
-                profit_loss += (decision['btc_krw_price_at_decision'] - current_price) / decision['btc_krw_price_at_decision']
+                profit_loss += (price_at_decision - current_price) / price_at_decision
             else:
-                profit_loss -= (current_price - decision['btc_krw_price_at_decision']) / decision['btc_krw_price_at_decision']
-
-
+                profit_loss -= (current_price - price_at_decision) / price_at_decision
+        elif decision['decision'] == 'hold':
+            # HOLD 결정에 대한 평가 로직 추가
+            if abs(current_price - price_at_decision) / price_at_decision < 0.01:  # 1% 이내 변동을 성공으로 간주
+                correct_decisions += 1
 
     accuracy = correct_decisions / total_decisions if total_decisions > 0 else 0
     avg_profit_loss = profit_loss / total_decisions if total_decisions > 0 else 0
@@ -161,6 +164,10 @@ def analyze_data_with_gpt4(
     recent_decisions = get_recent_decisions(5)  # 최근 5개 결정 가져오기
     decision_evaluation = evaluate_decisions(recent_decisions, current_price)
 
+    # Twitter API 정보 제거
+    if 'twitter_api' in params:
+        del params['twitter_api']
+
     analysis_data = {
         "market_analysis": market_analysis,
         "decision_evaluation": decision_evaluation,
@@ -168,14 +175,14 @@ def analyze_data_with_gpt4(
         "current_params": params,
         "ml_prediction": ml_prediction,
         "rl_action": rl_action,
-        "backtest_summary": summarize_backtest_results(backtest_results)
+        "backtest_summary": backtest_results  # 직접 backtest_results 사용
     }
     # 데이터 전처리 및 JSON 직렬화
-    preprocessed_data = preprocess_data_for_json(analysis_data)
-    json_data = json.dumps(preprocessed_data, cls=NumpyEncoder, indent=2)
+    # preprocessed_data = preprocess_data_for_json(analysis_data)
+    # json_data = json.dumps(preprocessed_data, cls=NumpyEncoder, indent=2)
 
     # Discord로 요청 내용 전송
-    send_discord_message(f"GPT-4 Request Data:\n```json\n{json_data}\n```")
+    # send_discord_message(f"GPT-4 Request Data:\n```json\n{json_data}\n```")
 
     # instructions-v5.md 파일 읽기
     with open('instructions_v5.md', 'r') as file:
