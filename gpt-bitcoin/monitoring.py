@@ -1,7 +1,7 @@
-import time
-import pandas as pd
-from typing import Dict, Any
 import logging
+import time
+from typing import Dict, Any
+
 from discord_notifier import send_discord_message
 
 logger = logging.getLogger(__name__)

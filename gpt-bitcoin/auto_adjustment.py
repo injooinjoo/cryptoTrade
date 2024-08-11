@@ -1,5 +1,4 @@
 # auto_adjustment.py
-
 import logging
 from typing import Dict, List, Tuple, Any
 
@@ -15,11 +14,45 @@ logger = logging.getLogger(__name__)
 class AutoAdjustment:
     def __init__(self, initial_params: Dict[str, float]):
         self.params = initial_params
-        self.decision_threshold = 0.1  # 초기 임계값 설정
+        self.decision_threshold = 0.1
         if 'risk_factor' not in self.params:
-            self.params['risk_factor'] = 1.0  # 기본 리스크 팩터 추가
+            self.params['risk_factor'] = 1.0
         if 'stop_loss_factor' not in self.params:
-            self.params['stop_loss_factor'] = 0.02  # 기본 손절 팩터 추가
+            self.params['stop_loss_factor'] = 0.02
+        self.performance_history = []
+        self.param_history = []
+        self.adjustment_threshold = 0.05
+
+    def generate_initial_strategy(self, backtest_results, ml_accuracy) -> Dict[str, float]:
+        initial_strategy = {
+            'risk_factor': 1.0,
+            'stop_loss_factor': 0.02,
+            'take_profit_factor': 0.03,
+            'trade_frequency': 1.0
+        }
+
+        if 'sharpe_ratio' in backtest_results:
+            sharpe_ratio = backtest_results['sharpe_ratio']
+            if sharpe_ratio > 1.5:
+                initial_strategy['risk_factor'] *= 1.2
+                initial_strategy['trade_frequency'] *= 1.1
+            elif sharpe_ratio < 0.5:
+                initial_strategy['risk_factor'] *= 0.8
+                initial_strategy['trade_frequency'] *= 0.9
+
+        if 'max_drawdown' in backtest_results:
+            max_drawdown = backtest_results['max_drawdown']
+            if max_drawdown > 0.2:
+                initial_strategy['stop_loss_factor'] *= 1.2
+            elif max_drawdown < 0.1:
+                initial_strategy['stop_loss_factor'] *= 0.8
+
+        if ml_accuracy > 0.7:
+            initial_strategy['take_profit_factor'] *= 1.2
+        elif ml_accuracy < 0.5:
+            initial_strategy['take_profit_factor'] *= 0.8
+
+        return initial_strategy
 
     def update_performance(self, performance: float):
         self.performance_history.append(performance)
@@ -40,28 +73,6 @@ class AutoAdjustment:
                 self.params[key] = (self.params[key] + best_params[key]) / 2
 
         return self.params
-
-    def calculate_dynamic_target_change(self, data: pd.DataFrame, base_target: float = 0.01) -> float:
-        recent_data = data.tail(144)  # 최근 24시간 데이터 (10분 간격)
-
-        high_low = recent_data['high'] - recent_data['low']
-        high_close = np.abs(recent_data['high'] - recent_data['close'].shift())
-        low_close = np.abs(recent_data['low'] - recent_data['close'].shift())
-        ranges = pd.concat([high_low, high_close, low_close], axis=1)
-        true_range = np.max(ranges, axis=1)
-        atr = true_range.rolling(window=14).mean().iloc[-1]
-
-        volume_change = (recent_data['volume'].iloc[-1] / recent_data['volume'].mean()) - 1
-
-        volatility_weight = 0.7
-        volume_weight = 0.3
-
-        target_change = base_target * (1 + (atr * volatility_weight) + (volume_change * volume_weight))
-
-        max_target = 0.05  # 최대 5%
-        min_target = 0.001  # 최소 0.1%
-
-        return np.clip(target_change, min_target, max_target)
 
     def generate_final_decision(self, gpt4_advice, ml_prediction, rl_action, current_regime, backtest_results,
                                 dynamic_target, upbit_client, ml_accuracy):
@@ -202,69 +213,25 @@ class AutoAdjustment:
             if performance_metrics['max_drawdown'] > 0.2:
                 self.params['stop_loss_factor'] *= 1.1  # 최대 낙폭이 크면 손절 기준을 높임
 
-    def generate_initial_strategy(self, backtest_results: Dict[str, Any], ml_accuracy: float) -> Dict[str, float]:
-        """Generate an initial trading strategy based on backtest results and ML accuracy."""
-
-        # 기본적인 초기 파라미터 설정
-        initial_strategy = {
-            'risk_factor': 1.0,
-            'stop_loss_factor': 0.02,
-            'take_profit_factor': 0.03,
-            'trade_frequency': 1.0  # 기본 거래 빈도
-        }
-
-        # 백테스트 결과 기반 조정
-        if 'sharpe_ratio' in backtest_results:
-            sharpe_ratio = backtest_results['sharpe_ratio']
-            if sharpe_ratio > 1.5:
-                initial_strategy['risk_factor'] *= 1.2  # 샤프 비율이 높을수록 리스크 증가
-                initial_strategy['trade_frequency'] *= 1.1  # 샤프 비율이 높을수록 거래 빈도 증가
-            elif sharpe_ratio < 0.5:
-                initial_strategy['risk_factor'] *= 0.8  # 샤프 비율이 낮을수록 리스크 감소
-                initial_strategy['trade_frequency'] *= 0.9  # 샤프 비율이 낮을수록 거래 빈도 감소
-
-        if 'max_drawdown' in backtest_results:
-            max_drawdown = backtest_results['max_drawdown']
-            if max_drawdown > 0.2:
-                initial_strategy['stop_loss_factor'] *= 1.2  # 최대 낙폭이 클수록 손절 기준 강화
-            elif max_drawdown < 0.1:
-                initial_strategy['stop_loss_factor'] *= 0.8  # 최대 낙폭이 작을수록 손절 기준 완화
-
-        # ML 모델의 정확도 기반 조정
-        if ml_accuracy > 0.7:
-            initial_strategy['take_profit_factor'] *= 1.2  # 정확도가 높으면 이익 실현 목표 증가
-        elif ml_accuracy < 0.5:
-            initial_strategy['take_profit_factor'] *= 0.8  # 정확도가 낮으면 이익 실현 목표 감소
-
-        return initial_strategy
-
-    def adjust_strategy(self, backtest_results: Dict[str, Any], ml_accuracy: float, ml_performance: float) -> Dict[
-        str, float]:
-        """Adjust the trading strategy based on backtest results and ML performance."""
-
-        # 샤프 비율에 따른 리스크 팩터 조정
+    def adjust_strategy(self, backtest_results: Dict[str, Any], ml_accuracy: float, ml_performance: float) -> Dict[str, float]:
         sharpe_ratio = backtest_results.get('sharpe_ratio', 0)
         if sharpe_ratio > 1.5:
-            self.params['risk_factor'] *= 1.1  # 샤프 비율이 높으면 리스크를 높임
+            self.params['risk_factor'] *= 1.1
         elif sharpe_ratio < 0.5:
-            self.params['risk_factor'] *= 0.9  # 샤프 비율이 낮으면 리스크를 줄임
+            self.params['risk_factor'] *= 0.9
 
-        # 최대 낙폭에 따른 손절 기준 조정
         max_drawdown = backtest_results.get('max_drawdown', 0)
         if max_drawdown > 0.2:
-            self.params['stop_loss_factor'] *= 1.1  # 최대 낙폭이 크면 손절 기준을 높임
+            self.params['stop_loss_factor'] *= 1.1
         elif max_drawdown < 0.1:
-            self.params['stop_loss_factor'] *= 0.9  # 최대 낙폭이 작으면 손절 기준을 낮춤
+            self.params['stop_loss_factor'] *= 0.9
 
-        # 머신러닝 모델의 정확도에 따른 조정
         if ml_accuracy > 0.7:
-            self.params['risk_factor'] *= 1.1  # 모델의 정확도가 높으면 리스크를 높임
+            self.params['risk_factor'] *= 1.1
         elif ml_accuracy < 0.5:
-            self.params['risk_factor'] *= 0.9  # 모델의 정확도가 낮으면 리스크를 줄임
+            self.params['risk_factor'] *= 0.9
 
-        # 전략을 반환
         return self.params
-
 
 
 class AnomalyDetector:
@@ -353,10 +320,9 @@ class DynamicTradingFrequencyAdjuster:
         self.volatility_threshold = 0.02
 
     def adjust_threshold(self, market_volatility: float):
-        """Adjust decision threshold based on market volatility."""
-        if market_volatility > self.volatility_threshold:  # High volatility
+        if market_volatility > self.volatility_threshold:
             self.decision_threshold = min(self.decision_threshold + self.adjustment_factor, self.max_threshold)
-        elif market_volatility < self.volatility_threshold / 2:  # Low volatility
+        elif market_volatility < self.volatility_threshold / 2:
             self.decision_threshold = max(self.decision_threshold - self.adjustment_factor, self.min_threshold)
 
     def should_trade(self, weighted_decision: float, market_regime: str) -> bool:
@@ -368,19 +334,16 @@ class DynamicTradingFrequencyAdjuster:
             return abs(weighted_decision) > self.decision_threshold
 
     def update_recent_decisions(self, decision: str):
-        """Keep track of recent decisions to analyze trading frequency."""
         self.recent_decisions.append(decision)
         if len(self.recent_decisions) > 20:  # Keep only last 20 decisions
             self.recent_decisions.pop(0)
 
     def get_trading_frequency(self) -> float:
-        """Calculate the current trading frequency."""
         if not self.recent_decisions:
             return 0
         return sum(1 for d in self.recent_decisions if d != 'hold') / len(self.recent_decisions)
 
     def get_volatility_adjusted_position_size(self, base_position_size: float, market_volatility: float) -> float:
-        """Adjust position size based on market volatility."""
         if market_volatility > self.volatility_threshold:
             return max(base_position_size * 0.8, 1.0)  # 최소 1% 유지
         elif market_volatility < self.volatility_threshold / 2:
@@ -389,7 +352,6 @@ class DynamicTradingFrequencyAdjuster:
             return base_position_size
 
     def get_volatility_adjusted_stop_loss(self, base_stop_loss: float, market_volatility: float) -> float:
-        """Adjust stop loss level based on market volatility."""
         if market_volatility > self.volatility_threshold:
             return base_stop_loss * 1.2  # Widen stop loss range in high volatility
         elif market_volatility < self.volatility_threshold / 2:

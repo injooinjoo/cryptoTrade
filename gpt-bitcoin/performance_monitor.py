@@ -1,11 +1,12 @@
+import os
+from datetime import datetime
 from typing import Dict, Any, Tuple
-
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import json
-from datetime import datetime
-import os
+import logging
 
+logger = logging.getLogger(__name__)
 
 class PerformanceMonitor:
     def __init__(self, file_path='performance_data.csv'):
@@ -34,10 +35,7 @@ class PerformanceMonitor:
             'ml_loss': ml_loss
         }])
 
-        # 모든 값이 NA인 열 제거
         new_record_cleaned = new_record.dropna(axis=1, how='all')
-
-        # NA 열이 제거된 DataFrame을 사용하여 기존 데이터와 결합
         self.data = pd.concat([self.data, new_record_cleaned], ignore_index=True)
         self.total_trades += 1
         self.save_to_file()
@@ -50,7 +48,7 @@ class PerformanceMonitor:
             return pd.read_csv(self.file_path)
         return pd.DataFrame()
 
-    def get_performance_comparison(self) -> Dict[str, float]:
+    def get_performance_comparison(self) -> dict:
         if self.data.empty or self.initial_btc_price is None or self.initial_balance is None:
             return {"error": "Not enough data for comparison"}
 
@@ -66,17 +64,6 @@ class PerformanceMonitor:
             "outperformance": trading_return - hodl_return
         }
 
-    def get_cumulative_summary(self) -> Dict[str, Any]:
-        if self.data.empty:
-            return {"error": "No data available for cumulative summary."}
-
-        summary = self._calculate_summary(self.data)
-        summary['total_trades'] = self.total_trades
-        summary['successful_trades'] = len(self.data[self.data['decision'] != 'hold'])
-        summary['success_rate'] = (summary['successful_trades'] / summary['total_trades'] * 100) if summary['total_trades'] > 0 else 0
-
-        return summary
-
     def get_performance_summary(self) -> str:
         df = self.load_data()
         if df.empty:
@@ -84,32 +71,96 @@ class PerformanceMonitor:
 
         recent_df = df.tail(60)  # 최근 10시간의 데이터 (10분 * 60 = 10시간)
 
-        summary = self._calculate_summary(recent_df)
-        summary['avg_ml_accuracy'] = recent_df['ml_accuracy'].mean()
-        summary['avg_ml_loss'] = recent_df['ml_loss'].mean()
+        # 수익률 계산
+        initial_balance = recent_df['balance'].iloc[0] + recent_df['btc_amount'].iloc[0] * \
+                          recent_df['current_price'].iloc[0]
+        final_balance = recent_df['balance'].iloc[-1] + recent_df['btc_amount'].iloc[-1] * \
+                        recent_df['current_price'].iloc[-1]
+        trading_return = ((final_balance - initial_balance) / initial_balance) * 100
 
-        # 최근 거래의 수익률 계산
-        if len(recent_df) > 1:
-            start_balance = recent_df.iloc[0]['balance'] + recent_df.iloc[0]['btc_amount'] * recent_df.iloc[0][
-                'current_price']
-            end_balance = recent_df.iloc[-1]['balance'] + recent_df.iloc[-1]['btc_amount'] * recent_df.iloc[-1][
-                'current_price']
-            summary['recent_return'] = (end_balance - start_balance) / start_balance * 100
-        else:
-            summary['recent_return'] = 0
+        # HODL 수익률 계산
+        hodl_return = ((recent_df['current_price'].iloc[-1] - recent_df['current_price'].iloc[0]) /
+                       recent_df['current_price'].iloc[0]) * 100
 
-        return "\n".join([f"{k}: {v:.2f}" if isinstance(v, float) else f"{k}: {v}" for k, v in summary.items()])
+        # 거래 횟수 및 성공률 계산
+        buy_trades = recent_df[recent_df['decision'] == 'buy']
+        sell_trades = recent_df[recent_df['decision'] == 'sell']
+        hold_with_btc = recent_df[(recent_df['decision'] == 'hold') & (recent_df['btc_amount'] > 0)]
+        hold_without_btc = recent_df[(recent_df['decision'] == 'hold') & (recent_df['btc_amount'] == 0)]
+
+        successful_buys = buy_trades[buy_trades['current_price'] < buy_trades['current_price'].shift(-1)]
+        successful_sells = sell_trades[sell_trades['current_price'] > sell_trades['current_price'].shift(-1)]
+        successful_holds_with_btc = hold_with_btc[
+            hold_with_btc['current_price'] < hold_with_btc['current_price'].shift(-1)]
+        successful_holds_without_btc = hold_without_btc[
+            hold_without_btc['current_price'] > hold_without_btc['current_price'].shift(-1)]
+
+        total_trades = len(buy_trades) + len(sell_trades) + len(hold_with_btc) + len(hold_without_btc)
+        successful_trades = len(successful_buys) + len(successful_sells) + len(successful_holds_with_btc) + len(
+            successful_holds_without_btc)
+        success_rate = (successful_trades / total_trades * 100) if total_trades > 0 else 0
+
+        # 최근 판단 리뷰
+        last_decision = recent_df['decision'].iloc[-1]
+        last_price = recent_df['current_price'].iloc[-2]
+        current_price = recent_df['current_price'].iloc[-1]
+        last_decision_correct = (
+                (last_decision == 'buy' and current_price > last_price) or
+                (last_decision == 'sell' and current_price < last_price) or
+                (last_decision == 'hold' and recent_df['btc_amount'].iloc[-1] > 0 and current_price > last_price) or
+                (last_decision == 'hold' and recent_df['btc_amount'].iloc[-1] == 0 and current_price < last_price)
+        )
+
+        avg_trade_size = recent_df['percentage'].mean()
+        price_change = ((recent_df['current_price'].iloc[-1] / recent_df['current_price'].iloc[0]) - 1) * 100
+        balance_change = trading_return
+
+        return f"""
+        📊 트레이딩 성과 비교 (최근 10시간)
+        ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        📈 트레이딩 수익률: {trading_return:.2f}% | 📉 HODL 수익률: {hodl_return:.2f}% | 🔄 초과 성과: {trading_return - hodl_return:.2f}%
+
+        💹 누적 트레이딩 성과:
+        ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        🔢 총 거래 횟수: {total_trades}회
+          • 🛒 매수: {len(buy_trades)}회 (성공: {len(successful_buys)}회)
+          • 💰 매도: {len(sell_trades)}회 (성공: {len(successful_sells)}회)
+          • 💼 BTC 보유 홀딩: {len(hold_with_btc)}회 (성공: {len(successful_holds_with_btc)}회)
+          • 🕰️ BTC 미보유 홀딩: {len(hold_without_btc)}회 (성공: {len(successful_holds_without_btc)}회)
+        📊 평균 거래 규모: 총 자산의 {avg_trade_size:.2f}% 사용
+        📉 BTC 가격 변동: {price_change:.2f}% 
+           (시작 가격: {recent_df['current_price'].iloc[0]:,.0f} KRW, 현재 가격: {recent_df['current_price'].iloc[-1]:,.0f} KRW)
+        💸 총 자산 변동: {balance_change:.2f}% 
+           (시작 자산: {initial_balance:,.0f} KRW, 현재 자산: {final_balance:,.0f} KRW)
+        ✅ 전체 거래 성공률: {success_rate:.2f}% (총 {total_trades}회 중 {successful_trades}회 성공)
+
+        🔍 최근 판단 리뷰:
+        ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        🤔 마지막 결정: {last_decision}
+        📊 결과: {"성공" if last_decision_correct else "실패"}
+        💡 개선점: {"없음" if last_decision_correct else "판단 기준 재검토 필요"}
+
+        📊 현재 시장 상태:
+        ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        💰 현재 BTC 가격: {current_price:,.0f} KRW
+        💼 현재 총 자산: {final_balance:,.0f} KRW
+        🏦 보유 BTC: {recent_df['btc_amount'].iloc[-1]:.8f} BTC
+
+        🕒 마지막 업데이트: {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')}
+        """
 
     def _calculate_summary(self, df: pd.DataFrame) -> Dict[str, Any]:
         return {
+            'total_trades': len(df),
             'buy_trades': len(df[df['decision'] == 'buy']),
             'sell_trades': len(df[df['decision'] == 'sell']),
             'hold_decisions': len(df[df['decision'] == 'hold']),
-            'avg_trade_size': df['percentage'].mean(),
+            'average_trade_size': df['percentage'].mean(),
             'price_change': (df['current_price'].iloc[-1] - df['current_price'].iloc[0]) /
                             df['current_price'].iloc[0] * 100 if len(df) > 1 else 0,
             'balance_change': (df['balance'].iloc[-1] - df['balance'].iloc[0]) /
                               df['balance'].iloc[0] * 100 if len(df) > 1 else 0,
+            'win_rate': (df['balance'].diff() > 0).mean() * 100
         }
 
     def get_detailed_analysis(self) -> Dict[str, Any]:
@@ -197,19 +248,27 @@ class PerformanceMonitor:
             "average_return": self.data['balance'].pct_change().mean() * 100,
             "sharpe_ratio": self.calculate_sharpe_ratio(),
             "max_drawdown": self.calculate_max_drawdown(),
-            "profit_loss_ratio": self.calculate_profit_loss_ratio()
+            "profit_loss_ratio": self.calculate_profit_loss_ratio(),
+            "ml_accuracy": self.data['ml_accuracy'].iloc[-1] if 'ml_accuracy' in self.data.columns else 0,
+            "ml_loss": self.data['ml_loss'].iloc[-1] if 'ml_loss' in self.data.columns else 0,
         }
         return metrics
 
-    def calculate_sharpe_ratio(self) -> float:
+    def calculate_sharpe_ratio(self):
+        if self.data.empty:
+            return 0
         returns = self.data['balance'].pct_change().dropna()
-        return (returns.mean() / returns.std()) * np.sqrt(252)  # 연간화된 샤프 비율
+        if returns.empty:
+            return 0
+        return (returns.mean() / returns.std()) * np.sqrt(252)
 
-    def calculate_max_drawdown(self) -> float:
-        balance = self.data['balance']
-        peak = balance.cummax()
-        drawdown = (peak - balance) / peak
-        return drawdown.max()
+    def calculate_max_drawdown(self):
+        if self.data.empty:
+            return 0
+        cumulative_returns = (1 + self.data['balance'].pct_change().fillna(0)).cumprod()
+        peak = cumulative_returns.expanding(min_periods=1).max()
+        drawdown = (cumulative_returns / peak) - 1
+        return drawdown.min()
 
     def calculate_win_rate(self) -> float:
         profitable_trades = sum(self.data['balance'].diff() > 0)
@@ -219,3 +278,104 @@ class PerformanceMonitor:
         profits = self.data['balance'].diff()[self.data['balance'].diff() > 0].mean()
         losses = abs(self.data['balance'].diff()[self.data['balance'].diff() < 0].mean())
         return profits / losses if losses != 0 else 0
+
+    def count_trades(self):
+        return len(self.data[self.data['decision'] != 'hold'])
+
+    def calculate_success_rate(self):
+        trades = self.data[self.data['decision'] != 'hold']
+        successful_trades = trades[trades['balance'].diff() > 0]
+        return len(successful_trades) / len(trades) if len(trades) > 0 else 0
+
+    def calculate_cumulative_return(self):
+        initial_balance = self.data['balance'].iloc[0]
+        final_balance = self.data['balance'].iloc[-1]
+        return (final_balance - initial_balance) / initial_balance * 100
+
+    def calculate_gpt4_agreement_rate(self):
+        gpt4_decisions = self.data['gpt4_decision']
+        actual_movements = (self.data['close'].shift(-1) > self.data['close']).astype(int)
+        agreement = (gpt4_decisions == actual_movements)
+        return agreement.mean()
+
+    def plot_performance(self):
+        plt.figure(figsize=(12, 8))
+        plt.plot(self.data.index, self.data['balance'])
+        plt.title('Balance Over Time')
+        plt.xlabel('Date')
+        plt.ylabel('Balance')
+        plt.savefig('performance_chart.png')
+
+    def update_ml_metrics(self, accuracy, loss):
+        self.ml_accuracy = accuracy
+        self.ml_loss = loss
+
+    def update_rl_metrics(self, epsilon, avg_reward):
+        self.rl_epsilon = epsilon
+        self.rl_avg_reward = avg_reward
+
+    def update_gpt4_agreement_rate(self, rate):
+        self.gpt4_agreement_rate = rate
+
+    def update_xgboost_metrics(self, accuracy, loss=None):
+        self.xgboost_accuracy = accuracy
+        if loss is not None:
+            self.xgboost_loss = loss
+
+    def generate_detailed_report(self):
+        if self.data.empty:
+            return "No data available for report generation."
+
+        try:
+            initial_balance = self.data['balance'].iloc[0]
+            final_balance = self.data['balance'].iloc[-1]
+            cumulative_return = (final_balance - initial_balance) / initial_balance * 100
+
+            trades = self.data[self.data['decision'] != 'hold']
+            total_trades = len(trades)
+            successful_trades = len(trades[trades['balance'].diff() > 0])
+            success_rate = (successful_trades / total_trades * 100) if total_trades > 0 else 0
+
+            sharpe_ratio = self.calculate_sharpe_ratio()
+            max_drawdown = self.calculate_max_drawdown() * 100
+
+            start_price = self.data['close'].iloc[0]
+            end_price = self.data['close'].iloc[-1]
+            hodl_return = (end_price - start_price) / start_price * 100
+
+            report = f"""
+    트레이딩 성과 비교
+    트레이딩 수익률: {cumulative_return:.2f}% | HODL 수익률: {hodl_return:.2f}% | 초과 성과: {cumulative_return - hodl_return:.2f}%
+
+    상세 학습 진행 보고서
+    머신러닝 모델: 정확도: {self.ml_accuracy:.2f}% | 손실: {self.ml_loss:.2f}%
+    강화학습 에이전트: 엡실론: {self.rl_epsilon:.4f} | 평균 보상: {self.rl_avg_reward:.2f}
+    GPT-4 일치율: {self.gpt4_agreement_rate:.2f}%
+
+    누적 트레이딩 성과:
+    - 총 거래 횟수: {total_trades}회
+      • 매수 거래: {len(trades[trades['decision'] == 'buy'])}회
+      • 매도 거래: {len(trades[trades['decision'] == 'sell'])}회
+      • 홀딩 결정: {len(self.data) - total_trades}회
+    - 평균 거래 규모: {trades['percentage'].mean() if 'percentage' in trades.columns else 0:.2f}%
+    - 가격 변동: {((end_price / start_price) - 1) * 100:.2f}%
+    - 잔고 변동: {cumulative_return:.2f}%
+    - 성공률: {success_rate:.2f}%
+
+    리스크 및 수익성 지표:
+    - 샤프 비율: {sharpe_ratio:.2f}
+    - 최대 낙폭 (MDD): {abs(max_drawdown):.2f}%
+
+    현재 시장 상태:
+    - 현재 가격: {end_price:,.0f} KRW
+    - 현재 잔고: {final_balance:,.0f} KRW
+    - 보유 BTC: {self.data['btc_amount'].iloc[-1] if 'btc_amount' in self.data.columns else 0:.8f} BTC
+
+    마지막 업데이트: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+            """
+
+            return report
+
+        except Exception as e:
+            return f"Error generating report: {str(e)}"
+

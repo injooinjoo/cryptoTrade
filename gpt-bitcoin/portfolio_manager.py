@@ -57,17 +57,3 @@ class PortfolioManager:
 
         return {ticker: weight for ticker, weight in zip(self.tickers, best_weights)}
 
-    def rebalance_portfolio(self):
-        """Rebalance the portfolio based on historical data and optimized weights."""
-        historical_data = self.get_historical_data()
-        correlation = self.calculate_correlation(historical_data)
-        logger.info(f"Asset correlation:\n{correlation}")
-
-        optimized_weights = self.optimize_weights(historical_data)
-        logger.info(f"Optimized weights: {optimized_weights}")
-
-        self.weights = optimized_weights
-
-    def get_investment_recommendation(self, available_balance: float) -> Dict[str, float]:
-        """Generate an investment recommendation based on the available balance and current weights."""
-        return {ticker: available_balance * weight for ticker, weight in self.weights.items()}

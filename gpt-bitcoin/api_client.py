@@ -1,11 +1,9 @@
-import time
-from threading import Thread
+import logging
+from datetime import datetime, timedelta
 
+import pandas as pd
 import pyupbit
 from openai import OpenAI
-import logging
-import pandas as pd
-from datetime import datetime, timedelta
 
 logger = logging.getLogger(__name__)
 
@@ -23,18 +21,13 @@ class UpbitClient:
     def get_current_price(self, ticker: str) -> float:
         return pyupbit.get_current_price(ticker)
 
-    def get_ohlcv(self, ticker: str, interval: str, count: int) -> pd.DataFrame:
+    def get_ohlcv(self, ticker: str, interval: str, count: int, to=None):
         try:
-            if interval == 'week':
-                logger.info(f"Fetching weekly data for {ticker}")
-                df = self.get_daily_ohlcv(ticker, count * 7)
-                return self.resample_to_weekly(df)
+            if to:
+                df = pyupbit.get_ohlcv(ticker, interval=interval, to=to, count=count)
             else:
-                logger.info(f"Fetching {interval} data for {ticker}")
                 df = pyupbit.get_ohlcv(ticker, interval=interval, count=count)
-                if df is None or df.empty:
-                    logger.warning(f"Retrieved empty dataframe for {ticker} with interval {interval}")
-                return df
+            return df
         except Exception as e:
             logger.error(f"Error in get_ohlcv for {ticker} with interval {interval}: {e}")
             return pd.DataFrame()
@@ -134,12 +127,41 @@ class UpbitClient:
             logger.error(f"Error fetching orderbook for {ticker}: {e}", exc_info=True)
             return None
 
+    def calculate_hodl_return(self, start_time, end_time):
+        start_price = self.get_historical_price("KRW-BTC", start_time)
+        end_price = self.get_historical_price("KRW-BTC", end_time)
+        return (end_price - start_price) / start_price * 100
+
+    def get_historical_price(self, ticker, timestamp):
+        """
+        특정 시점의 가격을 가져오는 함수
+
+        :param ticker: 코인 티커 (예: "KRW-BTC")
+        :param timestamp: Unix timestamp (초 단위)
+        :return: 해당 시점의 종가
+        """
+        try:
+            # timestamp를 datetime 객체로 변환
+            date_time = datetime.fromtimestamp(timestamp)
+
+            # 해당 날짜의 일봉 데이터 조회
+            df = pyupbit.get_ohlcv(ticker, interval="day", to=date_time + timedelta(days=1), count=1)
+
+            if df is not None and not df.empty:
+                return df['close'].iloc[0]
+            else:
+                logger.warning(f"No data found for {ticker} at {date_time}")
+                return None
+        except Exception as e:
+            logger.error(f"Error getting historical price for {ticker} at {timestamp}: {e}")
+            return None
+
 
 class OpenAIClient:
     def __init__(self, api_key: str):
         self.client = OpenAI(api_key=api_key)
 
-    def chat_completion(self, model: str, messages: list, max_tokens: int, response_format: str):
+    def chat_completion(self, model: str, messages: list, max_tokens: int, response_format):
         try:
             return self.client.chat.completions.create(
                 model=model,
@@ -150,82 +172,6 @@ class OpenAIClient:
         except Exception as e:
             logger.error(f"Error in OpenAI API call: {e}")
             raise
-
-
-class OrderManager:
-    def __init__(self, upbit_client, position_manager):
-        self.upbit_client = upbit_client
-        self.position_manager = position_manager
-        self.active_orders = {}
-        self.monitoring_thread = None
-
-    def add_order(self, order_id, order_type, price, stop_loss, take_profit):
-        self.active_orders[order_id] = {
-            'type': order_type,
-            'price': price,
-            'stop_loss': stop_loss,
-            'take_profit': take_profit
-        }
-        self._set_stop_loss_take_profit(stop_loss, take_profit)
-
-    def remove_order(self, order_id):
-        if order_id in self.active_orders:
-            del self.active_orders[order_id]
-
-    def _set_stop_loss_take_profit(self, stop_loss, take_profit):
-        position = self.position_manager.get_position()
-        if position['amount'] > 0:
-            try:
-                # 기존 스탑로스, 익절 주문 취소
-                self.upbit_client.cancel_existing_orders()
-
-                # 새로운 스탑로스, 익절 주문 설정
-                self.upbit_client.sell_limit_order("KRW-BTC", stop_loss, position['amount'])
-                self.upbit_client.sell_limit_order("KRW-BTC", take_profit, position['amount'])
-                logger.info(f"Set new stop loss at {stop_loss} and take profit at {take_profit}")
-            except Exception as e:
-                logger.error(f"Error setting stop loss and take profit: {e}")
-
-    def start_monitoring(self):
-        if self.monitoring_thread is None or not self.monitoring_thread.is_alive():
-            self.monitoring_thread = Thread(target=self._monitor_orders)
-            self.monitoring_thread.start()
-
-    def _monitor_orders(self):
-        while True:
-            try:
-                current_price = self.upbit_client.get_current_price("KRW-BTC")
-                position = self.position_manager.get_position()
-
-                if position['amount'] > 0:
-                    for order_id, order in list(self.active_orders.items()):
-                        if current_price <= order['stop_loss']:
-                            self._execute_sell(order_id, current_price, position['amount'], "Stop Loss")
-                        elif current_price >= order['take_profit']:
-                            self._execute_sell(order_id, current_price, position['amount'], "Take Profit")
-
-                time.sleep(10)  # Check every 10 seconds
-            except Exception as e:
-                logger.error(f"Error in order monitoring: {e}")
-
-    def _execute_sell(self, order_id, current_price, amount, reason):
-        try:
-            logger.info(f"Executing sell for order {order_id} at price {current_price} due to {reason}")
-            result = self.upbit_client.sell_market_order("KRW-BTC", amount)
-            if result:
-                logger.info(f"Sell order executed successfully: {result}")
-                self.remove_order(order_id)
-                self.position_manager.update_position()
-            else:
-                logger.warning(f"Sell order execution failed for order {order_id}")
-        except Exception as e:
-            logger.error(f"Error executing sell for order {order_id}: {e}")
-
-    def update_stop_loss_take_profit(self, stop_loss, take_profit):
-        self._set_stop_loss_take_profit(stop_loss, take_profit)
-
-    def get_active_orders(self):
-        return self.active_orders
 
 
 class PositionManager:
@@ -257,7 +203,9 @@ class PositionManager:
 
     def calculate_profit_loss(self):
         position = self.get_position()
-        if position['amount'] > 0 and position['avg_price'] > 0:
-            profit_loss = ((position['current_price'] - position['avg_price']) / position['avg_price']) * 100
-            return profit_loss
+        if position['btc_balance'] > 0 and position['btc_current_price'] > 0:
+            avg_buy_price = self.upbit_client.get_avg_buy_price("BTC")
+            if avg_buy_price > 0:
+                profit_loss = ((position['btc_current_price'] - avg_buy_price) / avg_buy_price) * 100
+                return profit_loss
         return 0

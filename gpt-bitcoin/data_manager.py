@@ -1,342 +1,412 @@
 import logging
 import sqlite3
 import time
-
-import pandas as pd
-import pandas_ta as ta
-import numpy as np
-import requests
-import tweepy
-from textblob import TextBlob
-from typing import Dict, Any, Tuple
 from datetime import datetime, timedelta
-from config import load_config
+from typing import Dict, Any, List, Tuple
+
+import numpy as np
+import pandas_ta as ta
+import pandas as pd
+from numpy import dtype
 
 logger = logging.getLogger(__name__)
-config = load_config()
-
-DB_PATH = 'trading_decisions.sqlite'
 
 
 class DataManager:
-    def __init__(self, upbit_client=None, twitter_api_key=None, twitter_api_secret=None,
-                 twitter_access_token=None, twitter_access_token_secret=None):
+    def __init__(self, upbit_client, db_path='crypto_data.db'):
         self.upbit_client = upbit_client
-        self.twitter_api_key = twitter_api_key
-        self.twitter_api_secret = twitter_api_secret
-        self.twitter_access_token = twitter_access_token
-        self.twitter_access_token_secret = twitter_access_token_secret
-        self.twitter_api = None  # Twitter API 객체를 나중에 초기화
+        self.db_path = db_path
+        self.conn = sqlite3.connect(db_path)
+        self.create_tables()
 
-    def initialize_twitter_api(self):
-        if all([self.twitter_api_key, self.twitter_api_secret,
-                self.twitter_access_token, self.twitter_access_token_secret]):
-            auth = tweepy.OAuthHandler(self.twitter_api_key, self.twitter_api_secret)
-            auth.set_access_token(self.twitter_access_token, self.twitter_access_token_secret)
-            self.twitter_api = tweepy.API(auth)
-
-    @classmethod
-    def initialize_db(cls):
-        with sqlite3.connect(DB_PATH) as conn:
-            cursor = conn.cursor()
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS decisions (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    timestamp DATETIME,
-                    decision TEXT,
-                    percentage REAL,
-                    target_price REAL,
-                    btc_balance REAL,
-                    krw_balance REAL,
-                    btc_avg_buy_price REAL,
-                    btc_krw_price REAL,
-                    accuracy REAL
-                );
+    def create_tables(self):
+        with self.conn:
+            self.conn.execute('''
+                CREATE TABLE IF NOT EXISTS ohlcv_data (
+                    date TEXT PRIMARY KEY,
+                    open REAL,
+                    high REAL,
+                    low REAL,
+                    close REAL,
+                    volume REAL,
+                    value REAL
+                )
             ''')
-            conn.commit()
-        logger.info("Database initialized successfully.")
 
-    def log_decision(self, decision: dict) -> None:
-        with sqlite3.connect(DB_PATH) as conn:
-            cursor = conn.cursor()
+    def recreate_technical_indicators_table(self):
+        with self.conn:
+            self.conn.execute("DROP TABLE IF EXISTS technical_indicators")
+            logger.info("Dropped existing technical_indicators table if it existed.")
+
+            self.conn.execute('''
+                CREATE TABLE technical_indicators (
+                    timestamp INTEGER PRIMARY KEY,
+                    sma REAL,
+                    ema REAL,
+                    rsi REAL,
+                    macd REAL,
+                    signal_line REAL,
+                    BB_Upper REAL,  -- 이 부분을 수정
+                    BB_Lower REAL   -- 이 부분을 수정
+                )
+            ''')
+            logger.info("Recreated technical_indicators table with the correct schema.")
+
+            # Log the schema to confirm it was created correctly
+            cursor = self.conn.cursor()
+            cursor.execute("PRAGMA table_info(technical_indicators)")
+            columns = [info[1] for info in cursor.fetchall()]
+            logger.info(f"Columns after table creation: {columns}")
+
+    def add_missing_columns(self):
+        cursor = self.conn.cursor()
+
+        cursor.execute("PRAGMA table_info(technical_indicators)")
+        columns = [info[1] for info in cursor.fetchall()]
+
+        logger.info(f"현재 technical_indicators 테이블의 열 목록: {columns}")
+
+        if 'BB_Upper' not in columns:
             try:
-                cursor.execute('''
-                    INSERT INTO decisions (timestamp, decision, percentage, target_price, btc_balance, krw_balance, btc_avg_buy_price, btc_krw_price, accuracy)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ''', (
-                    datetime.now(),
-                    decision['decision'],
-                    decision['percentage'],
-                    decision.get('target_price'),
-                    self.upbit_client.get_balance("BTC"),
-                    self.upbit_client.get_balance("KRW"),
-                    self.upbit_client.get_avg_buy_price("BTC"),
-                    self.upbit_client.get_current_price("KRW-BTC"),
-                    None  # Accuracy will be updated later
-                ))
+                cursor.execute("ALTER TABLE technical_indicators ADD COLUMN BB_Upper REAL")
+                logger.info("BB_Upper 열이 technical_indicators 테이블에 추가되었습니다.")
             except sqlite3.OperationalError as e:
-                logger.error(f"Error logging decision: {e}")
-                raise
-            conn.commit()
-        logger.info("Decision logged to database.")
+                logger.error(f"BB_Upper 열 추가 중 오류 발생: {e}")
 
-    def get_previous_decision(self) -> dict:
-        with sqlite3.connect(DB_PATH) as conn:
-            conn.row_factory = sqlite3.Row
-            cursor = conn.cursor()
-            cursor.execute('''
-                SELECT * FROM decisions
-                ORDER BY timestamp DESC
-                LIMIT 1
-            ''')
-            row = cursor.fetchone()
-            if row:
-                result = dict(row)
-                logger.debug(f"Previous decision: {result}")
-                return result
-            logger.debug("No previous decision found")
-            return None
-
-    def update_decision_accuracy(self, decision_id: int, accuracy: float) -> None:
-        with sqlite3.connect(DB_PATH) as conn:
-            cursor = conn.cursor()
-            cursor.execute('''
-                UPDATE decisions
-                SET accuracy = ?
-                WHERE id = ?
-            ''', (accuracy, decision_id))
-            conn.commit()
-        logger.info(f"Updated accuracy for decision {decision_id}: {accuracy}")
-
-    def get_average_accuracy(self, days: int = 7) -> float:
-        with sqlite3.connect(DB_PATH) as conn:
-            cursor = conn.cursor()
-            cursor.execute('''
-                SELECT AVG(accuracy)
-                FROM decisions
-                WHERE timestamp >= ? AND accuracy IS NOT NULL
-            ''', (datetime.now() - timedelta(days=days),))
-            return cursor.fetchone()[0] or 0.0
-
-    def get_recent_decisions(self, days: int = 7) -> list:
-        with sqlite3.connect(DB_PATH) as conn:
-            conn.row_factory = sqlite3.Row
-            cursor = conn.cursor()
-            cursor.execute('''
-                SELECT id, timestamp, decision, percentage, 
-                       COALESCE(target_price, btc_krw_price) as target_price, 
-                       btc_balance, krw_balance, btc_avg_buy_price, btc_krw_price, accuracy
-                FROM decisions
-                WHERE timestamp >= ?
-                ORDER BY timestamp DESC
-            ''', (datetime.now() - timedelta(days=days),))
-            rows = cursor.fetchall()
-            decisions = [dict(row) for row in rows]
-            logger.debug(f"Recent decisions: {decisions}")
-            return decisions
-
-    def get_accuracy_over_time(self) -> dict:
-        periods = [1, 7, 30]  # days
-        accuracies = {}
-        with sqlite3.connect(DB_PATH) as conn:
-            cursor = conn.cursor()
-            for period in periods:
-                cursor.execute('''
-                    SELECT AVG(accuracy)
-                    FROM decisions
-                    WHERE timestamp >= ? AND accuracy IS NOT NULL
-                ''', (datetime.now() - timedelta(days=period),))
-                accuracies[f'{period}_day'] = cursor.fetchone()[0] or 0.0
-        return accuracies
-
-    def add_indicators(self, df: pd.DataFrame) -> pd.DataFrame:
-        try:
-            if df is None or df.empty:
-                logger.warning("Empty or None dataframe provided to add_indicators")
-                return pd.DataFrame()
-
-            required_columns = ['open', 'high', 'low', 'close', 'volume']
-            if not all(col in df.columns for col in required_columns):
-                missing_columns = [col for col in required_columns if col not in df.columns]
-                logger.warning(f"Missing columns in dataframe: {missing_columns}")
-                return df
-
-            df = df.dropna()
-
-            data_points = len(df)
-            sma_period = min(60, max(5, data_points // 3))
-            rsi_period = min(14, max(2, data_points // 10))
-            bb_period = min(20, max(5, data_points // 5))
-            atr_period = min(14, max(2, data_points // 10))
-
-            df['SMA'] = ta.sma(df['close'], length=sma_period)
-            df['EMA'] = ta.ema(df['close'], length=sma_period)
-            df['RSI'] = ta.rsi(df['close'], length=rsi_period)
-
-            bollinger = ta.bbands(df['close'], length=bb_period)
-            if bollinger is not None and isinstance(bollinger, pd.DataFrame):
-                df['BB_Upper'] = bollinger[f'BBU_{bb_period}_2.0']
-                df['BB_Middle'] = bollinger[f'BBM_{bb_period}_2.0']
-                df['BB_Lower'] = bollinger[f'BBL_{bb_period}_2.0']
-            else:
-                logger.warning("Bollinger Bands calculation failed")
-                df['BB_Upper'] = df['close'] * 1.02
-                df['BB_Middle'] = df['close']
-                df['BB_Lower'] = df['close'] * 0.98
-
-            df['ATR'] = ta.atr(df['high'], df['low'], df['close'], length=atr_period)
-
-            df = df.dropna()
-
-            logger.info(f"Indicators added successfully. Dataframe shape: {df.shape}")
-            logger.info(f"Dataframe columns: {df.columns.tolist()}")
-            return df
-        except Exception as e:
-            logger.error(f"Error in add_indicators: {e}")
-            logger.exception("Traceback:")
-            return df
-
-    def safe_fetch_multi_timeframe_data(self, ticker="KRW-BTC") -> Dict[str, pd.DataFrame]:
-        timeframes = {
-            'short': {'interval': 'minute10', 'count': 1440},  # 10분 간격으로 10일치 (144 * 10)
-            'medium': {'interval': 'day', 'count': 90},
-            'long': {'interval': 'week', 'count': 52}
-        }
-
-        data = {}
-        for tf, params in timeframes.items():
+        if 'BB_Lower' not in columns:
             try:
-                logger.info(f"Fetching {tf} timeframe data")
-                df = self.upbit_client.get_ohlcv(ticker, interval=params['interval'], count=params['count'])
-                if df is not None and not df.empty:
-                    df = self.add_indicators(df)
-                    data[tf] = df
-                    logger.info(f"Successfully fetched and processed data for {tf} timeframe. Shape: {df.shape}")
-                else:
-                    logger.warning(f"Empty dataframe for {tf} timeframe")
-                    data[tf] = self.create_dummy_data(params['interval'], params['count'])
-            except Exception as e:
-                logger.error(f"Error fetching data for {tf} timeframe: {e}")
-                data[tf] = self.create_dummy_data(params['interval'], params['count'])
+                cursor.execute("ALTER TABLE technical_indicators ADD COLUMN BB_Lower REAL")
+                logger.info("BB_Lower 열이 technical_indicators 테이블에 추가되었습니다.")
+            except sqlite3.OperationalError as e:
+                logger.error(f"BB_Lower 열 추가 중 오류 발생: {e}")
+
+        self.conn.commit()
+
+        cursor.execute("PRAGMA table_info(technical_indicators)")
+        updated_columns = [info[1] for info in cursor.fetchall()]
+        logger.info(f"열 추가 후 technical_indicators 테이블의 열 목록: {updated_columns}")
+
+    def add_new_data(self, new_data: pd.DataFrame):
+        logger.info(f"Adding new data. Shape: {new_data.shape}")
+
+        # 'level_0' 열이 있다면 제거
+        if 'level_0' in new_data.columns:
+            new_data = new_data.drop('level_0', axis=1)
+
+        # 인덱스를 리셋하고 'index' 열 이름 변경
+        new_data = new_data.reset_index(drop=True)
+        new_data = new_data.rename(columns={'index': 'date'})
+
+        # 'date' 열을 문자열로 변환 (이미 문자열인 경우 처리)
+        if 'date' in new_data.columns:
+            new_data['date'] = new_data['date'].apply(
+                lambda x: x.strftime('%Y-%m-%d %H:%M:%S') if hasattr(x, 'strftime') else str(x))
+        else:
+            logger.warning("'date' column not found in new_data")
+
+        # 기존 데이터베이스에 있는 date를 조회
+        existing_dates = pd.read_sql_query("SELECT date FROM ohlcv_data", self.conn)['date'].tolist()
+
+        # 중복 제거
+        new_data = new_data[~new_data['date'].isin(existing_dates)]
+
+        if not new_data.empty:
+            try:
+                new_data.to_sql('ohlcv_data', self.conn, if_exists='append', index=False)
+                logger.info(f"Successfully added {len(new_data)} new data points")
+            except sqlite3.IntegrityError as e:
+                logger.warning(f"Some data points already exist: {e}")
+                # 개별적으로 데이터 삽입 시도
+                for _, row in new_data.iterrows():
+                    try:
+                        row.to_frame().T.to_sql('ohlcv_data', self.conn, if_exists='append', index=False)
+                    except sqlite3.IntegrityError:
+                        logger.debug(f"Skipping duplicate data point at date {row['date']}")
+        else:
+            logger.info("No new data to add")
+
+    def add_technical_indicators(self, data: pd.DataFrame):
+        indicators = pd.DataFrame(index=data.index)
+        indicators['sma'] = self.calculate_sma(data)
+        indicators['ema'] = self.calculate_ema(data)
+        indicators['rsi'] = self.calculate_rsi(data)
+        indicators['macd'], indicators['signal_line'] = self.calculate_macd(data)
+        indicators['BB_Upper'], indicators['BB_Lower'] = self.calculate_bollinger_bands(data)
+
+        # NaN 값을 앞뒤 값으로 채우기
+        indicators = indicators.ffill().bfill()
+
+        # 기존 데이터와 새로 계산한 지표를 병합
+        result = pd.concat([data, indicators], axis=1)
+        return result
+
+    def get_data_for_training(self, start_time: int, end_time: int) -> pd.DataFrame:
+        query = f'''
+            SELECT * FROM ohlcv_data
+            WHERE date BETWEEN datetime({start_time}, 'unixepoch') AND datetime({end_time}, 'unixepoch')
+            ORDER BY date
+        '''
+        df = pd.read_sql_query(query, self.conn)
+        df['date'] = pd.to_datetime(df['date'])
+        return df
+
+    def update_data(self):
+        latest_data = self.upbit_client.get_ohlcv("KRW-BTC", interval="minute10", count=200)
+        if latest_data is not None and not latest_data.empty:
+            latest_data.reset_index(inplace=True)
+            latest_data.rename(columns={'index': 'date'}, inplace=True)
+            self.add_new_data(latest_data)
+
+    def calculate_indicators(self, data: pd.DataFrame) -> pd.DataFrame:
+        logger.info(f"데이터 프레임 컬럼: {data.columns}")
+        logger.info(f"데이터 프레임 샘플:\n{data.head()}")
+
+        indicators = pd.DataFrame(index=data.index)
+        indicators['sma'] = self.calculate_sma(data)
+        indicators['ema'] = self.calculate_ema(data)
+        indicators['rsi'] = self.calculate_rsi(data)
+        indicators['macd'], indicators['signal_line'] = self.calculate_macd(data)
+        indicators['BB_Upper'], indicators['BB_Lower'] = self.calculate_bollinger_bands(data)
+
+        return indicators.ffill()  # NaN 값을 앞의 유효한 값으로 채우기
+
+    def calculate_sma(self, data, period=20):
+        return data['close'].rolling(window=period).mean()
+
+    def calculate_ema(self, data, period=20):
+        return data['close'].ewm(span=period, adjust=False).mean()
+
+    def calculate_rsi(self, data, period=14):
+        close_data = data['close']
+        delta = close_data.diff()
+        gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
+        loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
+        rs = gain / loss
+        return 100 - (100 / (1 + rs))
+
+    def calculate_macd(self, data, fast_period=12, slow_period=26, signal_period=9):
+        close_data = data['close']
+        fast_ema = close_data.ewm(span=fast_period, adjust=False).mean()
+        slow_ema = close_data.ewm(span=slow_period, adjust=False).mean()
+        macd = fast_ema - slow_ema
+        signal_line = macd.ewm(span=signal_period, adjust=False).mean()
+        return macd, signal_line
+
+    def calculate_bollinger_bands(self, data, period=20, num_std=2):
+        close_data = data['close']
+        sma = close_data.rolling(window=period).mean()
+        std = close_data.rolling(window=period).std()
+        upper_bb = sma + (std * num_std)
+        lower_bb = sma - (std * num_std)
+        return upper_bb, lower_bb
+
+    def ensure_sufficient_data(self, required_length: int = 1440) -> pd.DataFrame:
+        end_time = pd.Timestamp.now()
+        start_time = end_time - pd.Timedelta(minutes=required_length * 10)
+        data = self.get_data_for_training(int(start_time.timestamp()), int(end_time.timestamp()))
+        print('ensure_sufficient_data')
+        print(data)
+        print(data.columns)
+        if len(data) < required_length:
+            self.fetch_and_store_historical_data(required_length - len(data))
+            data = self.get_data_for_training(int(start_time.timestamp()), int(end_time.timestamp()))
+
         return data
 
-    def create_dummy_data(self, interval: str, count: int) -> pd.DataFrame:
-        current_time = pd.Timestamp.now()
-        if interval == 'minute60':
-            start_time = current_time - pd.Timedelta(hours=count)
-            index = pd.date_range(start=start_time, end=current_time, freq='H')
-        elif interval == 'day':
-            start_time = current_time - pd.Timedelta(days=count)
-            index = pd.date_range(start=start_time, end=current_time, freq='D')
-        elif interval == 'week':
-            start_time = current_time - pd.Timedelta(weeks=count)
-            index = pd.date_range(start=start_time, end=current_time, freq='W')
+    def fetch_and_store_historical_data(self, count: int):
+        historical_data = self.upbit_client.get_ohlcv("KRW-BTC", interval="minute10", count=count)
+        if historical_data is not None and not historical_data.empty:
+            historical_data.reset_index(inplace=True)
+            historical_data.rename(columns={'index': 'date'}, inplace=True)
+            self.add_new_data(historical_data)
 
-        dummy_data = pd.DataFrame(index=index, columns=['open', 'high', 'low', 'close', 'volume', 'value'])
-        dummy_data['close'] = np.random.randint(70000000, 80000000, size=len(dummy_data))
-        dummy_data['open'] = dummy_data['close'] + np.random.randint(-1000000, 1000000, size=len(dummy_data))
-        dummy_data['high'] = np.maximum(dummy_data['open'], dummy_data['close']) + np.random.randint(0, 500000,
-                                                                                                     size=len(
-                                                                                                         dummy_data))
-        dummy_data['low'] = np.minimum(dummy_data['open'], dummy_data['close']) - np.random.randint(0, 500000, size=len(
-            dummy_data))
-        dummy_data['volume'] = np.random.randint(100, 1000, size=len(dummy_data))
-        dummy_data['value'] = dummy_data['close'] * dummy_data['volume']
+    def get_average_accuracy(self, days: int = 7) -> float:
+        end_time = datetime.now()
+        start_time = end_time - timedelta(days=days)
 
-        return dummy_data
+        # datetime 객체를 문자열로 변환
+        end_time_str = end_time.strftime('%Y-%m-%d %H:%M:%S')
+        start_time_str = start_time.strftime('%Y-%m-%d %H:%M:%S')
 
-    def prepare_data_for_ml(self, df: pd.DataFrame) -> Tuple[np.ndarray, np.ndarray]:
-        features = df[
-            ['open', 'high', 'low', 'close', 'volume', 'SMA', 'EMA', 'RSI', 'BB_Upper', 'BB_Middle', 'BB_Lower',
-             'ATR']].values
-        labels = np.where(df['close'].shift(-1) > df['close'], 1, 0)[:-1]
-        return features[:-1], labels
-
-    def normalize_data(self, data: np.ndarray) -> np.ndarray:
-        return (data - np.mean(data, axis=0)) / np.std(data, axis=0)
-
-    def calculate_market_volatility(self, data: pd.DataFrame, window: int = 20) -> float:
-        returns = data['close'].pct_change().dropna()
-        volatility = returns.rolling(window=window).std().iloc[-1]
-        return volatility * np.sqrt(252)
-
-    def get_fear_greed_index(self) -> Dict[str, Any]:
+        query = f'''
+            SELECT AVG(accuracy)
+            FROM (
+                SELECT 
+                    CASE 
+                        WHEN decision = 'buy' AND lead_price > price THEN 1
+                        WHEN decision = 'sell' AND lead_price < price THEN 1
+                        ELSE 0
+                    END as accuracy
+                FROM (
+                    SELECT 
+                        date, 
+                        decision, 
+                        close as price,
+                        LEAD(close) OVER (ORDER BY date) as lead_price
+                    FROM ohlcv_data
+                    WHERE date BETWEEN '{start_time_str}' AND '{end_time_str}'
+                )
+            )
+        '''
         try:
-            response = requests.get(self.fear_greed_url, timeout=10)
-            response.raise_for_status()
-            data = response.json()['data'][0]
-            return {
-                'value': int(data['value']),
-                'classification': data['value_classification']
-            }
+            with self.conn:
+                cursor = self.conn.cursor()
+                cursor.execute(query)
+                result = cursor.fetchone()[0]
+            return result if result is not None else 0.0
         except Exception as e:
-            logger.error(f"Error in fetching Fear & Greed Index: {e}")
-            return {'value': None, 'classification': None}
+            logger.error(f"Error in get_average_accuracy: {e}")
+            logger.error(f"Query: {query}")
+            return 0.0
 
-    def get_blockchain_data(self) -> Dict[str, Any]:
+    def get_recent_decisions(self, n: int = 5) -> List[Dict[str, Any]]:
+        query = f"""
+        SELECT * FROM decisions
+        ORDER BY timestamp DESC
+        LIMIT {n}
+        """
+        with self.conn:
+            df = pd.read_sql_query(query, self.conn)
+        return df.to_dict('records')
+
+    def add_technical_indicators_to_db(self, data: pd.DataFrame):
+        with self.conn:
+            try:
+                # UPSERT 구문 사용
+                data[['timestamp', 'sma', 'ema', 'rsi', 'macd', 'signal_line', 'BB_Upper', 'BB_Lower']].to_sql(
+                    'technical_indicators',
+                    self.conn,
+                    if_exists='replace',
+                    index=False
+                )
+                logger.info(f"Updated {len(data)} rows of technical indicators in the database")
+            except sqlite3.Error as e:
+                logger.error(f"Database error: {e}")
+
+    def fetch_extended_historical_data(self, days: int = 365):
+        end_date = pd.Timestamp.now()
+        start_date = end_date - pd.Timedelta(days=days)
+        historical_data = self.upbit_client.get_ohlcv("KRW-BTC", interval="day", to=end_date, count=days)
+        if historical_data is not None and not historical_data.empty:
+            # 인덱스를 'date' 열로 변환
+            historical_data = historical_data.reset_index()
+            historical_data = historical_data.rename(columns={'index': 'date'})
+            historical_data['date'] = historical_data['date'].astype(str)
+            self.add_new_data(historical_data)
+            return True
+        return False
+
+    def add_decision_column(self):
+        with self.conn:
+            cursor = self.conn.cursor()
+            cursor.execute("PRAGMA table_info(ohlcv_data)")
+            columns = [info[1] for info in cursor.fetchall()]
+
+            if 'decision' not in columns:
+                cursor.execute("ALTER TABLE ohlcv_data ADD COLUMN decision TEXT")
+                logger.info("Added 'decision' column to ohlcv_data table")
+
+    def prepare_data_for_ml(self, data: pd.DataFrame) -> Tuple[np.ndarray, np.ndarray]:
+        logger.info(f"prepare_data_for_ml 메서드 시작. 데이터 shape: {data.shape}")
+
         try:
-            response = requests.get(self.blockchain_info_url)
-            response.raise_for_status()
-            data = response.json()
-            return {
-                'transactions_per_second': data['transactions_per_second'],
-                'mempool_size': data['mempool_size'],
-                'difficulty': data['difficulty'],
-                'hash_rate': data['hash_rate']
-            }
+            # 기술적 지표 계산
+            data['sma'] = ta.sma(data['close'], length=20)
+            data['ema'] = ta.ema(data['close'], length=20)
+            data['rsi'] = ta.rsi(data['close'], length=14)
+            macd = ta.macd(data['close'])
+            data['macd'] = macd['MACD_12_26_9']
+            data['signal_line'] = macd['MACDs_12_26_9']
+            bb = ta.bbands(data['close'], length=20)
+            data['BB_Upper'] = bb['BBU_20_2.0']
+            data['BB_Lower'] = bb['BBL_20_2.0']
+
+            # NaN 값을 앞뒤 값으로 채우기
+            data = data.ffill().bfill()
+
+            logger.info(f"기술적 지표 추가 후 데이터 shape: {data.shape}")
+            logger.info(f"데이터 컬럼: {data.columns}")
+
+            features = ['open', 'high', 'low', 'close', 'volume', 'sma', 'ema', 'rsi', 'macd', 'signal_line',
+                        'BB_Upper', 'BB_Lower']
+            X = data[features].values
+            y = (data['close'].shift(-1) > data['close']).astype(int).values[:-1]
+            X = X[:-1]  # 마지막 행 제거 (타겟 변수와 길이 맞추기)
+
+            logger.info(f"최종 X shape: {X.shape}, y shape: {y.shape}")
+
+            return X, y
+
         except Exception as e:
-            logger.error(f"Error fetching blockchain data: {e}")
-            return {
-                'transactions_per_second': None,
-                'mempool_size': None,
-                'difficulty': None,
-                'hash_rate': None
-            }
+            logger.error(f"데이터 준비 중 오류 발생: {e}")
+            logger.exception("상세 오류:")
+            raise
 
-    def get_twitter_sentiment(self) -> Dict[str, float]:
-        try:
-            tweets = self.twitter_api.search_tweets(q="bitcoin", count=100, lang="en")
-            sentiments = [TextBlob(tweet.text).sentiment.polarity for tweet in tweets]
-            positive_tweets = sum(1 for s in sentiments if s > 0) / len(sentiments)
-            negative_tweets = sum(1 for s in sentiments if s < 0) / len(sentiments)
-            return {
-                'average_sentiment': sum(sentiments) / len(sentiments),
-                'positive_tweets': positive_tweets,
-                'negative_tweets': negative_tweets
-            }
-        except Exception as e:
-            logger.error(f"Error fetching Twitter sentiment: {e}")
-            return {
-                'average_sentiment': 0,
-                'positive_tweets': 0,
-                'negative_tweets': 0
-            }
+    def check_table_structure(self):
+        with self.conn:
+            cursor = self.conn.cursor()
+            cursor.execute("PRAGMA table_info(ohlcv_data)")
+            ohlcv_columns = [info[1] for info in cursor.fetchall()]
+            cursor.execute("PRAGMA table_info(technical_indicators)")
+            indicator_columns = [info[1] for info in cursor.fetchall()]
 
-    def fetch_all_data(self) -> Dict[str, Any]:
-        return {
-            'fear_greed_index': self.get_fear_greed_index(),
-            'blockchain_data': self.get_blockchain_data(),
-            'twitter_sentiment': self.get_twitter_sentiment()
-        }
+        logger.info(f"ohlcv_data columns: {ohlcv_columns}")
+        logger.info(f"technical_indicators columns: {indicator_columns}")
 
-    def get_recent_data(self, count: int) -> pd.DataFrame:
-        try:
-            return self.upbit_client.get_ohlcv("KRW-BTC", interval="minute10", count=count)
-        except Exception as e:
-            logger.error(f"최근 데이터 가져오기 실패: {e}")
-            return pd.DataFrame()
+    def add_timestamp_column(self):
+        with self.conn:
+            cursor = self.conn.cursor()
+            cursor.execute("PRAGMA table_info(ohlcv_data)")
+            columns = [info[1] for info in cursor.fetchall()]
 
-    def ensure_sufficient_data(self, required_length: int = 1420) -> pd.DataFrame:
-        data = self.get_recent_data(required_length)
-        attempts = 0
-        while len(data) < required_length and attempts < 5:
-            logger.warning(f"데이터 부족: {len(data)} 행. {required_length} 행 필요. 추가 데이터 요청 중...")
-            time.sleep(60)  # 1분 대기
-            new_data = self.get_recent_data(required_length - len(data))
-            data = pd.concat([new_data, data]).drop_duplicates().sort_index()
-            attempts += 1
+            if 'timestamp' not in columns:
+                if 'date' in columns:
+                    cursor.execute("ALTER TABLE ohlcv_data ADD COLUMN timestamp INTEGER")
+                    cursor.execute(
+                        "UPDATE ohlcv_data SET timestamp = CAST(strftime('%s', date) AS INTEGER) WHERE timestamp IS NULL")
+                else:
+                    # 첫 번째 컬럼이 날짜 정보일 경우
+                    date_column_name = columns[0]  # 첫 번째 컬럼을 date로 가정
+                    cursor.execute("ALTER TABLE ohlcv_data ADD COLUMN timestamp INTEGER")
+                    cursor.execute(
+                        f"UPDATE ohlcv_data SET timestamp = CAST(strftime('%s', {date_column_name}) AS INTEGER) WHERE timestamp IS NULL")
 
-        if len(data) < required_length:
-            logger.error(f"충분한 데이터를 가져오지 못했습니다: {len(data)} 행")
+                logger.info("Added timestamp column to ohlcv_data table")
 
-        return data.tail(required_length)
+    def debug_database(self):
+        with self.conn:
+            cursor = self.conn.cursor()
+
+            # 테이블 목록 확인
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+            tables = cursor.fetchall()
+            logger.info(f"Tables in database: {tables}")
+
+            # ohlcv_data 테이블 구조 확인
+            cursor.execute("PRAGMA table_info(ohlcv_data)")
+            columns = cursor.fetchall()
+            logger.info("ohlcv_data table structure:")
+            for column in columns:
+                logger.info(f"  {column}")
+
+            # 샘플 데이터 확인
+            cursor.execute("SELECT * FROM ohlcv_data LIMIT 5")
+            samples = cursor.fetchall()
+            logger.info("Sample data from ohlcv_data:")
+            for sample in samples:
+                logger.info(f"  {sample}")
+
+    def get_recent_trades(self, days=30):
+        """최근 거래 데이터를 가져옵니다."""
+        end_time = int(time.time())
+        start_time = end_time - (days * 24 * 60 * 60)  # days일 전의 timestamp
+
+        query = f"""
+        SELECT * FROM ohlcv_data
+        WHERE date BETWEEN datetime({start_time}, 'unixepoch') AND datetime({end_time}, 'unixepoch')
+        ORDER BY date
+        """
+
+        df = pd.read_sql_query(query, self.conn)
+        df['date'] = pd.to_datetime(df['date'])
+        return df

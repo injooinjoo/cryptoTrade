@@ -5,13 +5,20 @@ import sys
 from logging.handlers import RotatingFileHandler
 
 logger = logging.getLogger(__name__)
-
+PERFORMANCE_CALCULATION_INTERVAL = 144  # 하루에 한 번 성능 계산
+SHARPE_RATIO_RISK_FREE_RATE = 0.02  # 연간 2%의 무위험 수익률 가정
 
 def load_config(file_path: str = "config.json") -> Dict[str, Any]:
     """Load configuration from a JSON file."""
     default_config = {
-        'min_krw_balance': 10000,  # Default minimum KRW balance
-        'min_transaction_amount': 5000  # Default minimum transaction amount
+        'min_krw_balance': 10000,
+        'min_transaction_amount': 5000,
+        'database_path': 'crypto_data.db',  # 데이터베이스 경로 추가
+        'trading_parameters': {
+            'buy_threshold': 0.01,
+            'sell_threshold': 0.01,
+            # 다른 필요한 매개변수들...
+        }
     }
 
     try:
@@ -43,23 +50,50 @@ def setup_logging():
     root_logger = logging.getLogger()
     root_logger.setLevel(logging.INFO)
 
-    # 파일 핸들러 설정 (UTF-8 인코딩 사용)
+    # Custom formatter with color support
+    formatter = CustomFormatter()
+
     file_handler = RotatingFileHandler(
         "trading_bot.log",
         maxBytes=10*1024*1024,  # 10MB
         backupCount=5,
         encoding='utf-8'
     )
-    file_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    file_handler.setFormatter(file_formatter)
+    file_handler.setFormatter(formatter)
     root_logger.addHandler(file_handler)
 
-    # 콘솔 핸들러 설정 (ASCII 문자만 사용)
     console_handler = logging.StreamHandler(sys.stdout)
-    console_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    console_handler.setFormatter(console_formatter)
+    console_handler.setFormatter(formatter)
     root_logger.addHandler(console_handler)
 
-    # 특정 모듈의 로그 레벨 조정
     logging.getLogger("urllib3").setLevel(logging.WARNING)
     logging.getLogger("tweepy").setLevel(logging.WARNING)
+
+
+class CustomFormatter(logging.Formatter):
+    """Logging Formatter to add colors and custom formats"""
+
+    # Define the color codes
+    COLORS = {
+        'HEADER': '\033[95m',
+        'OKBLUE': '\033[94m',
+        'OKCYAN': '\033[96m',
+        'OKGREEN': '\033[92m',
+        'WARNING': '\033[93m',
+        'FAIL': '\033[91m',
+        'ENDC': '\033[0m',
+    }
+
+    # Define formats for different log levels
+    FORMATS = {
+        logging.DEBUG: "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        logging.INFO: "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        logging.WARNING: COLORS['WARNING'] + "%(asctime)s - %(name)s - %(levelname)s - %(message)s" + COLORS['ENDC'],
+        logging.ERROR: COLORS['FAIL'] + "%(asctime)s - %(name)s - %(levelname)s - %(message)s" + COLORS['ENDC'],
+        logging.CRITICAL: COLORS['FAIL'] + "%(asctime)s - %(name)s - %(levelname)s - %(message)s" + COLORS['ENDC'],
+    }
+
+    def format(self, record):
+        log_fmt = self.FORMATS.get(record.levelno)
+        formatter = logging.Formatter(log_fmt)
+        return formatter.format(record)

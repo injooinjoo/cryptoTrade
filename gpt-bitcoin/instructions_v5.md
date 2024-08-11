@@ -127,10 +127,10 @@ Your response must be in JSON format and should include the following fields:
 ```json
 {
     "decision": "buy" or "sell" or "hold",
-    "percentage": number between 0 and 100,
-    "target_price": number or null for hold decisions,
-    "stop_loss": number,
-    "take_profit": number,
+    "percentage": number between 0 and 100 (cannot be 0 for buy/sell decisions)(always 0 for hold decision),
+    "target_price": number or null (cannot be null for buy/sell decisions)(always null for hold decision),
+    "stop_loss": number (must be realistic for the next 10 minutes),
+    "take_profit": number (must be realistic for the next 10 minutes),
     "reasoning": "Detailed explanation of your decision",
     "risk_assessment": "low", "medium", or "high",
     "short_term_prediction": "increase", "decrease", or "stable",
@@ -151,7 +151,8 @@ Your response must be in JSON format and should include the following fields:
     "target_price": 50000000,
     "stop_loss": 48000000,
     "take_profit": 52000000,
-    "reasoning": "The Stochastic Oscillator and RSI both indicate a strong buy signal. The price is currently below the moving average, suggesting a potential reversal. The Market Sentiment is positive, and the recent decisions have been accurate. I recommend buying at the current price with a target price of 50,000,000
+    "reasoning": "The Stochastic Oscillator and RSI both indicate a strong buy signal. The price is currently below the moving average, suggesting a potential reversal. The Market Sentiment is positive, and the recent decisions have been accurate. I recommend buying at the current price with a target price of 50,000,000 and a stop loss at 48,000,000 to manage risk."
+}
 ```
 ```json
 {
