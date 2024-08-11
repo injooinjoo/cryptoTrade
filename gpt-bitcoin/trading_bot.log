@@ -27983,3 +27983,4 @@ date                                         ...
 [93m2024-08-11 23:56:00,930 - __main__ - WARNING - Trade failed: 매수 금액이 최소 거래 금액(5000 KRW)보다 작습니다.[0m
 2024-08-11 23:56:01,271 - discord_notifier - INFO - Message sent to Discord successfully.
 2024-08-11 23:56:01,271 - __main__ - INFO - Performance report sent
+2024-08-11 23:56:01,391 - __main__ - INFO - Performance recorded: buy at 84600000.0

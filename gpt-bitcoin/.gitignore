@@ -2,3 +2,4 @@
 config.json
 *.sqlite
 test.py
+trading_bot.log
