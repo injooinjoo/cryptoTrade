@@ -27891,3 +27891,95 @@ date                                         ...
 2024-08-11 23:45:52,181 - __main__ - INFO - 현재 전략 성능: 수익률 6.37%, 샤프 비율 0.11, 최대 손실폭 30.77%
 2024-08-11 23:45:52,472 - discord_notifier - INFO - Message sent to Discord successfully.
 2024-08-11 23:45:52,473 - __main__ - INFO - Performance report sent
+2024-08-11 23:45:52,599 - __main__ - INFO - Performance recorded: buy at 84905000.0
+2024-08-11 23:50:53,467 - data_manager - INFO - Adding new data. Shape: (1, 7)
+2024-08-11 23:50:53,676 - data_manager - INFO - Successfully added 1 new data points
+2024-08-11 23:50:53,686 - data_manager - INFO - prepare_data_for_ml 메서드 시작. 데이터 shape: (1440, 7)
+2024-08-11 23:50:53,690 - data_manager - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 14)
+2024-08-11 23:50:53,691 - data_manager - INFO - 데이터 컬럼: Index(['open', 'high', 'low', 'close', 'volume', 'value', 'decision', 'sma',
+       'ema', 'rsi', 'macd', 'signal_line', 'BB_Upper', 'BB_Lower'],
+      dtype='object')
+2024-08-11 23:50:53,692 - data_manager - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+2024-08-11 23:50:53,692 - backtesting_and_ml - INFO - predict 메서드 시작. 입력 데이터 shape: (1440, 14)
+2024-08-11 23:50:53,693 - backtesting_and_ml - INFO - 선택된 특성 데이터 shape: (1, 12)
+2024-08-11 23:50:53,693 - backtesting_and_ml - INFO - 선택된 특성 데이터:
+[[ 8.46840000e+07  8.47320000e+07  8.46840000e+07  8.46960000e+07
+   1.13899600e-01  8.46532500e+07  8.47998271e+07  4.54348869e+01
+  -1.43087423e+05 -2.11417276e+05  8.50387003e+07  8.42677997e+07]]
+2024-08-11 23:50:53,693 - backtesting_and_ml - INFO - NaN 처리 후 데이터:
+[[ 8.46840000e+07  8.47320000e+07  8.46840000e+07  8.46960000e+07
+   1.13899600e-01  8.46532500e+07  8.47998271e+07  4.54348869e+01
+  -1.43087423e+05 -2.11417276e+05  8.50387003e+07  8.42677997e+07]]
+2024-08-11 23:50:53,693 - backtesting_and_ml - INFO - 특성 선택 후 데이터 shape: (1, 12)
+2024-08-11 23:50:53,693 - backtesting_and_ml - INFO - 스케일링 후 데이터:
+[[ 0.22051224  0.18828178  0.26443105  0.22412273 -0.6467458   0.20765275
+   0.24619656 -0.28161799 -0.37014046 -0.61425574  0.09742191  0.29663119]]
+2024-08-11 23:50:53,696 - backtesting_and_ml - INFO - 예측 결과: 1
+2024-08-11 23:50:53,702 - backtesting_and_ml - INFO - prepare_data 메서드 시작. 데이터 shape: (1440, 14)
+2024-08-11 23:50:53,706 - backtesting_and_ml - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 14)
+2024-08-11 23:50:53,712 - backtesting_and_ml - INFO - 데이터 샘플:
+                           open        high  ...      BB_Upper      BB_Lower
+date                                         ...                            
+2024-08-02 00:00:00  89800000.0  89800000.0  ...  8.940305e+07  8.804225e+07
+2024-08-02 00:10:00  89612000.0  89674000.0  ...  8.940305e+07  8.804225e+07
+2024-08-02 00:20:00  89197000.0  89238000.0  ...  8.940305e+07  8.804225e+07
+2024-08-02 00:30:00  88741000.0  88965000.0  ...  8.940305e+07  8.804225e+07
+2024-08-02 00:40:00  88645000.0  88782000.0  ...  8.940305e+07  8.804225e+07
+
+[5 rows x 12 columns]
+2024-08-11 23:50:53,712 - backtesting_and_ml - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+2024-08-11 23:50:56,273 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2024-08-11 23:50:56,275 - trading_logic - INFO - GPT-4 advice: {'decision': 'hold', 'percentage': 0, 'target_price': None, 'stop_loss': 83500000, 'take_profit': 85000000, 'reasoning': "The current market conditions indicate a neutral trend with the price close to both the SMA and EMA, as well as being within the Bollinger Bands. The RSI is at 45, signaling no immediate overbought or oversold conditions. The market is sideways, and predictions from both ML and XGBoost indicate a slight upward movement, but the strong risk factor and recent anomalies detected suggest caution. Therefore, I recommend holding the current position as clearer signals haven't emerged yet.", 'risk_assessment': 'medium', 'short_term_prediction': 'increase', 'param_adjustment': {'risk_factor': 0.85, 'stop_loss_factor': 0.015}}
+2024-08-11 23:50:56,275 - __main__ - INFO - Decision weights - GPT4: 0.3, ML: 0.25, XGBoost: 0.25, RL: 0.2
+2024-08-11 23:50:56,275 - __main__ - INFO - Individual decisions - GPT4: 0, ML: 1, XGBoost: 1, RL: -1
+2024-08-11 23:50:56,275 - __main__ - INFO - Weighted decision: 0.3
+2024-08-11 23:50:56,275 - __main__ - INFO - Final trading decision: buy
+[93m2024-08-11 23:50:56,345 - trading_logic - WARNING - Buy amount (0.00 KRW) is less than minimum trade amount (5000 KRW)[0m
+[93m2024-08-11 23:50:56,345 - __main__ - WARNING - Trade failed: 매수 금액이 최소 거래 금액(5000 KRW)보다 작습니다.[0m
+2024-08-11 23:50:56,760 - discord_notifier - INFO - Message sent to Discord successfully.
+2024-08-11 23:50:56,760 - __main__ - INFO - Performance report sent
+2024-08-11 23:50:56,882 - __main__ - INFO - Performance recorded: buy at 84727000.0
+2024-08-11 23:55:57,785 - data_manager - INFO - prepare_data_for_ml 메서드 시작. 데이터 shape: (1440, 7)
+2024-08-11 23:55:57,790 - data_manager - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 14)
+2024-08-11 23:55:57,790 - data_manager - INFO - 데이터 컬럼: Index(['open', 'high', 'low', 'close', 'volume', 'value', 'decision', 'sma',
+       'ema', 'rsi', 'macd', 'signal_line', 'BB_Upper', 'BB_Lower'],
+      dtype='object')
+2024-08-11 23:55:57,791 - data_manager - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+2024-08-11 23:55:57,791 - backtesting_and_ml - INFO - predict 메서드 시작. 입력 데이터 shape: (1440, 14)
+2024-08-11 23:55:57,791 - backtesting_and_ml - INFO - 선택된 특성 데이터 shape: (1, 12)
+2024-08-11 23:55:57,791 - backtesting_and_ml - INFO - 선택된 특성 데이터:
+[[ 8.46840000e+07  8.47320000e+07  8.46840000e+07  8.46960000e+07
+   1.13899600e-01  8.46532500e+07  8.47998271e+07  4.54348869e+01
+  -1.43087423e+05 -2.11417276e+05  8.50387003e+07  8.42677997e+07]]
+2024-08-11 23:55:57,792 - backtesting_and_ml - INFO - NaN 처리 후 데이터:
+[[ 8.46840000e+07  8.47320000e+07  8.46840000e+07  8.46960000e+07
+   1.13899600e-01  8.46532500e+07  8.47998271e+07  4.54348869e+01
+  -1.43087423e+05 -2.11417276e+05  8.50387003e+07  8.42677997e+07]]
+2024-08-11 23:55:57,792 - backtesting_and_ml - INFO - 특성 선택 후 데이터 shape: (1, 12)
+2024-08-11 23:55:57,793 - backtesting_and_ml - INFO - 스케일링 후 데이터:
+[[ 0.22051224  0.18828178  0.26443105  0.22412273 -0.6467458   0.20765275
+   0.24619656 -0.28161799 -0.37014046 -0.61425574  0.09742191  0.29663119]]
+2024-08-11 23:55:57,795 - backtesting_and_ml - INFO - 예측 결과: 1
+2024-08-11 23:55:57,802 - backtesting_and_ml - INFO - prepare_data 메서드 시작. 데이터 shape: (1440, 14)
+2024-08-11 23:55:57,806 - backtesting_and_ml - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 14)
+2024-08-11 23:55:57,813 - backtesting_and_ml - INFO - 데이터 샘플:
+                           open        high  ...      BB_Upper      BB_Lower
+date                                         ...                            
+2024-08-02 00:00:00  89800000.0  89800000.0  ...  8.940305e+07  8.804225e+07
+2024-08-02 00:10:00  89612000.0  89674000.0  ...  8.940305e+07  8.804225e+07
+2024-08-02 00:20:00  89197000.0  89238000.0  ...  8.940305e+07  8.804225e+07
+2024-08-02 00:30:00  88741000.0  88965000.0  ...  8.940305e+07  8.804225e+07
+2024-08-02 00:40:00  88645000.0  88782000.0  ...  8.940305e+07  8.804225e+07
+
+[5 rows x 12 columns]
+2024-08-11 23:55:57,813 - backtesting_and_ml - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+2024-08-11 23:56:00,859 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2024-08-11 23:56:00,859 - trading_logic - INFO - GPT-4 advice: {'decision': 'hold', 'percentage': 0, 'target_price': None, 'stop_loss': 83200000, 'take_profit': 85500000, 'reasoning': "The current market is showing a neutral trend with the price hovering around the SMA and EMA, indicating no clear direction. The RSI is also neutral at around 45, suggesting that there isn't an overbought or oversold condition. Additionally, the price is within the Bollinger Bands, further supporting a neutral stance. Given that no recent decisions can be evaluated positively, it would be prudent to hold the current position until stronger signals emerge.", 'risk_assessment': 'medium', 'short_term_prediction': 'stable', 'param_adjustment': {'risk_factor': 0.9, 'stop_loss_factor': 0.018}}
+2024-08-11 23:56:00,859 - __main__ - INFO - Decision weights - GPT4: 0.3, ML: 0.25, XGBoost: 0.25, RL: 0.2
+2024-08-11 23:56:00,859 - __main__ - INFO - Individual decisions - GPT4: 0, ML: 1, XGBoost: 1, RL: -1
+2024-08-11 23:56:00,859 - __main__ - INFO - Weighted decision: 0.3
+2024-08-11 23:56:00,860 - __main__ - INFO - Final trading decision: buy
+[93m2024-08-11 23:56:00,930 - trading_logic - WARNING - Buy amount (0.00 KRW) is less than minimum trade amount (5000 KRW)[0m
+[93m2024-08-11 23:56:00,930 - __main__ - WARNING - Trade failed: 매수 금액이 최소 거래 금액(5000 KRW)보다 작습니다.[0m
+2024-08-11 23:56:01,271 - discord_notifier - INFO - Message sent to Discord successfully.
+2024-08-11 23:56:01,271 - __main__ - INFO - Performance report sent
