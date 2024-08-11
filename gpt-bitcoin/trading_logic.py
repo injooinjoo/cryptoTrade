@@ -1,5 +1,6 @@
 import json
 import logging
+import math
 import time
 from typing import Dict, Any, List, Optional
 
@@ -254,30 +255,41 @@ def get_assessment(accuracy: float) -> str:
 def get_gpt4_instructions() -> str:
     """GPT-4에 제공할 지시사항을 반환합니다."""
     return """
-    분석 제공된 시장 데이터를 면밀히 검토하고 KRW-BTC 페어에 대한 구체적인 거래 결정을 내리세요.
-    다음 사항들을 고려하여 상세한 분석과 함께 결정을 제시해 주세요:
-    1. 단기(1시간), 중기(1일), 장기(1주일) 시장 동향
-    2. 현재 시장 변동성과 그에 따른 리스크
-    3. 기술적 지표 (RSI, MACD, 볼린저 밴드 등)의 신호
-    4. 최근 거래 성과와 그 이유
-    5. 현재 포트폴리오 상태와 리스크 노출도
-    response JSON format 
-    {
-    "decision": "buy" or "sell" or "hold",
-    "percentage": number between 0 and 100 (cannot be 0 for buy/sell decisions)(always 0 for hold decision),
-    "target_price": number or null (cannot be null for buy/sell decisions)(always null for hold decision),
-    "stop_loss": number (must be realistic for the next 10 minutes),
-    "take_profit": number (must be realistic for the next 10 minutes),
-    "reasoning": "Detailed explanation of your decision",
-    "risk_assessment": "low", "medium", or "high",
-    "short_term_prediction": "increase", "decrease", or "stable",
-    "param_adjustment": {
-        "param1": new_value,
-        "param2": new_value
-    }
-    response in response_format json
-    
-    """
+        분석 제공된 시장 데이터를 면밀히 검토하고 KRW-BTC 페어에 대한 구체적인 거래 결정을 내리세요.
+        다음 사항들을 고려하여 상세한 분석과 함께 결정을 제시해 주세요:
+        1. 단기(1시간), 중기(1일), 장기(1주일) 시장 동향
+        2. 현재 시장 변동성과 그에 따른 리스크
+        3. 기술적 지표 (RSI, MACD, 볼린저 밴드 등)의 신호
+        4. 최근 거래 성과와 그 이유
+        5. 현재 포트폴리오 상태와 리스크 노출도
+
+        결정이 'hold'인 경우에도 잠재적인 'buy' 또는 'sell' 시나리오에 대비하여 매수/매도 가격과 비율을 제공해 주세요.
+
+        response JSON format 
+        {
+        "decision": "buy" or "sell" or "hold",
+        "percentage": number between 0 and 100 (cannot be 0 for buy/sell decisions),
+        "target_price": number (cannot be null for buy/sell decisions),
+        "stop_loss": number (must be realistic for the next 10 minutes),
+        "take_profit": number (must be realistic for the next 10 minutes),
+        "reasoning": "Detailed explanation of your decision",
+        "risk_assessment": "low", "medium", or "high",
+        "short_term_prediction": "increase", "decrease", or "stable",
+        "param_adjustment": {
+            "param1": new_value,
+            "param2": new_value
+        },
+        "potential_buy": {
+            "percentage": number between 0 and 100,
+            "target_price": number
+        },
+        "potential_sell": {
+            "percentage": number between 0 and 100,
+            "target_price": number
+        }
+        }
+        response in response_format json
+        """
 
 
 def get_instructions(file_path):
@@ -404,29 +416,35 @@ def execute_trade(upbit_client: UpbitClient, decision: Dict[str, Any], config: D
         return {"success": False, "message": f"Error: {str(e)}", "uuid": None}
 
 
-def execute_buy(upbit_client: UpbitClient, amount_to_buy: float, current_price: float, config: Dict[str, Any]) -> Dict[
-    str, Any]:
+def execute_buy(upbit_client: UpbitClient, amount_to_buy: float, current_price: float, config: Dict[str, Any]) -> Dict[str, Any]:
     try:
         min_trade_amount = config.get('min_trade_amount', 5000)
 
+        # BTC 주문 개수를 소수점 8자리까지 내림
+        amount_to_buy = math.floor(amount_to_buy * 100000000) / 100000000
+        # KRW 가격을 정수로 변환
+        current_price = int(current_price)
+
         if amount_to_buy * current_price < min_trade_amount:
+            logger.warning(f"매수 금액이 최소 거래 금액({min_trade_amount} KRW)보다 작습니다. 금액: {int(amount_to_buy * current_price)} KRW")
             return {"success": False, "message": f"매수 금액이 최소 거래 금액({min_trade_amount} KRW)보다 작습니다."}
 
+        # KRW 잔고 확인
+        krw_balance = int(upbit_client.get_balance("KRW"))
+        if krw_balance < int(amount_to_buy * current_price):
+            logger.warning(f"KRW 잔고 부족. 필요: {int(amount_to_buy * current_price)} KRW, 보유: {krw_balance} KRW")
+            return {"success": False, "message": f"KRW 잔고 부족. 필요: {int(amount_to_buy * current_price)} KRW, 보유: {krw_balance} KRW"}
+
+        print(f'BUY: {current_price} | {amount_to_buy:.8f}')
         result = upbit_client.buy_limit_order("KRW-BTC", current_price, amount_to_buy)
-
-        # result가 문자열인 경우 처리
-        if isinstance(result, str):
-            logger.warning(f"Unexpected result type from buy_limit_order: {result}")
-            return {"success": False, "message": f"Unexpected result: {result}"}
-
         if result and isinstance(result, dict) and 'uuid' in result:
             logger.info(f"매수 주문 성공: {amount_to_buy:.8f} BTC at {current_price} KRW")
             return {"success": True, "amount": amount_to_buy, "price": current_price, "uuid": result['uuid']}
         else:
             logger.warning(f"매수 주문 실패. 반환된 결과: {result}")
-            return {"success": False, "message": "매수 주문 실패"}
+            return {"success": False, "message": f"매수 주문 실패. 상세 정보: {result}"}
     except Exception as e:
-        logger.error(f"매수 주문 실행 중 오류 발생: {e}")
+        logger.error(f"매수 주문 실행 중 오류 발생: {e}", exc_info=True)
         return {"success": False, "message": str(e)}
 
 
@@ -434,20 +452,33 @@ def execute_sell(upbit_client: UpbitClient, amount_to_sell: float, current_price
     try:
         min_trade_amount = config.get('min_trade_amount', 5000)
 
-        if amount_to_sell * current_price < min_trade_amount:
+        # BTC 판매 개수를 소수점 8자리까지 내림
+        amount_to_sell = math.floor(amount_to_sell * 100000000) / 100000000
+        # KRW 가격을 정수로 변환
+        current_price = int(current_price)
+
+        sell_amount_krw = int(amount_to_sell * current_price)
+        if sell_amount_krw < min_trade_amount:
+            logger.warning(f"매도 금액이 최소 거래 금액({min_trade_amount} KRW)보다 작습니다. 금액: {sell_amount_krw} KRW")
             return {"success": False, "message": f"매도 금액이 최소 거래 금액({min_trade_amount} KRW)보다 작습니다."}
 
+        # BTC 잔고 확인
+        btc_balance = upbit_client.get_balance("BTC")
+        if btc_balance < amount_to_sell:
+            logger.warning(f"BTC 잔고 부족. 필요: {amount_to_sell:.8f} BTC, 보유: {btc_balance:.8f} BTC")
+            return {"success": False, "message": f"BTC 잔고 부족. 필요: {amount_to_sell:.8f} BTC, 보유: {btc_balance:.8f} BTC"}
+
+        print(f'SELL: {current_price} | {amount_to_sell:.8f}')
         result = upbit_client.sell_limit_order("KRW-BTC", current_price, amount_to_sell)
-        if result and 'uuid' in result:
+        if result and isinstance(result, dict) and 'uuid' in result:
             logger.info(f"매도 주문 성공: {amount_to_sell:.8f} BTC at {current_price} KRW")
             return {"success": True, "amount": amount_to_sell, "price": current_price, "uuid": result['uuid']}
         else:
-            logger.warning("매도 주문 실패")
-            return {"success": False, "message": "매도 주문 실패"}
+            logger.warning(f"매도 주문 실패. 반환된 결과: {result}")
+            return {"success": False, "message": f"매도 주문 실패. 상세 정보: {result}"}
     except Exception as e:
-        logger.error(f"매도 주문 실행 중 오류 발생: {e}")
+        logger.error(f"매도 주문 실행 중 오류 발생: {e}", exc_info=True)
         return {"success": False, "message": str(e)}
-
 
 def calculate_weights(ml_accuracy: float, rl_reward: float, gpt_accuracy: float) -> Dict[str, float]:
     total = ml_accuracy + rl_reward + gpt_accuracy

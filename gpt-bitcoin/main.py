@@ -176,6 +176,8 @@ class TradingLoop:
                 current_time = time.time()
 
                 if self.last_trade_time is None or (current_time - self.last_trade_time) >= self.trading_interval:
+                    # 기존 미체결 주문 취소
+                    self.cancel_existing_orders()
                     data = self.data_manager.ensure_sufficient_data()
                     data['date'] = pd.to_datetime(data['date'])
                     data.set_index('date', inplace=True)
@@ -232,6 +234,15 @@ class TradingLoop:
                         result = execute_trade(self.upbit_client, decision, self.config)
                         if result['success']:
                             logger.info(f"Trade executed: {result['message']}")
+                            actual_result = "성공" if result['success'] else "실패"
+                            self.performance_monitor.add_decision(decision['decision'], decision['reasoning'],
+                                                                  actual_result)
+
+                            # 다음 거래 전에 개선 제안 요청
+                            improvement_suggestion = self.performance_monitor.get_improvement_suggestion(
+                                self.openai_client)
+                            logger.info(f"Improvement suggestion: {improvement_suggestion}")
+
                             if result['uuid']:
                                 self.position_monitor.add_order(
                                     result['uuid'], decision['decision'], decision['target_price'],
@@ -297,16 +308,16 @@ class TradingLoop:
     def get_recent_trading_history(self, n=5):
         return self.trading_history[-n:]
 
-    def record_trade(self, trade):
-        self.trading_history.append(trade)
-        if len(self.trading_history) > 100:  # 최근 100개의 거래만 유지
-            self.trading_history.pop(0)
-
-    def get_initial_balance(self):
-        krw_balance = self.upbit_client.get_balance("KRW")
-        btc_balance = self.upbit_client.get_balance("BTC")
-        btc_price = self.upbit_client.get_current_price("KRW-BTC")
-        return krw_balance + (btc_balance * btc_price)
+    # def record_trade(self, trade):
+    #     self.trading_history.append(trade)
+    #     if len(self.trading_history) > 100:  # 최근 100개의 거래만 유지
+    #         self.trading_history.pop(0)
+    #
+    # def get_initial_balance(self):
+    #     krw_balance = self.upbit_client.get_balance("KRW")
+    #     btc_balance = self.upbit_client.get_balance("BTC")
+    #     btc_price = self.upbit_client.get_current_price("KRW-BTC")
+    #     return krw_balance + (btc_balance * btc_price)
 
     def record_performance(self, decision: Dict[str, Any]):
         try:
@@ -371,12 +382,22 @@ class TradingLoop:
 
         logger.info(f"Final trading decision: {final_decision}")
 
+        if final_decision == 'buy' and gpt4_advice['decision'] == 'hold':
+            percentage = gpt4_advice['potential_buy']['percentage']
+            target_price = gpt4_advice['potential_buy']['target_price']
+        elif final_decision == 'sell' and gpt4_advice['decision'] == 'hold':
+            percentage = gpt4_advice['potential_sell']['percentage']
+            target_price = gpt4_advice['potential_sell']['target_price']
+        else:
+            percentage = gpt4_advice['percentage']
+            target_price = gpt4_advice['target_price']
+
         return {
             'decision': final_decision,
-            'percentage': gpt4_advice.get('percentage', 0),
-            'target_price': gpt4_advice.get('target_price'),
-            'stop_loss': gpt4_advice.get('stop_loss'),
-            'take_profit': gpt4_advice.get('take_profit'),
+            'percentage': percentage,
+            'target_price': target_price,
+            'stop_loss': gpt4_advice['stop_loss'],
+            'take_profit': gpt4_advice['take_profit'],
             'reasoning': f"Weighted decision based on GPT-4 ({weights['gpt4']:.2f}), ML ({weights['ml']:.2f}), XGBoost ({weights['xgboost']:.2f}), RL ({weights['rl']:.2f}), and LSTM ({weights['lstm']:.2f}). {gpt4_advice.get('reasoning', '')}"
         }
 
@@ -483,14 +504,21 @@ class TradingLoop:
             current_performance = self.calculate_current_performance()
 
             if current_performance <= self.hodl_performance:
-                logger.warning(f"현재 전략 성능({current_performance:.4f})이 HODL 전략 성능({self.hodl_performance:.4f})보다 낮습니다. 전략을 조정합니다.")
+                logger.warning(
+                    f"현재 전략 성능({current_performance:.4f})이 HODL 전략 성능({self.hodl_performance:.4f})보다 낮습니다. 전략을 조정합니다.")
 
                 # 거래 빈도 조정
                 self.trading_interval = min(self.trading_interval * 1.2, 3600)  # 최대 1시간까지 증가
 
                 # 리스크 및 거래 파라미터 조정
-                self.config['trading_parameters']['risk_factor'] *= 0.9  # 리스크 10% 감소
-                self.config['trading_parameters']['stop_loss_factor'] *= 1.1  # 손절 폭 10% 증가
+                self.config['trading_parameters']['risk_factor'] = self.config['trading_parameters'].get('risk_factor',
+                                                                                                         1.0) * 0.9  # 리스크 10% 감소
+                self.config['trading_parameters']['stop_loss_factor'] = self.config['trading_parameters'].get(
+                    'stop_loss_factor', 0.02) * 1.1  # 손절 폭 10% 증가
+
+                # take_profit_factor가 없는 경우 기본값 설정
+                if 'take_profit_factor' not in self.config['trading_parameters']:
+                    self.config['trading_parameters']['take_profit_factor'] = 0.03  # 기본값 3%
                 self.config['trading_parameters']['take_profit_factor'] *= 0.9  # 익절 폭 10% 감소
 
                 # 모델 가중치 조정
@@ -505,14 +533,16 @@ class TradingLoop:
                             f"익절 팩터 {self.config['trading_parameters']['take_profit_factor']:.2f}")
                 logger.info(f"모델 가중치: ML {self.ml_weight:.2f}, GPT {self.gpt_weight:.2f}, "
                             f"XGBoost {self.xgboost_weight:.2f}, RL {self.rl_weight:.2f}, LSTM {self.lstm_weight:.2f}")
-                logger.info(f"기술적 지표 임계값: RSI 매수 {self.config['trading_parameters']['rsi_buy_threshold']}, "
-                            f"RSI 매도 {self.config['trading_parameters']['rsi_sell_threshold']}")
+                logger.info(f"기술적 지표 임계값: RSI 매수 {self.config['trading_parameters'].get('rsi_buy_threshold', 30)}, "
+                            f"RSI 매도 {self.config['trading_parameters'].get('rsi_sell_threshold', 70)}")
 
             else:
-                logger.info(f"현재 전략 성능({current_performance:.4f})이 HODL 전략 성능({self.hodl_performance:.4f})보다 높습니다. 전략을 유지합니다.")
+                logger.info(
+                    f"현재 전략 성능({current_performance:.4f})이 HODL 전략 성능({self.hodl_performance:.4f})보다 높습니다. 전략을 유지합니다.")
 
         except Exception as e:
             logger.error(f"전략 조정 중 오류 발생: {e}")
+            logger.exception("상세 오류:")
 
     def adjust_model_weights(self):
         self.ml_weight = max(self.ml_weight * 0.9, 0.1)
@@ -526,6 +556,15 @@ class TradingLoop:
             self.config['trading_parameters'].get('rsi_buy_threshold', 30) - 2, 20)
         self.config['trading_parameters']['rsi_sell_threshold'] = min(
             self.config['trading_parameters'].get('rsi_sell_threshold', 70) + 2, 80)
+
+    def cancel_existing_orders(self):
+        try:
+            orders = self.upbit_client.get_order("KRW-BTC")
+            for order in orders:
+                self.upbit_client.cancel_order(order['uuid'])
+            logger.info("모든 미체결 주문이 취소되었습니다.")
+        except Exception as e:
+            logger.error(f"미체결 주문 취소 중 오류 발생: {e}")
 
 
 def main():
