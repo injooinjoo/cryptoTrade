@@ -27984,3 +27984,2368 @@ date                                         ...
 2024-08-11 23:56:01,271 - discord_notifier - INFO - Message sent to Discord successfully.
 2024-08-11 23:56:01,271 - __main__ - INFO - Performance report sent
 2024-08-11 23:56:01,391 - __main__ - INFO - Performance recorded: buy at 84600000.0
+2024-08-12 00:01:02,332 - data_manager - INFO - Adding new data. Shape: (1, 7)
+2024-08-12 00:01:02,531 - data_manager - INFO - Successfully added 1 new data points
+2024-08-12 00:01:02,539 - data_manager - INFO - prepare_data_for_ml 메서드 시작. 데이터 shape: (1440, 7)
+2024-08-12 00:01:02,544 - data_manager - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 14)
+2024-08-12 00:01:02,544 - data_manager - INFO - 데이터 컬럼: Index(['open', 'high', 'low', 'close', 'volume', 'value', 'decision', 'sma',
+       'ema', 'rsi', 'macd', 'signal_line', 'BB_Upper', 'BB_Lower'],
+      dtype='object')
+2024-08-12 00:01:02,545 - data_manager - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+2024-08-12 00:01:02,545 - backtesting_and_ml - INFO - predict 메서드 시작. 입력 데이터 shape: (1440, 14)
+2024-08-12 00:01:02,545 - backtesting_and_ml - INFO - 선택된 특성 데이터 shape: (1, 12)
+2024-08-12 00:01:02,546 - backtesting_and_ml - INFO - 선택된 특성 데이터:
+[[ 8.46720000e+07  8.47410000e+07  8.46560000e+07  8.47280000e+07
+   1.66992757e+00  8.46534000e+07  8.47929864e+07  4.62633141e+01
+  -1.32664313e+05 -1.95666683e+05  8.50389642e+07  8.42678358e+07]]
+2024-08-12 00:01:02,546 - backtesting_and_ml - INFO - NaN 처리 후 데이터:
+[[ 8.46720000e+07  8.47410000e+07  8.46560000e+07  8.47280000e+07
+   1.66992757e+00  8.46534000e+07  8.47929864e+07  4.62633141e+01
+  -1.32664313e+05 -1.95666683e+05  8.50389642e+07  8.42678358e+07]]
+2024-08-12 00:01:02,547 - backtesting_and_ml - INFO - 특성 선택 후 데이터 shape: (1, 12)
+2024-08-12 00:01:02,547 - backtesting_and_ml - INFO - 스케일링 후 데이터:
+[[ 0.21747105  0.19060693  0.25744152  0.23223863 -0.6249668   0.20769098
+   0.2444448  -0.21130961 -0.3394209  -0.56499665  0.09749404  0.2966396 ]]
+2024-08-12 00:01:02,548 - backtesting_and_ml - INFO - 예측 결과: 1
+2024-08-12 00:01:02,555 - backtesting_and_ml - INFO - prepare_data 메서드 시작. 데이터 shape: (1440, 14)
+2024-08-12 00:01:02,558 - backtesting_and_ml - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 14)
+2024-08-12 00:01:02,656 - backtesting_and_ml - INFO - 데이터 샘플:
+                           open        high  ...      BB_Upper      BB_Lower
+date                                         ...                            
+2024-08-02 00:10:00  89612000.0  89674000.0  ...  8.926082e+07  8.812708e+07
+2024-08-02 00:20:00  89197000.0  89238000.0  ...  8.926082e+07  8.812708e+07
+2024-08-02 00:30:00  88741000.0  88965000.0  ...  8.926082e+07  8.812708e+07
+2024-08-02 00:40:00  88645000.0  88782000.0  ...  8.926082e+07  8.812708e+07
+2024-08-02 00:50:00  88514000.0  88900000.0  ...  8.926082e+07  8.812708e+07
+
+[5 rows x 12 columns]
+2024-08-12 00:01:02,656 - backtesting_and_ml - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+2024-08-12 00:01:07,371 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2024-08-12 00:01:07,372 - trading_logic - INFO - GPT-4 advice: {'decision': 'hold', 'percentage': 0, 'target_price': None, 'stop_loss': 83225000, 'take_profit': 85800000, 'reasoning': "The current market analysis indicates that the BTC price is in a neutral trend, with the price currently at 84,728,000 KRW, which is very close to the 60-day SMA of 84,653,400 KRW. The RSI is at 46.26, suggesting that the market is neither overbought nor oversold, and the price is currently inside the Bollinger Bands, indicating a lack of volatility. Considering the market's sideways regime and all predictions leaning towards a potential upward bias, it would be prudent to hold the current position until a clearer signal emerges. The stop loss has been set below the recent lows to manage risk effectively.", 'risk_assessment': 'medium', 'short_term_prediction': 'stable', 'param_adjustment': {'risk_factor': 0.9, 'stop_loss_factor': 0.018}}
+2024-08-12 00:01:07,372 - __main__ - INFO - Decision weights - GPT4: 0.3, ML: 0.25, XGBoost: 0.25, RL: 0.2
+2024-08-12 00:01:07,372 - __main__ - INFO - Individual decisions - GPT4: 0, ML: 1, XGBoost: 1, RL: 0
+2024-08-12 00:01:07,372 - __main__ - INFO - Weighted decision: 0.5
+2024-08-12 00:01:07,372 - __main__ - INFO - Final trading decision: buy
+[93m2024-08-12 00:01:07,443 - trading_logic - WARNING - Buy amount (0.00 KRW) is less than minimum trade amount (5000 KRW)[0m
+[93m2024-08-12 00:01:07,444 - __main__ - WARNING - Trade failed: 매수 금액이 최소 거래 금액(5000 KRW)보다 작습니다.[0m
+2024-08-12 00:01:07,880 - discord_notifier - INFO - Message sent to Discord successfully.
+2024-08-12 00:01:07,881 - __main__ - INFO - Performance report sent
+2024-08-12 00:01:07,995 - __main__ - INFO - Performance recorded: buy at 84656000.0
+2024-08-12 00:06:08,850 - data_manager - INFO - prepare_data_for_ml 메서드 시작. 데이터 shape: (1440, 7)
+2024-08-12 00:06:08,856 - data_manager - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 14)
+2024-08-12 00:06:08,856 - data_manager - INFO - 데이터 컬럼: Index(['open', 'high', 'low', 'close', 'volume', 'value', 'decision', 'sma',
+       'ema', 'rsi', 'macd', 'signal_line', 'BB_Upper', 'BB_Lower'],
+      dtype='object')
+2024-08-12 00:06:08,856 - data_manager - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+2024-08-12 00:06:08,856 - backtesting_and_ml - INFO - predict 메서드 시작. 입력 데이터 shape: (1440, 14)
+2024-08-12 00:06:08,857 - backtesting_and_ml - INFO - 선택된 특성 데이터 shape: (1, 12)
+2024-08-12 00:06:08,857 - backtesting_and_ml - INFO - 선택된 특성 데이터:
+[[ 8.46720000e+07  8.47410000e+07  8.46560000e+07  8.47280000e+07
+   1.66992757e+00  8.46534000e+07  8.47929864e+07  4.62633141e+01
+  -1.32664313e+05 -1.95666683e+05  8.50389642e+07  8.42678358e+07]]
+2024-08-12 00:06:08,857 - backtesting_and_ml - INFO - NaN 처리 후 데이터:
+[[ 8.46720000e+07  8.47410000e+07  8.46560000e+07  8.47280000e+07
+   1.66992757e+00  8.46534000e+07  8.47929864e+07  4.62633141e+01
+  -1.32664313e+05 -1.95666683e+05  8.50389642e+07  8.42678358e+07]]
+2024-08-12 00:06:08,858 - backtesting_and_ml - INFO - 특성 선택 후 데이터 shape: (1, 12)
+2024-08-12 00:06:08,858 - backtesting_and_ml - INFO - 스케일링 후 데이터:
+[[ 0.21747105  0.19060693  0.25744152  0.23223863 -0.6249668   0.20769098
+   0.2444448  -0.21130961 -0.3394209  -0.56499665  0.09749404  0.2966396 ]]
+2024-08-12 00:06:08,859 - backtesting_and_ml - INFO - 예측 결과: 1
+2024-08-12 00:06:08,866 - backtesting_and_ml - INFO - prepare_data 메서드 시작. 데이터 shape: (1440, 14)
+2024-08-12 00:06:08,869 - backtesting_and_ml - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 14)
+2024-08-12 00:06:08,875 - backtesting_and_ml - INFO - 데이터 샘플:
+                           open        high  ...      BB_Upper      BB_Lower
+date                                         ...                            
+2024-08-02 00:10:00  89612000.0  89674000.0  ...  8.926082e+07  8.812708e+07
+2024-08-02 00:20:00  89197000.0  89238000.0  ...  8.926082e+07  8.812708e+07
+2024-08-02 00:30:00  88741000.0  88965000.0  ...  8.926082e+07  8.812708e+07
+2024-08-02 00:40:00  88645000.0  88782000.0  ...  8.926082e+07  8.812708e+07
+2024-08-02 00:50:00  88514000.0  88900000.0  ...  8.926082e+07  8.812708e+07
+
+[5 rows x 12 columns]
+2024-08-12 00:06:08,876 - backtesting_and_ml - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+2024-08-12 00:06:11,534 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2024-08-12 00:06:11,535 - trading_logic - INFO - GPT-4 advice: {'decision': 'hold', 'percentage': 100, 'target_price': 85000000, 'stop_loss': 83800000, 'take_profit': 85500000, 'reasoning': 'The market is currently neutral with the RSI indicating no overbought or oversold conditions. The current price is slightly above the SMA and EMA indicators, suggesting potential support. The machine learning prediction suggests an upward movement, which aligns with the decision to buy. Additionally, the Bollinger Bands indicate that the price is currently inside the bands, suggesting potential for upward momentum. Given the available funds, I recommend using 100% of the capital to capitalize on this potential move.', 'risk_assessment': 'medium', 'short_term_prediction': 'increase', 'param_adjustment': {'risk_factor': 0.85, 'stop_loss_factor': 0.017}}
+2024-08-12 00:06:11,535 - __main__ - INFO - Decision weights - GPT4: 0.3, ML: 0.25, XGBoost: 0.25, RL: 0.2
+2024-08-12 00:06:11,535 - __main__ - INFO - Individual decisions - GPT4: 0, ML: 1, XGBoost: 1, RL: 1
+2024-08-12 00:06:11,535 - __main__ - INFO - Weighted decision: 0.7
+2024-08-12 00:06:11,535 - __main__ - INFO - Final trading decision: buy
+[93m2024-08-12 00:06:11,659 - trading_logic - WARNING - 매수 주문 실패[0m
+[93m2024-08-12 00:06:11,659 - __main__ - WARNING - Trade failed: 매수 주문 실패[0m
+2024-08-12 00:06:12,069 - discord_notifier - INFO - Message sent to Discord successfully.
+2024-08-12 00:06:12,070 - __main__ - INFO - Performance report sent
+2024-08-12 00:06:12,188 - __main__ - INFO - Performance recorded: buy at 84551000.0
+2024-08-12 00:11:13,119 - data_manager - INFO - Adding new data. Shape: (1, 7)
+2024-08-12 00:11:13,346 - data_manager - INFO - Successfully added 1 new data points
+2024-08-12 00:11:13,354 - data_manager - INFO - prepare_data_for_ml 메서드 시작. 데이터 shape: (1440, 7)
+2024-08-12 00:11:13,359 - data_manager - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 14)
+2024-08-12 00:11:13,359 - data_manager - INFO - 데이터 컬럼: Index(['open', 'high', 'low', 'close', 'volume', 'value', 'decision', 'sma',
+       'ema', 'rsi', 'macd', 'signal_line', 'BB_Upper', 'BB_Lower'],
+      dtype='object')
+2024-08-12 00:11:13,360 - data_manager - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+2024-08-12 00:11:13,360 - backtesting_and_ml - INFO - predict 메서드 시작. 입력 데이터 shape: (1440, 14)
+2024-08-12 00:11:13,360 - backtesting_and_ml - INFO - 선택된 특성 데이터 shape: (1, 12)
+2024-08-12 00:11:13,361 - backtesting_and_ml - INFO - 선택된 특성 데이터:
+[[ 8.42270000e+07  8.45310000e+07  8.42020000e+07  8.45270000e+07
+   5.96269711e+00  8.46291500e+07  8.47676544e+07  4.19545821e+01
+  -1.39020403e+05 -1.84337427e+05  8.49809797e+07  8.42773203e+07]]
+2024-08-12 00:11:13,361 - backtesting_and_ml - INFO - NaN 처리 후 데이터:
+[[ 8.42270000e+07  8.45310000e+07  8.42020000e+07  8.45270000e+07
+   5.96269711e+00  8.46291500e+07  8.47676544e+07  4.19545821e+01
+  -1.39020403e+05 -1.84337427e+05  8.49809797e+07  8.42773203e+07]]
+2024-08-12 00:11:13,361 - backtesting_and_ml - INFO - 특성 선택 후 데이터 shape: (1, 12)
+2024-08-12 00:11:13,362 - backtesting_and_ml - INFO - 스케일링 후 데이터:
+[[ 0.10469373  0.1363534   0.14411127  0.18126065 -0.5648829   0.20150934
+   0.23795778 -0.57699043 -0.35815392 -0.52956504  0.08164418  0.29885002]]
+2024-08-12 00:11:13,363 - backtesting_and_ml - INFO - 예측 결과: 1
+2024-08-12 00:11:13,370 - backtesting_and_ml - INFO - prepare_data 메서드 시작. 데이터 shape: (1440, 14)
+2024-08-12 00:11:13,374 - backtesting_and_ml - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 14)
+2024-08-12 00:11:13,379 - backtesting_and_ml - INFO - 데이터 샘플:
+                           open        high  ...      BB_Upper      BB_Lower
+date                                         ...                            
+2024-08-02 00:20:00  89197000.0  89238000.0  ...  8.919507e+07  8.815313e+07
+2024-08-02 00:30:00  88741000.0  88965000.0  ...  8.919507e+07  8.815313e+07
+2024-08-02 00:40:00  88645000.0  88782000.0  ...  8.919507e+07  8.815313e+07
+2024-08-02 00:50:00  88514000.0  88900000.0  ...  8.919507e+07  8.815313e+07
+2024-08-02 01:00:00  88590000.0  88853000.0  ...  8.919507e+07  8.815313e+07
+
+[5 rows x 12 columns]
+2024-08-12 00:11:13,380 - backtesting_and_ml - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+2024-08-12 00:11:16,095 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2024-08-12 00:11:16,097 - trading_logic - INFO - GPT-4 advice: {'decision': 'hold', 'percentage': 50, 'target_price': 84800000, 'stop_loss': 84000000, 'take_profit': 85200000, 'reasoning': 'Despite the bearish trend indicated by the market analysis, the current price of 84,527,000 KRW is approaching the lower Bollinger Band, suggesting a potential reversal. The ML and XGBoost predictions both indicate a bullish move ahead. The RSI is neutral but below 50, meaning it is not overbought. I recommend a cautious buy, setting a target price slightly above the current price with an appropriate stop loss to mitigate risks associated with market volatility.', 'risk_assessment': 'medium', 'short_term_prediction': 'increase', 'param_adjustment': {'risk_factor': 0.85, 'stop_loss_factor': 0.015}}
+2024-08-12 00:11:16,097 - __main__ - INFO - Decision weights - GPT4: 0.3, ML: 0.25, XGBoost: 0.25, RL: 0.2
+2024-08-12 00:11:16,097 - __main__ - INFO - Individual decisions - GPT4: 0, ML: 1, XGBoost: 1, RL: 1
+2024-08-12 00:11:16,098 - __main__ - INFO - Weighted decision: 0.7
+2024-08-12 00:11:16,098 - __main__ - INFO - Final trading decision: buy
+2024-08-12 00:11:16,230 - trading_logic - INFO - 매수 주문 성공: 0.00132053 BTC at 84528000.0 KRW
+2024-08-12 00:11:16,230 - trading_logic - INFO - Buy order executed: 0.00132053 BTC at 84528000.0 KRW
+2024-08-12 00:11:16,230 - __main__ - INFO - Trade executed: Buy order executed: 0.00132053 BTC at 84528000.0 KRW
+2024-08-12 00:11:16,230 - __main__ - INFO - Added new order: 527b8287-fbd1-49aa-bc86-ade6b15d91dc with stop loss at 84000000 and take profit at 85200000
+2024-08-12 00:11:16,574 - discord_notifier - INFO - Message sent to Discord successfully.
+2024-08-12 00:11:16,574 - __main__ - INFO - Performance report sent
+2024-08-12 00:11:16,678 - __main__ - INFO - Performance recorded: buy at 84536000.0
+2024-08-12 00:16:17,546 - data_manager - INFO - prepare_data_for_ml 메서드 시작. 데이터 shape: (1440, 7)
+2024-08-12 00:16:17,551 - data_manager - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 14)
+2024-08-12 00:16:17,551 - data_manager - INFO - 데이터 컬럼: Index(['open', 'high', 'low', 'close', 'volume', 'value', 'decision', 'sma',
+       'ema', 'rsi', 'macd', 'signal_line', 'BB_Upper', 'BB_Lower'],
+      dtype='object')
+2024-08-12 00:16:17,552 - data_manager - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+2024-08-12 00:16:17,552 - backtesting_and_ml - INFO - predict 메서드 시작. 입력 데이터 shape: (1440, 14)
+2024-08-12 00:16:17,552 - backtesting_and_ml - INFO - 선택된 특성 데이터 shape: (1, 12)
+2024-08-12 00:16:17,553 - backtesting_and_ml - INFO - 선택된 특성 데이터:
+[[ 8.42270000e+07  8.45310000e+07  8.42020000e+07  8.45270000e+07
+   5.96269711e+00  8.46291500e+07  8.47676544e+07  4.19545821e+01
+  -1.39020403e+05 -1.84337427e+05  8.49809797e+07  8.42773203e+07]]
+2024-08-12 00:16:17,553 - backtesting_and_ml - INFO - NaN 처리 후 데이터:
+[[ 8.42270000e+07  8.45310000e+07  8.42020000e+07  8.45270000e+07
+   5.96269711e+00  8.46291500e+07  8.47676544e+07  4.19545821e+01
+  -1.39020403e+05 -1.84337427e+05  8.49809797e+07  8.42773203e+07]]
+2024-08-12 00:16:17,553 - backtesting_and_ml - INFO - 특성 선택 후 데이터 shape: (1, 12)
+2024-08-12 00:16:17,553 - backtesting_and_ml - INFO - 스케일링 후 데이터:
+[[ 0.10469373  0.1363534   0.14411127  0.18126065 -0.5648829   0.20150934
+   0.23795778 -0.57699043 -0.35815392 -0.52956504  0.08164418  0.29885002]]
+2024-08-12 00:16:17,555 - backtesting_and_ml - INFO - 예측 결과: 1
+2024-08-12 00:16:17,562 - backtesting_and_ml - INFO - prepare_data 메서드 시작. 데이터 shape: (1440, 14)
+2024-08-12 00:16:17,566 - backtesting_and_ml - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 14)
+2024-08-12 00:16:17,571 - backtesting_and_ml - INFO - 데이터 샘플:
+                           open        high  ...      BB_Upper      BB_Lower
+date                                         ...                            
+2024-08-02 00:20:00  89197000.0  89238000.0  ...  8.919507e+07  8.815313e+07
+2024-08-02 00:30:00  88741000.0  88965000.0  ...  8.919507e+07  8.815313e+07
+2024-08-02 00:40:00  88645000.0  88782000.0  ...  8.919507e+07  8.815313e+07
+2024-08-02 00:50:00  88514000.0  88900000.0  ...  8.919507e+07  8.815313e+07
+2024-08-02 01:00:00  88590000.0  88853000.0  ...  8.919507e+07  8.815313e+07
+
+[5 rows x 12 columns]
+2024-08-12 00:16:17,572 - backtesting_and_ml - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+2024-08-12 00:16:20,099 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2024-08-12 00:16:20,101 - trading_logic - INFO - GPT-4 advice: {'decision': 'hold', 'percentage': 0, 'target_price': None, 'stop_loss': 83000000, 'take_profit': 86000000, 'reasoning': 'The market is currently in a sideways regime with a bearish trend. The Stochastic Oscillator and RSI readings indicate that BTC is in a neutral position, which does not justify aggressive buying or selling at this moment. The price is also within the Bollinger Bands without any strong signals for a breakout, indicating limited movement. Additionally, recent decisions have not yielded any evaluations, suggesting uncertainty. Therefore, I recommend holding the current position.', 'risk_assessment': 'medium', 'short_term_prediction': 'stable', 'param_adjustment': {'risk_factor': 0.9, 'stop_loss_factor': 0.018}}
+2024-08-12 00:16:20,102 - __main__ - INFO - Decision weights - GPT4: 0.3, ML: 0.25, XGBoost: 0.25, RL: 0.2
+2024-08-12 00:16:20,102 - __main__ - INFO - Individual decisions - GPT4: 0, ML: 1, XGBoost: 1, RL: 0
+2024-08-12 00:16:20,102 - __main__ - INFO - Weighted decision: 0.5
+2024-08-12 00:16:20,102 - __main__ - INFO - Final trading decision: buy
+2024-08-12 00:16:20,103 - __main__ - INFO - Last decision review: Unsuccessful
+2024-08-12 00:16:20,103 - __main__ - INFO - Adjusted trading parameters: {'risk_factor': 0.9, 'stop_loss_factor': 0.018000000000000002, 'buy_threshold': 0.0105}
+[93m2024-08-12 00:16:20,177 - trading_logic - WARNING - Buy amount (0.00 KRW) is less than minimum trade amount (5000 KRW)[0m
+[93m2024-08-12 00:16:20,178 - __main__ - WARNING - Trade failed: 매수 금액이 최소 거래 금액(5000 KRW)보다 작습니다.[0m
+2024-08-12 00:16:20,465 - discord_notifier - INFO - Message sent to Discord successfully.
+2024-08-12 00:16:20,465 - __main__ - INFO - Performance report sent
+2024-08-12 00:16:20,584 - __main__ - INFO - Performance recorded: buy at 84571000.0
+2024-08-12 00:21:21,532 - data_manager - INFO - Adding new data. Shape: (1, 7)
+2024-08-12 00:21:21,730 - data_manager - INFO - Successfully added 1 new data points
+2024-08-12 00:21:21,740 - data_manager - INFO - prepare_data_for_ml 메서드 시작. 데이터 shape: (1440, 7)
+2024-08-12 00:21:21,744 - data_manager - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 14)
+2024-08-12 00:21:21,745 - data_manager - INFO - 데이터 컬럼: Index(['open', 'high', 'low', 'close', 'volume', 'value', 'decision', 'sma',
+       'ema', 'rsi', 'macd', 'signal_line', 'BB_Upper', 'BB_Lower'],
+      dtype='object')
+2024-08-12 00:21:21,745 - data_manager - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+2024-08-12 00:21:21,745 - backtesting_and_ml - INFO - predict 메서드 시작. 입력 데이터 shape: (1440, 14)
+2024-08-12 00:21:21,745 - backtesting_and_ml - INFO - 선택된 특성 데이터 shape: (1, 12)
+2024-08-12 00:21:21,746 - backtesting_and_ml - INFO - 선택된 특성 데이터:
+[[ 8.46120000e+07  8.46190000e+07  8.45500000e+07  8.46050000e+07
+   1.49748433e+00  8.46244000e+07  8.47521635e+07  4.41291899e+01
+  -1.36193745e+05 -1.74708691e+05  8.49748377e+07  8.42739623e+07]]
+2024-08-12 00:21:21,746 - backtesting_and_ml - INFO - NaN 처리 후 데이터:
+[[ 8.46120000e+07  8.46190000e+07  8.45500000e+07  8.46050000e+07
+   1.49748433e+00  8.46244000e+07  8.47521635e+07  4.41291899e+01
+  -1.36193745e+05 -1.74708691e+05  8.49748377e+07  8.42739623e+07]]
+2024-08-12 00:21:21,746 - backtesting_and_ml - INFO - 특성 선택 후 데이터 shape: (1, 12)
+2024-08-12 00:21:21,746 - backtesting_and_ml - INFO - 스케일링 후 데이터:
+[[ 0.20226512  0.15908822  0.23098115  0.20104315 -0.62738041  0.2002985
+   0.23399087 -0.39243211 -0.34982304 -0.49945171  0.07996529  0.29806742]]
+2024-08-12 00:21:21,748 - backtesting_and_ml - INFO - 예측 결과: 1
+2024-08-12 00:21:21,754 - backtesting_and_ml - INFO - prepare_data 메서드 시작. 데이터 shape: (1440, 14)
+2024-08-12 00:21:21,759 - backtesting_and_ml - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 14)
+2024-08-12 00:21:21,764 - backtesting_and_ml - INFO - 데이터 샘플:
+                           open        high  ...      BB_Upper      BB_Lower
+date                                         ...                            
+2024-08-02 00:30:00  88741000.0  88965000.0  ...  8.919124e+07  8.815126e+07
+2024-08-02 00:40:00  88645000.0  88782000.0  ...  8.919124e+07  8.815126e+07
+2024-08-02 00:50:00  88514000.0  88900000.0  ...  8.919124e+07  8.815126e+07
+2024-08-02 01:00:00  88590000.0  88853000.0  ...  8.919124e+07  8.815126e+07
+2024-08-02 01:10:00  88627000.0  89048000.0  ...  8.919124e+07  8.815126e+07
+
+[5 rows x 12 columns]
+2024-08-12 00:21:21,765 - backtesting_and_ml - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+2024-08-12 00:21:24,490 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2024-08-12 00:21:24,491 - trading_logic - INFO - GPT-4 advice: {'decision': 'hold', 'percentage': 60, 'target_price': 85000000, 'stop_loss': 84000000, 'take_profit': 85500000, 'reasoning': "The current price is at a slightly lower level than the SMA and EMA, suggesting a possible reversal soon amid a sideways market regime. The RSI value of 44 shows that the market is neither overbought nor oversold, while both machine learning and reinforcement learning predictions indicate an upward movement. The Bollinger Bands are currently 'Inside Bands,' allowing potential for volatility. This signals an opportunity to enter the market at a discount, thus a 60% portfolio allocation is recommended with a target price of 85,000,000.", 'risk_assessment': 'medium', 'short_term_prediction': 'increase', 'param_adjustment': {'risk_factor': 0.95, 'stop_loss_factor': 0.015}}
+2024-08-12 00:21:24,491 - __main__ - INFO - Decision weights - GPT4: 0.3, ML: 0.25, XGBoost: 0.25, RL: 0.2
+2024-08-12 00:21:24,492 - __main__ - INFO - Individual decisions - GPT4: 0, ML: 1, XGBoost: 1, RL: 1
+2024-08-12 00:21:24,492 - __main__ - INFO - Weighted decision: 0.7
+2024-08-12 00:21:24,492 - __main__ - INFO - Final trading decision: buy
+2024-08-12 00:21:24,492 - __main__ - INFO - Last decision review: Unsuccessful
+2024-08-12 00:21:24,492 - __main__ - INFO - Adjusted trading parameters: {'risk_factor': 0.9, 'stop_loss_factor': 0.018000000000000002, 'buy_threshold': 0.011025000000000002}
+2024-08-12 00:21:24,640 - trading_logic - INFO - 매수 주문 성공: 0.00079120 BTC at 84605000.0 KRW
+2024-08-12 00:21:24,640 - trading_logic - INFO - Buy order executed: 0.00079120 BTC at 84605000.0 KRW
+2024-08-12 00:21:24,640 - __main__ - INFO - Trade executed: Buy order executed: 0.00079120 BTC at 84605000.0 KRW
+2024-08-12 00:21:24,640 - __main__ - INFO - Added new order: 3a08c7b2-2d22-4e19-aa8c-90ea6368991c with stop loss at 84000000 and take profit at 85500000
+2024-08-12 00:21:24,965 - discord_notifier - INFO - Message sent to Discord successfully.
+2024-08-12 00:21:24,965 - __main__ - INFO - Performance report sent
+2024-08-12 00:21:25,080 - __main__ - INFO - Performance recorded: buy at 84605000.0
+2024-08-12 00:26:25,993 - data_manager - INFO - prepare_data_for_ml 메서드 시작. 데이터 shape: (1440, 7)
+2024-08-12 00:26:25,998 - data_manager - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 14)
+2024-08-12 00:26:25,998 - data_manager - INFO - 데이터 컬럼: Index(['open', 'high', 'low', 'close', 'volume', 'value', 'decision', 'sma',
+       'ema', 'rsi', 'macd', 'signal_line', 'BB_Upper', 'BB_Lower'],
+      dtype='object')
+2024-08-12 00:26:25,999 - data_manager - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+2024-08-12 00:26:25,999 - backtesting_and_ml - INFO - predict 메서드 시작. 입력 데이터 shape: (1440, 14)
+2024-08-12 00:26:25,999 - backtesting_and_ml - INFO - 선택된 특성 데이터 shape: (1, 12)
+2024-08-12 00:26:25,999 - backtesting_and_ml - INFO - 선택된 특성 데이터:
+[[ 8.46120000e+07  8.46190000e+07  8.45500000e+07  8.46050000e+07
+   1.49748433e+00  8.46244000e+07  8.47521635e+07  4.41291899e+01
+  -1.36193745e+05 -1.74708691e+05  8.49748377e+07  8.42739623e+07]]
+2024-08-12 00:26:26,000 - backtesting_and_ml - INFO - NaN 처리 후 데이터:
+[[ 8.46120000e+07  8.46190000e+07  8.45500000e+07  8.46050000e+07
+   1.49748433e+00  8.46244000e+07  8.47521635e+07  4.41291899e+01
+  -1.36193745e+05 -1.74708691e+05  8.49748377e+07  8.42739623e+07]]
+2024-08-12 00:26:26,000 - backtesting_and_ml - INFO - 특성 선택 후 데이터 shape: (1, 12)
+2024-08-12 00:26:26,000 - backtesting_and_ml - INFO - 스케일링 후 데이터:
+[[ 0.20226512  0.15908822  0.23098115  0.20104315 -0.62738041  0.2002985
+   0.23399087 -0.39243211 -0.34982304 -0.49945171  0.07996529  0.29806742]]
+2024-08-12 00:26:26,002 - backtesting_and_ml - INFO - 예측 결과: 1
+2024-08-12 00:26:26,010 - backtesting_and_ml - INFO - prepare_data 메서드 시작. 데이터 shape: (1440, 14)
+2024-08-12 00:26:26,014 - backtesting_and_ml - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 14)
+2024-08-12 00:26:26,019 - backtesting_and_ml - INFO - 데이터 샘플:
+                           open        high  ...      BB_Upper      BB_Lower
+date                                         ...                            
+2024-08-02 00:30:00  88741000.0  88965000.0  ...  8.919124e+07  8.815126e+07
+2024-08-02 00:40:00  88645000.0  88782000.0  ...  8.919124e+07  8.815126e+07
+2024-08-02 00:50:00  88514000.0  88900000.0  ...  8.919124e+07  8.815126e+07
+2024-08-02 01:00:00  88590000.0  88853000.0  ...  8.919124e+07  8.815126e+07
+2024-08-02 01:10:00  88627000.0  89048000.0  ...  8.919124e+07  8.815126e+07
+
+[5 rows x 12 columns]
+2024-08-12 00:26:26,020 - backtesting_and_ml - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+2024-08-12 00:26:28,883 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2024-08-12 00:26:28,884 - trading_logic - INFO - GPT-4 advice: {'decision': 'hold', 'percentage': 0, 'target_price': None, 'stop_loss': 83400000, 'take_profit': 85000000, 'reasoning': 'The market is currently showing a bearish trend but is in a sideways market regime with the current price at 84,605,000 KRW. The RSI is at 44, indicating a neutral state, and the price is inside the Bollinger Bands. The predictions from machine learning indicate an upward movement, but recent performance shows no significant trends to justify a buy. Therefore, I recommend holding until clearer signals emerge. The stop-loss and take-profit levels are set based on Bollinger Bands to manage risk while allowing for potential price movement.', 'risk_assessment': 'medium', 'short_term_prediction': 'stable', 'param_adjustment': {'risk_factor': 0.85, 'stop_loss_factor': 0.017}}
+2024-08-12 00:26:28,884 - __main__ - INFO - Decision weights - GPT4: 0.3, ML: 0.25, XGBoost: 0.25, RL: 0.2
+2024-08-12 00:26:28,885 - __main__ - INFO - Individual decisions - GPT4: 0, ML: 1, XGBoost: 1, RL: 1
+2024-08-12 00:26:28,885 - __main__ - INFO - Weighted decision: 0.7
+2024-08-12 00:26:28,885 - __main__ - INFO - Final trading decision: buy
+2024-08-12 00:26:28,885 - __main__ - INFO - Last decision review: Unsuccessful
+2024-08-12 00:26:28,885 - __main__ - INFO - Adjusted trading parameters: {'risk_factor': 0.9, 'stop_loss_factor': 0.018000000000000002, 'buy_threshold': 0.011576250000000003}
+[93m2024-08-12 00:26:28,954 - trading_logic - WARNING - Buy amount (0.00 KRW) is less than minimum trade amount (5000 KRW)[0m
+[93m2024-08-12 00:26:28,954 - __main__ - WARNING - Trade failed: 매수 금액이 최소 거래 금액(5000 KRW)보다 작습니다.[0m
+2024-08-12 00:26:29,276 - discord_notifier - INFO - Message sent to Discord successfully.
+2024-08-12 00:26:29,276 - __main__ - INFO - Performance report sent
+2024-08-12 00:26:29,396 - __main__ - INFO - Performance recorded: buy at 84682000.0
+2024-08-12 00:31:30,281 - data_manager - INFO - Adding new data. Shape: (1, 7)
+2024-08-12 00:31:30,495 - data_manager - INFO - Successfully added 1 new data points
+2024-08-12 00:31:30,502 - data_manager - INFO - prepare_data_for_ml 메서드 시작. 데이터 shape: (1440, 7)
+2024-08-12 00:31:30,509 - data_manager - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 14)
+2024-08-12 00:31:30,509 - data_manager - INFO - 데이터 컬럼: Index(['open', 'high', 'low', 'close', 'volume', 'value', 'decision', 'sma',
+       'ema', 'rsi', 'macd', 'signal_line', 'BB_Upper', 'BB_Lower'],
+      dtype='object')
+2024-08-12 00:31:30,510 - data_manager - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+2024-08-12 00:31:30,510 - backtesting_and_ml - INFO - predict 메서드 시작. 입력 데이터 shape: (1440, 14)
+2024-08-12 00:31:30,510 - backtesting_and_ml - INFO - 선택된 특성 데이터 shape: (1, 12)
+2024-08-12 00:31:30,511 - backtesting_and_ml - INFO - 선택된 특성 데이터:
+[[ 8.47670000e+07  8.47670000e+07  8.47020000e+07  8.47030000e+07
+   2.75274330e-01  8.46260000e+07  8.47474812e+07  4.68246890e+01
+  -1.24609398e+05 -1.64688832e+05  8.49775645e+07  8.42744355e+07]]
+2024-08-12 00:31:30,511 - backtesting_and_ml - INFO - NaN 처리 후 데이터:
+[[ 8.47670000e+07  8.47670000e+07  8.47020000e+07  8.47030000e+07
+   2.75274330e-01  8.46260000e+07  8.47474812e+07  4.68246890e+01
+  -1.24609398e+05 -1.64688832e+05  8.49775645e+07  8.42744355e+07]]
+2024-08-12 00:31:30,511 - backtesting_and_ml - INFO - 특성 선택 후 데이터 shape: (1, 12)
+2024-08-12 00:31:30,512 - backtesting_and_ml - INFO - 스케일링 후 데이터:
+[[ 0.24154711  0.19732404  0.26892432  0.22589809 -0.64448712  0.20070636
+   0.23279184 -0.16366589 -0.31568101 -0.46811517  0.08071066  0.29817769]]
+2024-08-12 00:31:30,513 - backtesting_and_ml - INFO - 예측 결과: 1
+2024-08-12 00:31:30,519 - backtesting_and_ml - INFO - prepare_data 메서드 시작. 데이터 shape: (1440, 14)
+2024-08-12 00:31:30,523 - backtesting_and_ml - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 14)
+2024-08-12 00:31:30,529 - backtesting_and_ml - INFO - 데이터 샘플:
+                           open        high  ...      BB_Upper      BB_Lower
+date                                         ...                            
+2024-08-02 00:40:00  88645000.0  88782000.0  ...  8.919986e+07  8.815604e+07
+2024-08-02 00:50:00  88514000.0  88900000.0  ...  8.919986e+07  8.815604e+07
+2024-08-02 01:00:00  88590000.0  88853000.0  ...  8.919986e+07  8.815604e+07
+2024-08-02 01:10:00  88627000.0  89048000.0  ...  8.919986e+07  8.815604e+07
+2024-08-02 01:20:00  88860000.0  89279000.0  ...  8.919986e+07  8.815604e+07
+
+[5 rows x 12 columns]
+2024-08-12 00:31:30,529 - backtesting_and_ml - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+2024-08-12 00:31:34,098 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2024-08-12 00:31:34,099 - trading_logic - INFO - GPT-4 advice: {'decision': 'hold', 'percentage': 50, 'target_price': 85000000, 'stop_loss': 84000000, 'take_profit': 85500000, 'reasoning': "Despite the current price being slightly above the 60-period SMA and below the EMA, the market trend is evaluated as 'neutral' with both the SMA and EMA indicating minimal divergence. The RSI is neutral at 46.82, suggesting the market isn’t overbought or oversold. The Bollinger Bands indicate the price is trading within the bands, indicating stability. The ML and XGBoost models predict a positive movement, reinforcing the decision to buy. Setting a target price of 85,000,000 offers a potential 0.75% gain, while the stop loss at 84,000,000 limits losses to approximately 1.2%.", 'risk_assessment': 'medium', 'short_term_prediction': 'increase', 'param_adjustment': {'risk_factor': 0.85, 'stop_loss_factor': 0.02}}
+2024-08-12 00:31:34,099 - __main__ - INFO - Decision weights - GPT4: 0.3, ML: 0.25, XGBoost: 0.25, RL: 0.2
+2024-08-12 00:31:34,099 - __main__ - INFO - Individual decisions - GPT4: 0, ML: 1, XGBoost: 1, RL: 1
+2024-08-12 00:31:34,099 - __main__ - INFO - Weighted decision: 0.7
+2024-08-12 00:31:34,099 - __main__ - INFO - Final trading decision: buy
+2024-08-12 00:31:34,100 - __main__ - INFO - Last decision review: Unsuccessful
+2024-08-12 00:31:34,100 - __main__ - INFO - Adjusted trading parameters: {'risk_factor': 0.9, 'stop_loss_factor': 0.018000000000000002, 'buy_threshold': 0.012155062500000004}
+2024-08-12 00:31:34,252 - trading_logic - INFO - 매수 주문 성공: 0.00026323 BTC at 84703000.0 KRW
+2024-08-12 00:31:34,252 - trading_logic - INFO - Buy order executed: 0.00026323 BTC at 84703000.0 KRW
+2024-08-12 00:31:34,252 - __main__ - INFO - Trade executed: Buy order executed: 0.00026323 BTC at 84703000.0 KRW
+2024-08-12 00:31:34,252 - __main__ - INFO - Added new order: 63fd8e05-aca6-428b-becf-2ce80272dea7 with stop loss at 84000000 and take profit at 85500000
+2024-08-12 00:31:34,547 - discord_notifier - INFO - Message sent to Discord successfully.
+2024-08-12 00:31:34,548 - __main__ - INFO - Performance report sent
+2024-08-12 00:31:34,685 - __main__ - INFO - Performance recorded: buy at 84703000.0
+2024-08-12 00:36:35,559 - data_manager - INFO - prepare_data_for_ml 메서드 시작. 데이터 shape: (1440, 7)
+2024-08-12 00:36:35,563 - data_manager - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 14)
+2024-08-12 00:36:35,564 - data_manager - INFO - 데이터 컬럼: Index(['open', 'high', 'low', 'close', 'volume', 'value', 'decision', 'sma',
+       'ema', 'rsi', 'macd', 'signal_line', 'BB_Upper', 'BB_Lower'],
+      dtype='object')
+2024-08-12 00:36:35,565 - data_manager - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+2024-08-12 00:36:35,565 - backtesting_and_ml - INFO - predict 메서드 시작. 입력 데이터 shape: (1440, 14)
+2024-08-12 00:36:35,565 - backtesting_and_ml - INFO - 선택된 특성 데이터 shape: (1, 12)
+2024-08-12 00:36:35,565 - backtesting_and_ml - INFO - 선택된 특성 데이터:
+[[ 8.47670000e+07  8.47670000e+07  8.47020000e+07  8.47030000e+07
+   2.75274330e-01  8.46260000e+07  8.47474812e+07  4.68246890e+01
+  -1.24609398e+05 -1.64688832e+05  8.49775645e+07  8.42744355e+07]]
+2024-08-12 00:36:35,565 - backtesting_and_ml - INFO - NaN 처리 후 데이터:
+[[ 8.47670000e+07  8.47670000e+07  8.47020000e+07  8.47030000e+07
+   2.75274330e-01  8.46260000e+07  8.47474812e+07  4.68246890e+01
+  -1.24609398e+05 -1.64688832e+05  8.49775645e+07  8.42744355e+07]]
+2024-08-12 00:36:35,566 - backtesting_and_ml - INFO - 특성 선택 후 데이터 shape: (1, 12)
+2024-08-12 00:36:35,566 - backtesting_and_ml - INFO - 스케일링 후 데이터:
+[[ 0.24154711  0.19732404  0.26892432  0.22589809 -0.64448712  0.20070636
+   0.23279184 -0.16366589 -0.31568101 -0.46811517  0.08071066  0.29817769]]
+2024-08-12 00:36:35,568 - backtesting_and_ml - INFO - 예측 결과: 1
+2024-08-12 00:36:35,575 - backtesting_and_ml - INFO - prepare_data 메서드 시작. 데이터 shape: (1440, 14)
+2024-08-12 00:36:35,580 - backtesting_and_ml - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 14)
+2024-08-12 00:36:35,585 - backtesting_and_ml - INFO - 데이터 샘플:
+                           open        high  ...      BB_Upper      BB_Lower
+date                                         ...                            
+2024-08-02 00:40:00  88645000.0  88782000.0  ...  8.919986e+07  8.815604e+07
+2024-08-02 00:50:00  88514000.0  88900000.0  ...  8.919986e+07  8.815604e+07
+2024-08-02 01:00:00  88590000.0  88853000.0  ...  8.919986e+07  8.815604e+07
+2024-08-02 01:10:00  88627000.0  89048000.0  ...  8.919986e+07  8.815604e+07
+2024-08-02 01:20:00  88860000.0  89279000.0  ...  8.919986e+07  8.815604e+07
+
+[5 rows x 12 columns]
+2024-08-12 00:36:35,585 - backtesting_and_ml - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+2024-08-12 00:36:38,722 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2024-08-12 00:36:38,724 - trading_logic - INFO - GPT-4 advice: {'decision': 'hold', 'percentage': 0, 'target_price': None, 'stop_loss': 83465000, 'take_profit': 85600000, 'reasoning': 'The current market analysis indicates a neutral trend, with the price nearing its 60-period simple moving average (SMA) and exponential moving average (EMA), suggesting a balanced market. The RSI is also neutral at 46.82, indicating no immediate overbought or oversold condition. Additionally, the Bollinger Bands show that the price is currently inside the bands, indicating a lack of volatility. With multiple indicators suggesting stability, and recent decision evaluations reporting no actionable outcomes, a hold position is appropriate to reassess in the near future as the market develops.', 'risk_assessment': 'medium', 'short_term_prediction': 'stable', 'param_adjustment': {'risk_factor': 0.9, 'stop_loss_factor': 0.018}}
+2024-08-12 00:36:38,725 - __main__ - INFO - Decision weights - GPT4: 0.3, ML: 0.25, XGBoost: 0.25, RL: 0.2
+2024-08-12 00:36:38,726 - __main__ - INFO - Individual decisions - GPT4: 0, ML: 1, XGBoost: 1, RL: 0
+2024-08-12 00:36:38,726 - __main__ - INFO - Weighted decision: 0.5
+2024-08-12 00:36:38,727 - __main__ - INFO - Final trading decision: buy
+2024-08-12 00:36:38,729 - __main__ - INFO - Last decision review: Unsuccessful
+2024-08-12 00:36:38,729 - __main__ - INFO - Adjusted trading parameters: {'risk_factor': 0.9, 'stop_loss_factor': 0.018000000000000002, 'buy_threshold': 0.012762815625000005}
+[93m2024-08-12 00:36:38,802 - trading_logic - WARNING - Buy amount (0.00 KRW) is less than minimum trade amount (5000 KRW)[0m
+[93m2024-08-12 00:36:38,802 - __main__ - WARNING - Trade failed: 매수 금액이 최소 거래 금액(5000 KRW)보다 작습니다.[0m
+2024-08-12 00:36:39,171 - discord_notifier - INFO - Message sent to Discord successfully.
+2024-08-12 00:36:39,171 - __main__ - INFO - Performance report sent
+2024-08-12 00:36:39,289 - __main__ - INFO - Performance recorded: buy at 84610000.0
+2024-08-12 00:41:40,176 - data_manager - INFO - Adding new data. Shape: (1, 7)
+2024-08-12 00:41:40,374 - data_manager - INFO - Successfully added 1 new data points
+2024-08-12 00:41:40,383 - data_manager - INFO - prepare_data_for_ml 메서드 시작. 데이터 shape: (1440, 7)
+2024-08-12 00:41:40,388 - data_manager - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 14)
+2024-08-12 00:41:40,388 - data_manager - INFO - 데이터 컬럼: Index(['open', 'high', 'low', 'close', 'volume', 'value', 'decision', 'sma',
+       'ema', 'rsi', 'macd', 'signal_line', 'BB_Upper', 'BB_Lower'],
+      dtype='object')
+2024-08-12 00:41:40,389 - data_manager - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+2024-08-12 00:41:40,389 - backtesting_and_ml - INFO - predict 메서드 시작. 입력 데이터 shape: (1440, 14)
+2024-08-12 00:41:40,389 - backtesting_and_ml - INFO - 선택된 특성 데이터 shape: (1, 12)
+2024-08-12 00:41:40,390 - backtesting_and_ml - INFO - 선택된 특성 데이터:
+[[ 8.45060000e+07  8.45890000e+07  8.44010000e+07  8.45600000e+07
+   2.37924852e+00  8.46173000e+07  8.47296259e+07  4.35248966e+01
+  -1.25520700e+05 -1.56855206e+05  8.49663462e+07  8.42682538e+07]]
+2024-08-12 00:41:40,390 - backtesting_and_ml - INFO - NaN 처리 후 데이터:
+[[ 8.45060000e+07  8.45890000e+07  8.44010000e+07  8.45600000e+07
+   2.37924852e+00  8.46173000e+07  8.47296259e+07  4.35248966e+01
+  -1.25520700e+05 -1.56855206e+05  8.49663462e+07  8.42682538e+07]]
+2024-08-12 00:41:40,390 - backtesting_and_ml - INFO - 특성 선택 후 데이터 shape: (1, 12)
+2024-08-12 00:41:40,390 - backtesting_and_ml - INFO - 스케일링 후 데이터:
+[[ 0.17540131  0.15133771  0.19378686  0.18963017 -0.61503877  0.19848862
+   0.22821945 -0.4437183  -0.31836685 -0.44361594  0.07764417  0.29673703]]
+2024-08-12 00:41:40,392 - backtesting_and_ml - INFO - 예측 결과: 1
+2024-08-12 00:41:40,398 - backtesting_and_ml - INFO - prepare_data 메서드 시작. 데이터 shape: (1440, 14)
+2024-08-12 00:41:40,402 - backtesting_and_ml - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 14)
+2024-08-12 00:41:40,407 - backtesting_and_ml - INFO - 데이터 샘플:
+                           open        high  ...      BB_Upper      BB_Lower
+date                                         ...                            
+2024-08-02 00:50:00  88514000.0  88900000.0  ...  8.925561e+07  8.815959e+07
+2024-08-02 01:00:00  88590000.0  88853000.0  ...  8.925561e+07  8.815959e+07
+2024-08-02 01:10:00  88627000.0  89048000.0  ...  8.925561e+07  8.815959e+07
+2024-08-02 01:20:00  88860000.0  89279000.0  ...  8.925561e+07  8.815959e+07
+2024-08-02 01:30:00  88740000.0  88836000.0  ...  8.925561e+07  8.815959e+07
+
+[5 rows x 12 columns]
+2024-08-12 00:41:40,408 - backtesting_and_ml - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+2024-08-12 00:41:43,587 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2024-08-12 00:41:43,591 - trading_logic - INFO - GPT-4 advice: {'decision': 'hold', 'percentage': 0, 'target_price': None, 'stop_loss': 83000000, 'take_profit': 86000000, 'reasoning': 'The market is currently in a bearish trend, with the price below both the SMA (Simple Moving Average) and EMA (Exponential Moving Average), indicating weak momentum. The RSI is neutral, suggesting the market is neither overbought nor oversold, which does not present a strong buying opportunity. Additionally, the market regime is categorized as sideways, meaning significant movements in either direction are less likely. Thus, I recommend holding the current position until clearer signals emerge.', 'risk_assessment': 'medium', 'short_term_prediction': 'stable', 'param_adjustment': {'risk_factor': 0.8, 'stop_loss_factor': 0.02}}
+2024-08-12 00:41:43,592 - __main__ - INFO - Decision weights - GPT4: 0.3, ML: 0.25, XGBoost: 0.25, RL: 0.2
+2024-08-12 00:41:43,592 - __main__ - INFO - Individual decisions - GPT4: 0, ML: 1, XGBoost: 1, RL: -1
+2024-08-12 00:41:43,592 - __main__ - INFO - Weighted decision: 0.3
+2024-08-12 00:41:43,592 - __main__ - INFO - Final trading decision: buy
+2024-08-12 00:41:43,592 - __main__ - INFO - Last decision review: Unsuccessful
+2024-08-12 00:41:43,592 - __main__ - INFO - Adjusted trading parameters: {'risk_factor': 0.9, 'stop_loss_factor': 0.018000000000000002, 'buy_threshold': 0.013400956406250006}
+[93m2024-08-12 00:41:43,665 - trading_logic - WARNING - Buy amount (0.00 KRW) is less than minimum trade amount (5000 KRW)[0m
+[93m2024-08-12 00:41:43,665 - __main__ - WARNING - Trade failed: 매수 금액이 최소 거래 금액(5000 KRW)보다 작습니다.[0m
+2024-08-12 00:41:44,261 - discord_notifier - INFO - Message sent to Discord successfully.
+2024-08-12 00:41:44,261 - __main__ - INFO - Performance report sent
+2024-08-12 00:41:44,378 - __main__ - INFO - Performance recorded: buy at 84560000.0
+2024-08-12 00:46:10,836 - config - INFO - Configuration loaded successfully from config.json.
+2024-08-12 00:46:11,001 - data_manager - INFO - Tables in database: [('decisions',), ('sqlite_sequence',), ('technical_indicators',), ('ohlcv_data',)]
+2024-08-12 00:46:11,001 - data_manager - INFO - ohlcv_data table structure:
+2024-08-12 00:46:11,002 - data_manager - INFO -   (0, 'date', 'TEXT', 0, None, 1)
+2024-08-12 00:46:11,002 - data_manager - INFO -   (1, 'open', 'REAL', 0, None, 0)
+2024-08-12 00:46:11,002 - data_manager - INFO -   (2, 'high', 'REAL', 0, None, 0)
+2024-08-12 00:46:11,002 - data_manager - INFO -   (3, 'low', 'REAL', 0, None, 0)
+2024-08-12 00:46:11,002 - data_manager - INFO -   (4, 'close', 'REAL', 0, None, 0)
+2024-08-12 00:46:11,002 - data_manager - INFO -   (5, 'volume', 'REAL', 0, None, 0)
+2024-08-12 00:46:11,002 - data_manager - INFO -   (6, 'value', 'REAL', 0, None, 0)
+2024-08-12 00:46:11,002 - data_manager - INFO -   (7, 'decision', 'TEXT', 0, None, 0)
+2024-08-12 00:46:11,002 - data_manager - INFO - Sample data from ohlcv_data:
+2024-08-12 00:46:11,002 - data_manager - INFO -   ('2017-09-25 12:00:00', 4201000.0, 4241000.0, 4195000.0, 4227000.0, 15.94002768, 67378497.00336, None)
+2024-08-12 00:46:11,002 - data_manager - INFO -   ('2017-09-25 12:10:00', 4215000.0, 4244000.0, 4210000.0, 4227000.0, 16.22476888, 68582098.05576, None)
+2024-08-12 00:46:11,002 - data_manager - INFO -   ('2017-09-25 12:20:00', 4215000.0, 4242000.0, 4191000.0, 4221000.0, 16.14499538, 68148025.49898, None)
+2024-08-12 00:46:11,002 - data_manager - INFO -   ('2017-09-25 12:30:00', 4219000.0, 4242000.0, 4202000.0, 4242000.0, 17.94348075, 76116245.3415, None)
+2024-08-12 00:46:11,002 - data_manager - INFO -   ('2017-09-25 12:40:00', 4227000.0, 4233000.0, 4199000.0, 4224000.0, 19.12203232, 80771464.51968, None)
+2024-08-12 00:46:11,155 - backtesting_and_ml - INFO - Starting backtest from 2024-07-13 00:46:11.153809 to 2024-08-12 00:46:11.153809 with initial balance 10000000.
+2024-08-12 00:46:11,353 - backtesting_and_ml - INFO - Backtest complete. Final balance: 9381298.853707504, Total return: -0.06187011462924965, Number of trades: 101
+2024-08-12 00:46:11,363 - backtesting_and_ml - INFO - prepare_data 메서드 시작. 데이터 shape: (1440, 8)
+2024-08-12 00:46:11,368 - backtesting_and_ml - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 15)
+2024-08-12 00:46:11,373 - backtesting_and_ml - INFO - 데이터 샘플:
+         open        high  ...      BB_Upper      BB_Lower
+0  88514000.0  88900000.0  ...  8.925561e+07  8.815959e+07
+1  88590000.0  88853000.0  ...  8.925561e+07  8.815959e+07
+2  88627000.0  89048000.0  ...  8.925561e+07  8.815959e+07
+3  88860000.0  89279000.0  ...  8.925561e+07  8.815959e+07
+4  88740000.0  88836000.0  ...  8.925561e+07  8.815959e+07
+
+[5 rows x 12 columns]
+2024-08-12 00:46:11,374 - backtesting_and_ml - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+2024-08-12 00:46:11,663 - backtesting_and_ml - INFO - 모델 학습 완료. 정확도: 0.5104166666666666, 손실: 0.48958333333333337
+2024-08-12 00:46:12,199 - config - INFO - Configuration loaded successfully from config.json.
+2024-08-12 00:46:12,199 - data_manager - INFO - ohlcv_data columns: ['date', 'open', 'high', 'low', 'close', 'volume', 'value', 'decision']
+2024-08-12 00:46:12,199 - data_manager - INFO - technical_indicators columns: ['timestamp', 'sma', 'ema', 'rsi', 'macd', 'signal_line', 'BB_Upper', 'BB_Lower']
+2024-08-12 00:46:12,384 - data_manager - INFO - Adding new data. Shape: (365, 7)
+2024-08-12 00:46:12,583 - data_manager - INFO - No new data to add
+2024-08-12 00:46:14,910 - data_manager - INFO - prepare_data_for_ml 메서드 시작. 데이터 shape: (1440, 7)
+2024-08-12 00:46:14,915 - data_manager - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 14)
+2024-08-12 00:46:14,915 - data_manager - INFO - 데이터 컬럼: Index(['open', 'high', 'low', 'close', 'volume', 'value', 'decision', 'sma',
+       'ema', 'rsi', 'macd', 'signal_line', 'BB_Upper', 'BB_Lower'],
+      dtype='object')
+2024-08-12 00:46:14,916 - data_manager - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+2024-08-12 00:46:14,916 - backtesting_and_ml - INFO - predict 메서드 시작. 입력 데이터 shape: (1440, 14)
+2024-08-12 00:46:14,916 - backtesting_and_ml - INFO - 선택된 특성 데이터 shape: (1, 12)
+2024-08-12 00:46:14,917 - backtesting_and_ml - INFO - 선택된 특성 데이터:
+[[ 8.45060000e+07  8.45890000e+07  8.44010000e+07  8.45600000e+07
+   2.37924852e+00  8.46173000e+07  8.47296259e+07  4.35248966e+01
+  -1.25520700e+05 -1.56855206e+05  8.49663462e+07  8.42682538e+07]]
+2024-08-12 00:46:14,917 - backtesting_and_ml - INFO - NaN 처리 후 데이터:
+[[ 8.45060000e+07  8.45890000e+07  8.44010000e+07  8.45600000e+07
+   2.37924852e+00  8.46173000e+07  8.47296259e+07  4.35248966e+01
+  -1.25520700e+05 -1.56855206e+05  8.49663462e+07  8.42682538e+07]]
+2024-08-12 00:46:14,917 - backtesting_and_ml - INFO - 특성 선택 후 데이터 shape: (1, 12)
+2024-08-12 00:46:14,918 - backtesting_and_ml - INFO - 스케일링 후 데이터:
+[[ 0.18107817  0.15705772  0.19912614  0.19499008 -0.610345    0.20363944
+   0.2337853  -0.49987472 -0.32947716 -0.45397523  0.08404619  0.30039911]]
+2024-08-12 00:46:14,919 - backtesting_and_ml - INFO - 예측 결과: 1
+2024-08-12 00:46:14,925 - backtesting_and_ml - INFO - prepare_data 메서드 시작. 데이터 shape: (1440, 14)
+2024-08-12 00:46:14,929 - backtesting_and_ml - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 14)
+2024-08-12 00:46:14,934 - backtesting_and_ml - INFO - 데이터 샘플:
+                           open        high  ...      BB_Upper      BB_Lower
+date                                         ...                            
+2024-08-02 00:50:00  88514000.0  88900000.0  ...  8.925561e+07  8.815959e+07
+2024-08-02 01:00:00  88590000.0  88853000.0  ...  8.925561e+07  8.815959e+07
+2024-08-02 01:10:00  88627000.0  89048000.0  ...  8.925561e+07  8.815959e+07
+2024-08-02 01:20:00  88860000.0  89279000.0  ...  8.925561e+07  8.815959e+07
+2024-08-02 01:30:00  88740000.0  88836000.0  ...  8.925561e+07  8.815959e+07
+
+[5 rows x 12 columns]
+2024-08-12 00:46:14,935 - backtesting_and_ml - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+[91m2024-08-12 00:46:15,024 - __main__ - ERROR - Trading loop error: need to call fit or load_model beforehand[0m
+[91m2024-08-12 00:46:15,024 - __main__ - ERROR - Traceback:[0m
+Traceback (most recent call last):
+  File "C:\Dev\GPT_BTC\pythonProject\gpt-bitcoin\main.py", line 183, in run
+    xgboost_prediction = self.xgboost_predictor.predict(data)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\gpt-bitcoin\backtesting_and_ml.py", line 189, in predict
+    return self.model.predict(X)[-1]
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\.venv\Lib\site-packages\xgboost\sklearn.py", line 1565, in predict
+    class_probs = super().predict(
+                  ^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\.venv\Lib\site-packages\xgboost\sklearn.py", line 1186, in predict
+    predts = self.get_booster().inplace_predict(
+             ^^^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\.venv\Lib\site-packages\xgboost\sklearn.py", line 805, in get_booster
+    raise NotFittedError("need to call fit or load_model beforehand")
+sklearn.exceptions.NotFittedError: need to call fit or load_model beforehand
+2024-08-12 00:47:15,033 - data_manager - INFO - prepare_data_for_ml 메서드 시작. 데이터 shape: (1440, 7)
+2024-08-12 00:47:15,038 - data_manager - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 14)
+2024-08-12 00:47:15,039 - data_manager - INFO - 데이터 컬럼: Index(['open', 'high', 'low', 'close', 'volume', 'value', 'decision', 'sma',
+       'ema', 'rsi', 'macd', 'signal_line', 'BB_Upper', 'BB_Lower'],
+      dtype='object')
+2024-08-12 00:47:15,039 - data_manager - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+2024-08-12 00:47:15,039 - backtesting_and_ml - INFO - predict 메서드 시작. 입력 데이터 shape: (1440, 14)
+2024-08-12 00:47:15,040 - backtesting_and_ml - INFO - 선택된 특성 데이터 shape: (1, 12)
+2024-08-12 00:47:15,040 - backtesting_and_ml - INFO - 선택된 특성 데이터:
+[[ 8.45060000e+07  8.45890000e+07  8.44010000e+07  8.45600000e+07
+   2.37924852e+00  8.46173000e+07  8.47296259e+07  4.35248966e+01
+  -1.25520700e+05 -1.56855206e+05  8.49663462e+07  8.42682538e+07]]
+2024-08-12 00:47:15,041 - backtesting_and_ml - INFO - NaN 처리 후 데이터:
+[[ 8.45060000e+07  8.45890000e+07  8.44010000e+07  8.45600000e+07
+   2.37924852e+00  8.46173000e+07  8.47296259e+07  4.35248966e+01
+  -1.25520700e+05 -1.56855206e+05  8.49663462e+07  8.42682538e+07]]
+2024-08-12 00:47:15,041 - backtesting_and_ml - INFO - 특성 선택 후 데이터 shape: (1, 12)
+2024-08-12 00:47:15,041 - backtesting_and_ml - INFO - 스케일링 후 데이터:
+[[ 0.18107817  0.15705772  0.19912614  0.19499008 -0.610345    0.20363944
+   0.2337853  -0.49987472 -0.32947716 -0.45397523  0.08404619  0.30039911]]
+2024-08-12 00:47:15,042 - backtesting_and_ml - INFO - 예측 결과: 1
+2024-08-12 00:47:15,049 - backtesting_and_ml - INFO - prepare_data 메서드 시작. 데이터 shape: (1440, 14)
+2024-08-12 00:47:15,052 - backtesting_and_ml - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 14)
+2024-08-12 00:47:15,059 - backtesting_and_ml - INFO - 데이터 샘플:
+                           open        high  ...      BB_Upper      BB_Lower
+date                                         ...                            
+2024-08-02 00:50:00  88514000.0  88900000.0  ...  8.925561e+07  8.815959e+07
+2024-08-02 01:00:00  88590000.0  88853000.0  ...  8.925561e+07  8.815959e+07
+2024-08-02 01:10:00  88627000.0  89048000.0  ...  8.925561e+07  8.815959e+07
+2024-08-02 01:20:00  88860000.0  89279000.0  ...  8.925561e+07  8.815959e+07
+2024-08-02 01:30:00  88740000.0  88836000.0  ...  8.925561e+07  8.815959e+07
+
+[5 rows x 12 columns]
+2024-08-12 00:47:15,059 - backtesting_and_ml - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+[91m2024-08-12 00:47:15,059 - __main__ - ERROR - Trading loop error: need to call fit or load_model beforehand[0m
+[91m2024-08-12 00:47:15,060 - __main__ - ERROR - Traceback:[0m
+Traceback (most recent call last):
+  File "C:\Dev\GPT_BTC\pythonProject\gpt-bitcoin\main.py", line 183, in run
+    xgboost_prediction = self.xgboost_predictor.predict(data)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\gpt-bitcoin\backtesting_and_ml.py", line 189, in predict
+    return self.model.predict(X)[-1]
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\.venv\Lib\site-packages\xgboost\sklearn.py", line 1565, in predict
+    class_probs = super().predict(
+                  ^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\.venv\Lib\site-packages\xgboost\sklearn.py", line 1186, in predict
+    predts = self.get_booster().inplace_predict(
+             ^^^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\.venv\Lib\site-packages\xgboost\sklearn.py", line 805, in get_booster
+    raise NotFittedError("need to call fit or load_model beforehand")
+sklearn.exceptions.NotFittedError: need to call fit or load_model beforehand
+2024-08-12 00:48:15,070 - data_manager - INFO - prepare_data_for_ml 메서드 시작. 데이터 shape: (1440, 7)
+2024-08-12 00:48:15,075 - data_manager - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 14)
+2024-08-12 00:48:15,075 - data_manager - INFO - 데이터 컬럼: Index(['open', 'high', 'low', 'close', 'volume', 'value', 'decision', 'sma',
+       'ema', 'rsi', 'macd', 'signal_line', 'BB_Upper', 'BB_Lower'],
+      dtype='object')
+2024-08-12 00:48:15,075 - data_manager - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+2024-08-12 00:48:15,075 - backtesting_and_ml - INFO - predict 메서드 시작. 입력 데이터 shape: (1440, 14)
+2024-08-12 00:48:15,075 - backtesting_and_ml - INFO - 선택된 특성 데이터 shape: (1, 12)
+2024-08-12 00:48:15,077 - backtesting_and_ml - INFO - 선택된 특성 데이터:
+[[ 8.45060000e+07  8.45890000e+07  8.44010000e+07  8.45600000e+07
+   2.37924852e+00  8.46173000e+07  8.47296259e+07  4.35248966e+01
+  -1.25520700e+05 -1.56855206e+05  8.49663462e+07  8.42682538e+07]]
+2024-08-12 00:48:15,077 - backtesting_and_ml - INFO - NaN 처리 후 데이터:
+[[ 8.45060000e+07  8.45890000e+07  8.44010000e+07  8.45600000e+07
+   2.37924852e+00  8.46173000e+07  8.47296259e+07  4.35248966e+01
+  -1.25520700e+05 -1.56855206e+05  8.49663462e+07  8.42682538e+07]]
+2024-08-12 00:48:15,077 - backtesting_and_ml - INFO - 특성 선택 후 데이터 shape: (1, 12)
+2024-08-12 00:48:15,077 - backtesting_and_ml - INFO - 스케일링 후 데이터:
+[[ 0.18107817  0.15705772  0.19912614  0.19499008 -0.610345    0.20363944
+   0.2337853  -0.49987472 -0.32947716 -0.45397523  0.08404619  0.30039911]]
+2024-08-12 00:48:15,079 - backtesting_and_ml - INFO - 예측 결과: 1
+2024-08-12 00:48:15,085 - backtesting_and_ml - INFO - prepare_data 메서드 시작. 데이터 shape: (1440, 14)
+2024-08-12 00:48:15,089 - backtesting_and_ml - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 14)
+2024-08-12 00:48:15,094 - backtesting_and_ml - INFO - 데이터 샘플:
+                           open        high  ...      BB_Upper      BB_Lower
+date                                         ...                            
+2024-08-02 00:50:00  88514000.0  88900000.0  ...  8.925561e+07  8.815959e+07
+2024-08-02 01:00:00  88590000.0  88853000.0  ...  8.925561e+07  8.815959e+07
+2024-08-02 01:10:00  88627000.0  89048000.0  ...  8.925561e+07  8.815959e+07
+2024-08-02 01:20:00  88860000.0  89279000.0  ...  8.925561e+07  8.815959e+07
+2024-08-02 01:30:00  88740000.0  88836000.0  ...  8.925561e+07  8.815959e+07
+
+[5 rows x 12 columns]
+2024-08-12 00:48:15,094 - backtesting_and_ml - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+[91m2024-08-12 00:48:15,094 - __main__ - ERROR - Trading loop error: need to call fit or load_model beforehand[0m
+[91m2024-08-12 00:48:15,095 - __main__ - ERROR - Traceback:[0m
+Traceback (most recent call last):
+  File "C:\Dev\GPT_BTC\pythonProject\gpt-bitcoin\main.py", line 183, in run
+    xgboost_prediction = self.xgboost_predictor.predict(data)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\gpt-bitcoin\backtesting_and_ml.py", line 189, in predict
+    return self.model.predict(X)[-1]
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\.venv\Lib\site-packages\xgboost\sklearn.py", line 1565, in predict
+    class_probs = super().predict(
+                  ^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\.venv\Lib\site-packages\xgboost\sklearn.py", line 1186, in predict
+    predts = self.get_booster().inplace_predict(
+             ^^^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\.venv\Lib\site-packages\xgboost\sklearn.py", line 805, in get_booster
+    raise NotFittedError("need to call fit or load_model beforehand")
+sklearn.exceptions.NotFittedError: need to call fit or load_model beforehand
+2024-08-12 00:49:15,103 - data_manager - INFO - prepare_data_for_ml 메서드 시작. 데이터 shape: (1440, 7)
+2024-08-12 00:49:15,108 - data_manager - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 14)
+2024-08-12 00:49:15,108 - data_manager - INFO - 데이터 컬럼: Index(['open', 'high', 'low', 'close', 'volume', 'value', 'decision', 'sma',
+       'ema', 'rsi', 'macd', 'signal_line', 'BB_Upper', 'BB_Lower'],
+      dtype='object')
+2024-08-12 00:49:15,109 - data_manager - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+2024-08-12 00:49:15,109 - backtesting_and_ml - INFO - predict 메서드 시작. 입력 데이터 shape: (1440, 14)
+2024-08-12 00:49:15,110 - backtesting_and_ml - INFO - 선택된 특성 데이터 shape: (1, 12)
+2024-08-12 00:49:15,110 - backtesting_and_ml - INFO - 선택된 특성 데이터:
+[[ 8.45060000e+07  8.45890000e+07  8.44010000e+07  8.45600000e+07
+   2.37924852e+00  8.46173000e+07  8.47296259e+07  4.35248966e+01
+  -1.25520700e+05 -1.56855206e+05  8.49663462e+07  8.42682538e+07]]
+2024-08-12 00:49:15,110 - backtesting_and_ml - INFO - NaN 처리 후 데이터:
+[[ 8.45060000e+07  8.45890000e+07  8.44010000e+07  8.45600000e+07
+   2.37924852e+00  8.46173000e+07  8.47296259e+07  4.35248966e+01
+  -1.25520700e+05 -1.56855206e+05  8.49663462e+07  8.42682538e+07]]
+2024-08-12 00:49:15,110 - backtesting_and_ml - INFO - 특성 선택 후 데이터 shape: (1, 12)
+2024-08-12 00:49:15,111 - backtesting_and_ml - INFO - 스케일링 후 데이터:
+[[ 0.18107817  0.15705772  0.19912614  0.19499008 -0.610345    0.20363944
+   0.2337853  -0.49987472 -0.32947716 -0.45397523  0.08404619  0.30039911]]
+2024-08-12 00:49:15,113 - backtesting_and_ml - INFO - 예측 결과: 1
+2024-08-12 00:49:15,120 - backtesting_and_ml - INFO - prepare_data 메서드 시작. 데이터 shape: (1440, 14)
+2024-08-12 00:49:15,124 - backtesting_and_ml - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 14)
+2024-08-12 00:49:15,132 - backtesting_and_ml - INFO - 데이터 샘플:
+                           open        high  ...      BB_Upper      BB_Lower
+date                                         ...                            
+2024-08-02 00:50:00  88514000.0  88900000.0  ...  8.925561e+07  8.815959e+07
+2024-08-02 01:00:00  88590000.0  88853000.0  ...  8.925561e+07  8.815959e+07
+2024-08-02 01:10:00  88627000.0  89048000.0  ...  8.925561e+07  8.815959e+07
+2024-08-02 01:20:00  88860000.0  89279000.0  ...  8.925561e+07  8.815959e+07
+2024-08-02 01:30:00  88740000.0  88836000.0  ...  8.925561e+07  8.815959e+07
+
+[5 rows x 12 columns]
+2024-08-12 00:49:15,133 - backtesting_and_ml - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+[91m2024-08-12 00:49:15,133 - __main__ - ERROR - Trading loop error: need to call fit or load_model beforehand[0m
+[91m2024-08-12 00:49:15,133 - __main__ - ERROR - Traceback:[0m
+Traceback (most recent call last):
+  File "C:\Dev\GPT_BTC\pythonProject\gpt-bitcoin\main.py", line 183, in run
+    xgboost_prediction = self.xgboost_predictor.predict(data)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\gpt-bitcoin\backtesting_and_ml.py", line 189, in predict
+    return self.model.predict(X)[-1]
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\.venv\Lib\site-packages\xgboost\sklearn.py", line 1565, in predict
+    class_probs = super().predict(
+                  ^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\.venv\Lib\site-packages\xgboost\sklearn.py", line 1186, in predict
+    predts = self.get_booster().inplace_predict(
+             ^^^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\.venv\Lib\site-packages\xgboost\sklearn.py", line 805, in get_booster
+    raise NotFittedError("need to call fit or load_model beforehand")
+sklearn.exceptions.NotFittedError: need to call fit or load_model beforehand
+2024-08-12 00:50:15,192 - data_manager - INFO - Adding new data. Shape: (1, 7)
+2024-08-12 00:50:15,383 - data_manager - INFO - Successfully added 1 new data points
+2024-08-12 00:50:15,394 - data_manager - INFO - prepare_data_for_ml 메서드 시작. 데이터 shape: (1440, 7)
+2024-08-12 00:50:15,398 - data_manager - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 14)
+2024-08-12 00:50:15,398 - data_manager - INFO - 데이터 컬럼: Index(['open', 'high', 'low', 'close', 'volume', 'value', 'decision', 'sma',
+       'ema', 'rsi', 'macd', 'signal_line', 'BB_Upper', 'BB_Lower'],
+      dtype='object')
+2024-08-12 00:50:15,399 - data_manager - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+2024-08-12 00:50:15,399 - backtesting_and_ml - INFO - predict 메서드 시작. 입력 데이터 shape: (1440, 14)
+2024-08-12 00:50:15,399 - backtesting_and_ml - INFO - 선택된 특성 데이터 shape: (1, 12)
+2024-08-12 00:50:15,400 - backtesting_and_ml - INFO - 선택된 특성 데이터:
+[[ 8.44860000e+07  8.44880000e+07  8.44300000e+07  8.44300000e+07
+   1.11789970e-01  8.46047000e+07  8.47010901e+07  4.07158000e+01
+  -1.35174618e+05 -1.52519088e+05  8.49615995e+07  8.42478005e+07]]
+2024-08-12 00:50:15,400 - backtesting_and_ml - INFO - NaN 처리 후 데이터:
+[[ 8.44860000e+07  8.44880000e+07  8.44300000e+07  8.44300000e+07
+   1.11789970e-01  8.46047000e+07  8.47010901e+07  4.07158000e+01
+  -1.35174618e+05 -1.52519088e+05  8.49615995e+07  8.42478005e+07]]
+2024-08-12 00:50:15,400 - backtesting_and_ml - INFO - 특성 선택 후 데이터 shape: (1, 12)
+2024-08-12 00:50:15,400 - backtesting_and_ml - INFO - 스케일링 후 데이터:
+[[ 0.17598898  0.13085718  0.20639212  0.16189771 -0.64214116  0.2004168
+   0.22645007 -0.742078   -0.35754527 -0.44080238  0.08274246  0.29562286]]
+2024-08-12 00:50:15,402 - backtesting_and_ml - INFO - 예측 결과: 1
+2024-08-12 00:50:15,409 - backtesting_and_ml - INFO - prepare_data 메서드 시작. 데이터 shape: (1440, 14)
+2024-08-12 00:50:15,413 - backtesting_and_ml - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 14)
+2024-08-12 00:50:15,418 - backtesting_and_ml - INFO - 데이터 샘플:
+                           open        high  ...      BB_Upper      BB_Lower
+date                                         ...                            
+2024-08-02 01:00:00  88590000.0  88853000.0  ...  8.929711e+07  8.816519e+07
+2024-08-02 01:10:00  88627000.0  89048000.0  ...  8.929711e+07  8.816519e+07
+2024-08-02 01:20:00  88860000.0  89279000.0  ...  8.929711e+07  8.816519e+07
+2024-08-02 01:30:00  88740000.0  88836000.0  ...  8.929711e+07  8.816519e+07
+2024-08-02 01:40:00  88630000.0  88826000.0  ...  8.929711e+07  8.816519e+07
+
+[5 rows x 12 columns]
+2024-08-12 00:50:15,419 - backtesting_and_ml - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+[91m2024-08-12 00:50:15,419 - __main__ - ERROR - Trading loop error: need to call fit or load_model beforehand[0m
+[91m2024-08-12 00:50:15,420 - __main__ - ERROR - Traceback:[0m
+Traceback (most recent call last):
+  File "C:\Dev\GPT_BTC\pythonProject\gpt-bitcoin\main.py", line 183, in run
+    xgboost_prediction = self.xgboost_predictor.predict(data)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\gpt-bitcoin\backtesting_and_ml.py", line 189, in predict
+    return self.model.predict(X)[-1]
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\.venv\Lib\site-packages\xgboost\sklearn.py", line 1565, in predict
+    class_probs = super().predict(
+                  ^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\.venv\Lib\site-packages\xgboost\sklearn.py", line 1186, in predict
+    predts = self.get_booster().inplace_predict(
+             ^^^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\.venv\Lib\site-packages\xgboost\sklearn.py", line 805, in get_booster
+    raise NotFittedError("need to call fit or load_model beforehand")
+sklearn.exceptions.NotFittedError: need to call fit or load_model beforehand
+2024-08-12 00:51:15,430 - data_manager - INFO - prepare_data_for_ml 메서드 시작. 데이터 shape: (1440, 7)
+2024-08-12 00:51:15,435 - data_manager - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 14)
+2024-08-12 00:51:15,435 - data_manager - INFO - 데이터 컬럼: Index(['open', 'high', 'low', 'close', 'volume', 'value', 'decision', 'sma',
+       'ema', 'rsi', 'macd', 'signal_line', 'BB_Upper', 'BB_Lower'],
+      dtype='object')
+2024-08-12 00:51:15,435 - data_manager - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+2024-08-12 00:51:15,435 - backtesting_and_ml - INFO - predict 메서드 시작. 입력 데이터 shape: (1440, 14)
+2024-08-12 00:51:15,436 - backtesting_and_ml - INFO - 선택된 특성 데이터 shape: (1, 12)
+2024-08-12 00:51:15,436 - backtesting_and_ml - INFO - 선택된 특성 데이터:
+[[ 8.44860000e+07  8.44880000e+07  8.44300000e+07  8.44300000e+07
+   1.11789970e-01  8.46047000e+07  8.47010901e+07  4.07158000e+01
+  -1.35174618e+05 -1.52519088e+05  8.49615995e+07  8.42478005e+07]]
+2024-08-12 00:51:15,436 - backtesting_and_ml - INFO - NaN 처리 후 데이터:
+[[ 8.44860000e+07  8.44880000e+07  8.44300000e+07  8.44300000e+07
+   1.11789970e-01  8.46047000e+07  8.47010901e+07  4.07158000e+01
+  -1.35174618e+05 -1.52519088e+05  8.49615995e+07  8.42478005e+07]]
+2024-08-12 00:51:15,437 - backtesting_and_ml - INFO - 특성 선택 후 데이터 shape: (1, 12)
+2024-08-12 00:51:15,437 - backtesting_and_ml - INFO - 스케일링 후 데이터:
+[[ 0.17598898  0.13085718  0.20639212  0.16189771 -0.64214116  0.2004168
+   0.22645007 -0.742078   -0.35754527 -0.44080238  0.08274246  0.29562286]]
+2024-08-12 00:51:15,438 - backtesting_and_ml - INFO - 예측 결과: 1
+2024-08-12 00:51:15,445 - backtesting_and_ml - INFO - prepare_data 메서드 시작. 데이터 shape: (1440, 14)
+2024-08-12 00:51:15,449 - backtesting_and_ml - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 14)
+2024-08-12 00:51:15,454 - backtesting_and_ml - INFO - 데이터 샘플:
+                           open        high  ...      BB_Upper      BB_Lower
+date                                         ...                            
+2024-08-02 01:00:00  88590000.0  88853000.0  ...  8.929711e+07  8.816519e+07
+2024-08-02 01:10:00  88627000.0  89048000.0  ...  8.929711e+07  8.816519e+07
+2024-08-02 01:20:00  88860000.0  89279000.0  ...  8.929711e+07  8.816519e+07
+2024-08-02 01:30:00  88740000.0  88836000.0  ...  8.929711e+07  8.816519e+07
+2024-08-02 01:40:00  88630000.0  88826000.0  ...  8.929711e+07  8.816519e+07
+
+[5 rows x 12 columns]
+2024-08-12 00:51:15,454 - backtesting_and_ml - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+[91m2024-08-12 00:51:15,455 - __main__ - ERROR - Trading loop error: need to call fit or load_model beforehand[0m
+[91m2024-08-12 00:51:15,455 - __main__ - ERROR - Traceback:[0m
+Traceback (most recent call last):
+  File "C:\Dev\GPT_BTC\pythonProject\gpt-bitcoin\main.py", line 183, in run
+    xgboost_prediction = self.xgboost_predictor.predict(data)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\gpt-bitcoin\backtesting_and_ml.py", line 189, in predict
+    return self.model.predict(X)[-1]
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\.venv\Lib\site-packages\xgboost\sklearn.py", line 1565, in predict
+    class_probs = super().predict(
+                  ^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\.venv\Lib\site-packages\xgboost\sklearn.py", line 1186, in predict
+    predts = self.get_booster().inplace_predict(
+             ^^^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\.venv\Lib\site-packages\xgboost\sklearn.py", line 805, in get_booster
+    raise NotFittedError("need to call fit or load_model beforehand")
+sklearn.exceptions.NotFittedError: need to call fit or load_model beforehand
+2024-08-12 00:52:15,466 - data_manager - INFO - prepare_data_for_ml 메서드 시작. 데이터 shape: (1440, 7)
+2024-08-12 00:52:15,470 - data_manager - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 14)
+2024-08-12 00:52:15,471 - data_manager - INFO - 데이터 컬럼: Index(['open', 'high', 'low', 'close', 'volume', 'value', 'decision', 'sma',
+       'ema', 'rsi', 'macd', 'signal_line', 'BB_Upper', 'BB_Lower'],
+      dtype='object')
+2024-08-12 00:52:15,471 - data_manager - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+2024-08-12 00:52:15,472 - backtesting_and_ml - INFO - predict 메서드 시작. 입력 데이터 shape: (1440, 14)
+2024-08-12 00:52:15,473 - backtesting_and_ml - INFO - 선택된 특성 데이터 shape: (1, 12)
+2024-08-12 00:52:15,473 - backtesting_and_ml - INFO - 선택된 특성 데이터:
+[[ 8.44860000e+07  8.44880000e+07  8.44300000e+07  8.44300000e+07
+   1.11789970e-01  8.46047000e+07  8.47010901e+07  4.07158000e+01
+  -1.35174618e+05 -1.52519088e+05  8.49615995e+07  8.42478005e+07]]
+2024-08-12 00:52:15,473 - backtesting_and_ml - INFO - NaN 처리 후 데이터:
+[[ 8.44860000e+07  8.44880000e+07  8.44300000e+07  8.44300000e+07
+   1.11789970e-01  8.46047000e+07  8.47010901e+07  4.07158000e+01
+  -1.35174618e+05 -1.52519088e+05  8.49615995e+07  8.42478005e+07]]
+2024-08-12 00:52:15,473 - backtesting_and_ml - INFO - 특성 선택 후 데이터 shape: (1, 12)
+2024-08-12 00:52:15,474 - backtesting_and_ml - INFO - 스케일링 후 데이터:
+[[ 0.17598898  0.13085718  0.20639212  0.16189771 -0.64214116  0.2004168
+   0.22645007 -0.742078   -0.35754527 -0.44080238  0.08274246  0.29562286]]
+2024-08-12 00:52:15,475 - backtesting_and_ml - INFO - 예측 결과: 1
+2024-08-12 00:52:15,483 - backtesting_and_ml - INFO - prepare_data 메서드 시작. 데이터 shape: (1440, 14)
+2024-08-12 00:52:15,487 - backtesting_and_ml - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 14)
+2024-08-12 00:52:15,493 - backtesting_and_ml - INFO - 데이터 샘플:
+                           open        high  ...      BB_Upper      BB_Lower
+date                                         ...                            
+2024-08-02 01:00:00  88590000.0  88853000.0  ...  8.929711e+07  8.816519e+07
+2024-08-02 01:10:00  88627000.0  89048000.0  ...  8.929711e+07  8.816519e+07
+2024-08-02 01:20:00  88860000.0  89279000.0  ...  8.929711e+07  8.816519e+07
+2024-08-02 01:30:00  88740000.0  88836000.0  ...  8.929711e+07  8.816519e+07
+2024-08-02 01:40:00  88630000.0  88826000.0  ...  8.929711e+07  8.816519e+07
+
+[5 rows x 12 columns]
+2024-08-12 00:52:15,494 - backtesting_and_ml - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+[91m2024-08-12 00:52:15,494 - __main__ - ERROR - Trading loop error: need to call fit or load_model beforehand[0m
+[91m2024-08-12 00:52:15,495 - __main__ - ERROR - Traceback:[0m
+Traceback (most recent call last):
+  File "C:\Dev\GPT_BTC\pythonProject\gpt-bitcoin\main.py", line 183, in run
+    xgboost_prediction = self.xgboost_predictor.predict(data)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\gpt-bitcoin\backtesting_and_ml.py", line 189, in predict
+    return self.model.predict(X)[-1]
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\.venv\Lib\site-packages\xgboost\sklearn.py", line 1565, in predict
+    class_probs = super().predict(
+                  ^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\.venv\Lib\site-packages\xgboost\sklearn.py", line 1186, in predict
+    predts = self.get_booster().inplace_predict(
+             ^^^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\.venv\Lib\site-packages\xgboost\sklearn.py", line 805, in get_booster
+    raise NotFittedError("need to call fit or load_model beforehand")
+sklearn.exceptions.NotFittedError: need to call fit or load_model beforehand
+2024-08-12 00:53:15,505 - data_manager - INFO - prepare_data_for_ml 메서드 시작. 데이터 shape: (1440, 7)
+2024-08-12 00:53:15,510 - data_manager - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 14)
+2024-08-12 00:53:15,510 - data_manager - INFO - 데이터 컬럼: Index(['open', 'high', 'low', 'close', 'volume', 'value', 'decision', 'sma',
+       'ema', 'rsi', 'macd', 'signal_line', 'BB_Upper', 'BB_Lower'],
+      dtype='object')
+2024-08-12 00:53:15,511 - data_manager - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+2024-08-12 00:53:15,511 - backtesting_and_ml - INFO - predict 메서드 시작. 입력 데이터 shape: (1440, 14)
+2024-08-12 00:53:15,511 - backtesting_and_ml - INFO - 선택된 특성 데이터 shape: (1, 12)
+2024-08-12 00:53:15,511 - backtesting_and_ml - INFO - 선택된 특성 데이터:
+[[ 8.44860000e+07  8.44880000e+07  8.44300000e+07  8.44300000e+07
+   1.11789970e-01  8.46047000e+07  8.47010901e+07  4.07158000e+01
+  -1.35174618e+05 -1.52519088e+05  8.49615995e+07  8.42478005e+07]]
+2024-08-12 00:53:15,512 - backtesting_and_ml - INFO - NaN 처리 후 데이터:
+[[ 8.44860000e+07  8.44880000e+07  8.44300000e+07  8.44300000e+07
+   1.11789970e-01  8.46047000e+07  8.47010901e+07  4.07158000e+01
+  -1.35174618e+05 -1.52519088e+05  8.49615995e+07  8.42478005e+07]]
+2024-08-12 00:53:15,512 - backtesting_and_ml - INFO - 특성 선택 후 데이터 shape: (1, 12)
+2024-08-12 00:53:15,512 - backtesting_and_ml - INFO - 스케일링 후 데이터:
+[[ 0.17598898  0.13085718  0.20639212  0.16189771 -0.64214116  0.2004168
+   0.22645007 -0.742078   -0.35754527 -0.44080238  0.08274246  0.29562286]]
+2024-08-12 00:53:15,514 - backtesting_and_ml - INFO - 예측 결과: 1
+2024-08-12 00:53:15,520 - backtesting_and_ml - INFO - prepare_data 메서드 시작. 데이터 shape: (1440, 14)
+2024-08-12 00:53:15,524 - backtesting_and_ml - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 14)
+2024-08-12 00:53:15,529 - backtesting_and_ml - INFO - 데이터 샘플:
+                           open        high  ...      BB_Upper      BB_Lower
+date                                         ...                            
+2024-08-02 01:00:00  88590000.0  88853000.0  ...  8.929711e+07  8.816519e+07
+2024-08-02 01:10:00  88627000.0  89048000.0  ...  8.929711e+07  8.816519e+07
+2024-08-02 01:20:00  88860000.0  89279000.0  ...  8.929711e+07  8.816519e+07
+2024-08-02 01:30:00  88740000.0  88836000.0  ...  8.929711e+07  8.816519e+07
+2024-08-02 01:40:00  88630000.0  88826000.0  ...  8.929711e+07  8.816519e+07
+
+[5 rows x 12 columns]
+2024-08-12 00:53:15,529 - backtesting_and_ml - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+[91m2024-08-12 00:53:15,529 - __main__ - ERROR - Trading loop error: need to call fit or load_model beforehand[0m
+[91m2024-08-12 00:53:15,529 - __main__ - ERROR - Traceback:[0m
+Traceback (most recent call last):
+  File "C:\Dev\GPT_BTC\pythonProject\gpt-bitcoin\main.py", line 183, in run
+    xgboost_prediction = self.xgboost_predictor.predict(data)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\gpt-bitcoin\backtesting_and_ml.py", line 189, in predict
+    return self.model.predict(X)[-1]
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\.venv\Lib\site-packages\xgboost\sklearn.py", line 1565, in predict
+    class_probs = super().predict(
+                  ^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\.venv\Lib\site-packages\xgboost\sklearn.py", line 1186, in predict
+    predts = self.get_booster().inplace_predict(
+             ^^^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\.venv\Lib\site-packages\xgboost\sklearn.py", line 805, in get_booster
+    raise NotFittedError("need to call fit or load_model beforehand")
+sklearn.exceptions.NotFittedError: need to call fit or load_model beforehand
+2024-08-12 00:54:15,541 - data_manager - INFO - prepare_data_for_ml 메서드 시작. 데이터 shape: (1440, 7)
+2024-08-12 00:54:15,547 - data_manager - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 14)
+2024-08-12 00:54:15,548 - data_manager - INFO - 데이터 컬럼: Index(['open', 'high', 'low', 'close', 'volume', 'value', 'decision', 'sma',
+       'ema', 'rsi', 'macd', 'signal_line', 'BB_Upper', 'BB_Lower'],
+      dtype='object')
+2024-08-12 00:54:15,549 - data_manager - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+2024-08-12 00:54:15,549 - backtesting_and_ml - INFO - predict 메서드 시작. 입력 데이터 shape: (1440, 14)
+2024-08-12 00:54:15,549 - backtesting_and_ml - INFO - 선택된 특성 데이터 shape: (1, 12)
+2024-08-12 00:54:15,550 - backtesting_and_ml - INFO - 선택된 특성 데이터:
+[[ 8.44860000e+07  8.44880000e+07  8.44300000e+07  8.44300000e+07
+   1.11789970e-01  8.46047000e+07  8.47010901e+07  4.07158000e+01
+  -1.35174618e+05 -1.52519088e+05  8.49615995e+07  8.42478005e+07]]
+2024-08-12 00:54:15,550 - backtesting_and_ml - INFO - NaN 처리 후 데이터:
+[[ 8.44860000e+07  8.44880000e+07  8.44300000e+07  8.44300000e+07
+   1.11789970e-01  8.46047000e+07  8.47010901e+07  4.07158000e+01
+  -1.35174618e+05 -1.52519088e+05  8.49615995e+07  8.42478005e+07]]
+2024-08-12 00:54:15,550 - backtesting_and_ml - INFO - 특성 선택 후 데이터 shape: (1, 12)
+2024-08-12 00:54:15,550 - backtesting_and_ml - INFO - 스케일링 후 데이터:
+[[ 0.17598898  0.13085718  0.20639212  0.16189771 -0.64214116  0.2004168
+   0.22645007 -0.742078   -0.35754527 -0.44080238  0.08274246  0.29562286]]
+2024-08-12 00:54:15,552 - backtesting_and_ml - INFO - 예측 결과: 1
+2024-08-12 00:54:15,559 - backtesting_and_ml - INFO - prepare_data 메서드 시작. 데이터 shape: (1440, 14)
+2024-08-12 00:54:15,563 - backtesting_and_ml - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 14)
+2024-08-12 00:54:15,570 - backtesting_and_ml - INFO - 데이터 샘플:
+                           open        high  ...      BB_Upper      BB_Lower
+date                                         ...                            
+2024-08-02 01:00:00  88590000.0  88853000.0  ...  8.929711e+07  8.816519e+07
+2024-08-02 01:10:00  88627000.0  89048000.0  ...  8.929711e+07  8.816519e+07
+2024-08-02 01:20:00  88860000.0  89279000.0  ...  8.929711e+07  8.816519e+07
+2024-08-02 01:30:00  88740000.0  88836000.0  ...  8.929711e+07  8.816519e+07
+2024-08-02 01:40:00  88630000.0  88826000.0  ...  8.929711e+07  8.816519e+07
+
+[5 rows x 12 columns]
+2024-08-12 00:54:15,570 - backtesting_and_ml - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+[91m2024-08-12 00:54:15,571 - __main__ - ERROR - Trading loop error: need to call fit or load_model beforehand[0m
+[91m2024-08-12 00:54:15,571 - __main__ - ERROR - Traceback:[0m
+Traceback (most recent call last):
+  File "C:\Dev\GPT_BTC\pythonProject\gpt-bitcoin\main.py", line 183, in run
+    xgboost_prediction = self.xgboost_predictor.predict(data)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\gpt-bitcoin\backtesting_and_ml.py", line 189, in predict
+    return self.model.predict(X)[-1]
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\.venv\Lib\site-packages\xgboost\sklearn.py", line 1565, in predict
+    class_probs = super().predict(
+                  ^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\.venv\Lib\site-packages\xgboost\sklearn.py", line 1186, in predict
+    predts = self.get_booster().inplace_predict(
+             ^^^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\.venv\Lib\site-packages\xgboost\sklearn.py", line 805, in get_booster
+    raise NotFittedError("need to call fit or load_model beforehand")
+sklearn.exceptions.NotFittedError: need to call fit or load_model beforehand
+2024-08-12 00:55:15,581 - data_manager - INFO - prepare_data_for_ml 메서드 시작. 데이터 shape: (1440, 7)
+2024-08-12 00:55:15,586 - data_manager - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 14)
+2024-08-12 00:55:15,586 - data_manager - INFO - 데이터 컬럼: Index(['open', 'high', 'low', 'close', 'volume', 'value', 'decision', 'sma',
+       'ema', 'rsi', 'macd', 'signal_line', 'BB_Upper', 'BB_Lower'],
+      dtype='object')
+2024-08-12 00:55:15,587 - data_manager - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+2024-08-12 00:55:15,587 - backtesting_and_ml - INFO - predict 메서드 시작. 입력 데이터 shape: (1440, 14)
+2024-08-12 00:55:15,587 - backtesting_and_ml - INFO - 선택된 특성 데이터 shape: (1, 12)
+2024-08-12 00:55:15,587 - backtesting_and_ml - INFO - 선택된 특성 데이터:
+[[ 8.44860000e+07  8.44880000e+07  8.44300000e+07  8.44300000e+07
+   1.11789970e-01  8.46047000e+07  8.47010901e+07  4.07158000e+01
+  -1.35174618e+05 -1.52519088e+05  8.49615995e+07  8.42478005e+07]]
+2024-08-12 00:55:15,588 - backtesting_and_ml - INFO - NaN 처리 후 데이터:
+[[ 8.44860000e+07  8.44880000e+07  8.44300000e+07  8.44300000e+07
+   1.11789970e-01  8.46047000e+07  8.47010901e+07  4.07158000e+01
+  -1.35174618e+05 -1.52519088e+05  8.49615995e+07  8.42478005e+07]]
+2024-08-12 00:55:15,588 - backtesting_and_ml - INFO - 특성 선택 후 데이터 shape: (1, 12)
+2024-08-12 00:55:15,588 - backtesting_and_ml - INFO - 스케일링 후 데이터:
+[[ 0.17598898  0.13085718  0.20639212  0.16189771 -0.64214116  0.2004168
+   0.22645007 -0.742078   -0.35754527 -0.44080238  0.08274246  0.29562286]]
+2024-08-12 00:55:15,590 - backtesting_and_ml - INFO - 예측 결과: 1
+2024-08-12 00:55:15,595 - backtesting_and_ml - INFO - prepare_data 메서드 시작. 데이터 shape: (1440, 14)
+2024-08-12 00:55:15,599 - backtesting_and_ml - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 14)
+2024-08-12 00:55:15,605 - backtesting_and_ml - INFO - 데이터 샘플:
+                           open        high  ...      BB_Upper      BB_Lower
+date                                         ...                            
+2024-08-02 01:00:00  88590000.0  88853000.0  ...  8.929711e+07  8.816519e+07
+2024-08-02 01:10:00  88627000.0  89048000.0  ...  8.929711e+07  8.816519e+07
+2024-08-02 01:20:00  88860000.0  89279000.0  ...  8.929711e+07  8.816519e+07
+2024-08-02 01:30:00  88740000.0  88836000.0  ...  8.929711e+07  8.816519e+07
+2024-08-02 01:40:00  88630000.0  88826000.0  ...  8.929711e+07  8.816519e+07
+
+[5 rows x 12 columns]
+2024-08-12 00:55:15,605 - backtesting_and_ml - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+[91m2024-08-12 00:55:15,605 - __main__ - ERROR - Trading loop error: need to call fit or load_model beforehand[0m
+[91m2024-08-12 00:55:15,605 - __main__ - ERROR - Traceback:[0m
+Traceback (most recent call last):
+  File "C:\Dev\GPT_BTC\pythonProject\gpt-bitcoin\main.py", line 183, in run
+    xgboost_prediction = self.xgboost_predictor.predict(data)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\gpt-bitcoin\backtesting_and_ml.py", line 189, in predict
+    return self.model.predict(X)[-1]
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\.venv\Lib\site-packages\xgboost\sklearn.py", line 1565, in predict
+    class_probs = super().predict(
+                  ^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\.venv\Lib\site-packages\xgboost\sklearn.py", line 1186, in predict
+    predts = self.get_booster().inplace_predict(
+             ^^^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\.venv\Lib\site-packages\xgboost\sklearn.py", line 805, in get_booster
+    raise NotFittedError("need to call fit or load_model beforehand")
+sklearn.exceptions.NotFittedError: need to call fit or load_model beforehand
+2024-08-12 00:56:15,619 - data_manager - INFO - prepare_data_for_ml 메서드 시작. 데이터 shape: (1440, 7)
+2024-08-12 00:56:15,623 - data_manager - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 14)
+2024-08-12 00:56:15,623 - data_manager - INFO - 데이터 컬럼: Index(['open', 'high', 'low', 'close', 'volume', 'value', 'decision', 'sma',
+       'ema', 'rsi', 'macd', 'signal_line', 'BB_Upper', 'BB_Lower'],
+      dtype='object')
+2024-08-12 00:56:15,623 - data_manager - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+2024-08-12 00:56:15,625 - backtesting_and_ml - INFO - predict 메서드 시작. 입력 데이터 shape: (1440, 14)
+2024-08-12 00:56:15,625 - backtesting_and_ml - INFO - 선택된 특성 데이터 shape: (1, 12)
+2024-08-12 00:56:15,625 - backtesting_and_ml - INFO - 선택된 특성 데이터:
+[[ 8.44860000e+07  8.44880000e+07  8.44300000e+07  8.44300000e+07
+   1.11789970e-01  8.46047000e+07  8.47010901e+07  4.07158000e+01
+  -1.35174618e+05 -1.52519088e+05  8.49615995e+07  8.42478005e+07]]
+2024-08-12 00:56:15,626 - backtesting_and_ml - INFO - NaN 처리 후 데이터:
+[[ 8.44860000e+07  8.44880000e+07  8.44300000e+07  8.44300000e+07
+   1.11789970e-01  8.46047000e+07  8.47010901e+07  4.07158000e+01
+  -1.35174618e+05 -1.52519088e+05  8.49615995e+07  8.42478005e+07]]
+2024-08-12 00:56:15,626 - backtesting_and_ml - INFO - 특성 선택 후 데이터 shape: (1, 12)
+2024-08-12 00:56:15,626 - backtesting_and_ml - INFO - 스케일링 후 데이터:
+[[ 0.17598898  0.13085718  0.20639212  0.16189771 -0.64214116  0.2004168
+   0.22645007 -0.742078   -0.35754527 -0.44080238  0.08274246  0.29562286]]
+2024-08-12 00:56:15,628 - backtesting_and_ml - INFO - 예측 결과: 1
+2024-08-12 00:56:15,633 - backtesting_and_ml - INFO - prepare_data 메서드 시작. 데이터 shape: (1440, 14)
+2024-08-12 00:56:15,638 - backtesting_and_ml - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 14)
+2024-08-12 00:56:15,643 - backtesting_and_ml - INFO - 데이터 샘플:
+                           open        high  ...      BB_Upper      BB_Lower
+date                                         ...                            
+2024-08-02 01:00:00  88590000.0  88853000.0  ...  8.929711e+07  8.816519e+07
+2024-08-02 01:10:00  88627000.0  89048000.0  ...  8.929711e+07  8.816519e+07
+2024-08-02 01:20:00  88860000.0  89279000.0  ...  8.929711e+07  8.816519e+07
+2024-08-02 01:30:00  88740000.0  88836000.0  ...  8.929711e+07  8.816519e+07
+2024-08-02 01:40:00  88630000.0  88826000.0  ...  8.929711e+07  8.816519e+07
+
+[5 rows x 12 columns]
+2024-08-12 00:56:15,644 - backtesting_and_ml - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+[91m2024-08-12 00:56:15,644 - __main__ - ERROR - Trading loop error: need to call fit or load_model beforehand[0m
+[91m2024-08-12 00:56:15,644 - __main__ - ERROR - Traceback:[0m
+Traceback (most recent call last):
+  File "C:\Dev\GPT_BTC\pythonProject\gpt-bitcoin\main.py", line 183, in run
+    xgboost_prediction = self.xgboost_predictor.predict(data)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\gpt-bitcoin\backtesting_and_ml.py", line 189, in predict
+    return self.model.predict(X)[-1]
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\.venv\Lib\site-packages\xgboost\sklearn.py", line 1565, in predict
+    class_probs = super().predict(
+                  ^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\.venv\Lib\site-packages\xgboost\sklearn.py", line 1186, in predict
+    predts = self.get_booster().inplace_predict(
+             ^^^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\.venv\Lib\site-packages\xgboost\sklearn.py", line 805, in get_booster
+    raise NotFittedError("need to call fit or load_model beforehand")
+sklearn.exceptions.NotFittedError: need to call fit or load_model beforehand
+2024-08-12 00:57:15,656 - data_manager - INFO - prepare_data_for_ml 메서드 시작. 데이터 shape: (1440, 7)
+2024-08-12 00:57:15,660 - data_manager - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 14)
+2024-08-12 00:57:15,660 - data_manager - INFO - 데이터 컬럼: Index(['open', 'high', 'low', 'close', 'volume', 'value', 'decision', 'sma',
+       'ema', 'rsi', 'macd', 'signal_line', 'BB_Upper', 'BB_Lower'],
+      dtype='object')
+2024-08-12 00:57:15,661 - data_manager - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+2024-08-12 00:57:15,661 - backtesting_and_ml - INFO - predict 메서드 시작. 입력 데이터 shape: (1440, 14)
+2024-08-12 00:57:15,661 - backtesting_and_ml - INFO - 선택된 특성 데이터 shape: (1, 12)
+2024-08-12 00:57:15,661 - backtesting_and_ml - INFO - 선택된 특성 데이터:
+[[ 8.44860000e+07  8.44880000e+07  8.44300000e+07  8.44300000e+07
+   1.11789970e-01  8.46047000e+07  8.47010901e+07  4.07158000e+01
+  -1.35174618e+05 -1.52519088e+05  8.49615995e+07  8.42478005e+07]]
+2024-08-12 00:57:15,662 - backtesting_and_ml - INFO - NaN 처리 후 데이터:
+[[ 8.44860000e+07  8.44880000e+07  8.44300000e+07  8.44300000e+07
+   1.11789970e-01  8.46047000e+07  8.47010901e+07  4.07158000e+01
+  -1.35174618e+05 -1.52519088e+05  8.49615995e+07  8.42478005e+07]]
+2024-08-12 00:57:15,662 - backtesting_and_ml - INFO - 특성 선택 후 데이터 shape: (1, 12)
+2024-08-12 00:57:15,662 - backtesting_and_ml - INFO - 스케일링 후 데이터:
+[[ 0.17598898  0.13085718  0.20639212  0.16189771 -0.64214116  0.2004168
+   0.22645007 -0.742078   -0.35754527 -0.44080238  0.08274246  0.29562286]]
+2024-08-12 00:57:15,664 - backtesting_and_ml - INFO - 예측 결과: 1
+2024-08-12 00:57:15,670 - backtesting_and_ml - INFO - prepare_data 메서드 시작. 데이터 shape: (1440, 14)
+2024-08-12 00:57:15,674 - backtesting_and_ml - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 14)
+2024-08-12 00:57:15,679 - backtesting_and_ml - INFO - 데이터 샘플:
+                           open        high  ...      BB_Upper      BB_Lower
+date                                         ...                            
+2024-08-02 01:00:00  88590000.0  88853000.0  ...  8.929711e+07  8.816519e+07
+2024-08-02 01:10:00  88627000.0  89048000.0  ...  8.929711e+07  8.816519e+07
+2024-08-02 01:20:00  88860000.0  89279000.0  ...  8.929711e+07  8.816519e+07
+2024-08-02 01:30:00  88740000.0  88836000.0  ...  8.929711e+07  8.816519e+07
+2024-08-02 01:40:00  88630000.0  88826000.0  ...  8.929711e+07  8.816519e+07
+
+[5 rows x 12 columns]
+2024-08-12 00:57:15,680 - backtesting_and_ml - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+[91m2024-08-12 00:57:15,680 - __main__ - ERROR - Trading loop error: need to call fit or load_model beforehand[0m
+[91m2024-08-12 00:57:15,680 - __main__ - ERROR - Traceback:[0m
+Traceback (most recent call last):
+  File "C:\Dev\GPT_BTC\pythonProject\gpt-bitcoin\main.py", line 183, in run
+    xgboost_prediction = self.xgboost_predictor.predict(data)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\gpt-bitcoin\backtesting_and_ml.py", line 189, in predict
+    return self.model.predict(X)[-1]
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\.venv\Lib\site-packages\xgboost\sklearn.py", line 1565, in predict
+    class_probs = super().predict(
+                  ^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\.venv\Lib\site-packages\xgboost\sklearn.py", line 1186, in predict
+    predts = self.get_booster().inplace_predict(
+             ^^^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\.venv\Lib\site-packages\xgboost\sklearn.py", line 805, in get_booster
+    raise NotFittedError("need to call fit or load_model beforehand")
+sklearn.exceptions.NotFittedError: need to call fit or load_model beforehand
+2024-08-12 00:58:15,693 - data_manager - INFO - prepare_data_for_ml 메서드 시작. 데이터 shape: (1440, 7)
+2024-08-12 00:58:15,698 - data_manager - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 14)
+2024-08-12 00:58:15,698 - data_manager - INFO - 데이터 컬럼: Index(['open', 'high', 'low', 'close', 'volume', 'value', 'decision', 'sma',
+       'ema', 'rsi', 'macd', 'signal_line', 'BB_Upper', 'BB_Lower'],
+      dtype='object')
+2024-08-12 00:58:15,699 - data_manager - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+2024-08-12 00:58:15,699 - backtesting_and_ml - INFO - predict 메서드 시작. 입력 데이터 shape: (1440, 14)
+2024-08-12 00:58:15,699 - backtesting_and_ml - INFO - 선택된 특성 데이터 shape: (1, 12)
+2024-08-12 00:58:15,700 - backtesting_and_ml - INFO - 선택된 특성 데이터:
+[[ 8.44860000e+07  8.44880000e+07  8.44300000e+07  8.44300000e+07
+   1.11789970e-01  8.46047000e+07  8.47010901e+07  4.07158000e+01
+  -1.35174618e+05 -1.52519088e+05  8.49615995e+07  8.42478005e+07]]
+2024-08-12 00:58:15,700 - backtesting_and_ml - INFO - NaN 처리 후 데이터:
+[[ 8.44860000e+07  8.44880000e+07  8.44300000e+07  8.44300000e+07
+   1.11789970e-01  8.46047000e+07  8.47010901e+07  4.07158000e+01
+  -1.35174618e+05 -1.52519088e+05  8.49615995e+07  8.42478005e+07]]
+2024-08-12 00:58:15,700 - backtesting_and_ml - INFO - 특성 선택 후 데이터 shape: (1, 12)
+2024-08-12 00:58:15,700 - backtesting_and_ml - INFO - 스케일링 후 데이터:
+[[ 0.17598898  0.13085718  0.20639212  0.16189771 -0.64214116  0.2004168
+   0.22645007 -0.742078   -0.35754527 -0.44080238  0.08274246  0.29562286]]
+2024-08-12 00:58:15,702 - backtesting_and_ml - INFO - 예측 결과: 1
+2024-08-12 00:58:15,708 - backtesting_and_ml - INFO - prepare_data 메서드 시작. 데이터 shape: (1440, 14)
+2024-08-12 00:58:15,711 - backtesting_and_ml - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 14)
+2024-08-12 00:58:15,716 - backtesting_and_ml - INFO - 데이터 샘플:
+                           open        high  ...      BB_Upper      BB_Lower
+date                                         ...                            
+2024-08-02 01:00:00  88590000.0  88853000.0  ...  8.929711e+07  8.816519e+07
+2024-08-02 01:10:00  88627000.0  89048000.0  ...  8.929711e+07  8.816519e+07
+2024-08-02 01:20:00  88860000.0  89279000.0  ...  8.929711e+07  8.816519e+07
+2024-08-02 01:30:00  88740000.0  88836000.0  ...  8.929711e+07  8.816519e+07
+2024-08-02 01:40:00  88630000.0  88826000.0  ...  8.929711e+07  8.816519e+07
+
+[5 rows x 12 columns]
+2024-08-12 00:58:15,717 - backtesting_and_ml - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+[91m2024-08-12 00:58:15,717 - __main__ - ERROR - Trading loop error: need to call fit or load_model beforehand[0m
+[91m2024-08-12 00:58:15,717 - __main__ - ERROR - Traceback:[0m
+Traceback (most recent call last):
+  File "C:\Dev\GPT_BTC\pythonProject\gpt-bitcoin\main.py", line 183, in run
+    xgboost_prediction = self.xgboost_predictor.predict(data)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\gpt-bitcoin\backtesting_and_ml.py", line 189, in predict
+    return self.model.predict(X)[-1]
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\.venv\Lib\site-packages\xgboost\sklearn.py", line 1565, in predict
+    class_probs = super().predict(
+                  ^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\.venv\Lib\site-packages\xgboost\sklearn.py", line 1186, in predict
+    predts = self.get_booster().inplace_predict(
+             ^^^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\.venv\Lib\site-packages\xgboost\sklearn.py", line 805, in get_booster
+    raise NotFittedError("need to call fit or load_model beforehand")
+sklearn.exceptions.NotFittedError: need to call fit or load_model beforehand
+2024-08-12 00:59:15,731 - data_manager - INFO - prepare_data_for_ml 메서드 시작. 데이터 shape: (1440, 7)
+2024-08-12 00:59:15,735 - data_manager - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 14)
+2024-08-12 00:59:15,735 - data_manager - INFO - 데이터 컬럼: Index(['open', 'high', 'low', 'close', 'volume', 'value', 'decision', 'sma',
+       'ema', 'rsi', 'macd', 'signal_line', 'BB_Upper', 'BB_Lower'],
+      dtype='object')
+2024-08-12 00:59:15,737 - data_manager - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+2024-08-12 00:59:15,737 - backtesting_and_ml - INFO - predict 메서드 시작. 입력 데이터 shape: (1440, 14)
+2024-08-12 00:59:15,737 - backtesting_and_ml - INFO - 선택된 특성 데이터 shape: (1, 12)
+2024-08-12 00:59:15,738 - backtesting_and_ml - INFO - 선택된 특성 데이터:
+[[ 8.44860000e+07  8.44880000e+07  8.44300000e+07  8.44300000e+07
+   1.11789970e-01  8.46047000e+07  8.47010901e+07  4.07158000e+01
+  -1.35174618e+05 -1.52519088e+05  8.49615995e+07  8.42478005e+07]]
+2024-08-12 00:59:15,738 - backtesting_and_ml - INFO - NaN 처리 후 데이터:
+[[ 8.44860000e+07  8.44880000e+07  8.44300000e+07  8.44300000e+07
+   1.11789970e-01  8.46047000e+07  8.47010901e+07  4.07158000e+01
+  -1.35174618e+05 -1.52519088e+05  8.49615995e+07  8.42478005e+07]]
+2024-08-12 00:59:15,738 - backtesting_and_ml - INFO - 특성 선택 후 데이터 shape: (1, 12)
+2024-08-12 00:59:15,738 - backtesting_and_ml - INFO - 스케일링 후 데이터:
+[[ 0.17598898  0.13085718  0.20639212  0.16189771 -0.64214116  0.2004168
+   0.22645007 -0.742078   -0.35754527 -0.44080238  0.08274246  0.29562286]]
+2024-08-12 00:59:15,740 - backtesting_and_ml - INFO - 예측 결과: 1
+2024-08-12 00:59:15,746 - backtesting_and_ml - INFO - prepare_data 메서드 시작. 데이터 shape: (1440, 14)
+2024-08-12 00:59:15,750 - backtesting_and_ml - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 14)
+2024-08-12 00:59:15,755 - backtesting_and_ml - INFO - 데이터 샘플:
+                           open        high  ...      BB_Upper      BB_Lower
+date                                         ...                            
+2024-08-02 01:00:00  88590000.0  88853000.0  ...  8.929711e+07  8.816519e+07
+2024-08-02 01:10:00  88627000.0  89048000.0  ...  8.929711e+07  8.816519e+07
+2024-08-02 01:20:00  88860000.0  89279000.0  ...  8.929711e+07  8.816519e+07
+2024-08-02 01:30:00  88740000.0  88836000.0  ...  8.929711e+07  8.816519e+07
+2024-08-02 01:40:00  88630000.0  88826000.0  ...  8.929711e+07  8.816519e+07
+
+[5 rows x 12 columns]
+2024-08-12 00:59:15,756 - backtesting_and_ml - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+[91m2024-08-12 00:59:15,756 - __main__ - ERROR - Trading loop error: need to call fit or load_model beforehand[0m
+[91m2024-08-12 00:59:15,756 - __main__ - ERROR - Traceback:[0m
+Traceback (most recent call last):
+  File "C:\Dev\GPT_BTC\pythonProject\gpt-bitcoin\main.py", line 183, in run
+    xgboost_prediction = self.xgboost_predictor.predict(data)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\gpt-bitcoin\backtesting_and_ml.py", line 189, in predict
+    return self.model.predict(X)[-1]
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\.venv\Lib\site-packages\xgboost\sklearn.py", line 1565, in predict
+    class_probs = super().predict(
+                  ^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\.venv\Lib\site-packages\xgboost\sklearn.py", line 1186, in predict
+    predts = self.get_booster().inplace_predict(
+             ^^^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\.venv\Lib\site-packages\xgboost\sklearn.py", line 805, in get_booster
+    raise NotFittedError("need to call fit or load_model beforehand")
+sklearn.exceptions.NotFittedError: need to call fit or load_model beforehand
+2024-08-12 01:00:15,796 - data_manager - INFO - Adding new data. Shape: (1, 7)
+2024-08-12 01:00:15,991 - data_manager - INFO - Successfully added 1 new data points
+2024-08-12 01:00:16,000 - data_manager - INFO - prepare_data_for_ml 메서드 시작. 데이터 shape: (1440, 7)
+2024-08-12 01:00:16,004 - data_manager - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 14)
+2024-08-12 01:00:16,004 - data_manager - INFO - 데이터 컬럼: Index(['open', 'high', 'low', 'close', 'volume', 'value', 'decision', 'sma',
+       'ema', 'rsi', 'macd', 'signal_line', 'BB_Upper', 'BB_Lower'],
+      dtype='object')
+2024-08-12 01:00:16,005 - data_manager - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+2024-08-12 01:00:16,005 - backtesting_and_ml - INFO - predict 메서드 시작. 입력 데이터 shape: (1440, 14)
+2024-08-12 01:00:16,006 - backtesting_and_ml - INFO - 선택된 특성 데이터 shape: (1, 12)
+2024-08-12 01:00:16,006 - backtesting_and_ml - INFO - 선택된 특성 데이터:
+[[ 8.43850000e+07  8.43850000e+07  8.43010000e+07  8.43750000e+07
+   5.52799900e-02  8.46044500e+07  8.46700339e+07  3.95527207e+01
+  -1.45585242e+05 -1.51132319e+05  8.49619852e+07  8.42469148e+07]]
+2024-08-12 01:00:16,006 - backtesting_and_ml - INFO - NaN 처리 후 데이터:
+[[ 8.43850000e+07  8.43850000e+07  8.43010000e+07  8.43750000e+07
+   5.52799900e-02  8.46044500e+07  8.46700339e+07  3.95527207e+01
+  -1.45585242e+05 -1.51132319e+05  8.49619852e+07  8.42469148e+07]]
+2024-08-12 01:00:16,006 - backtesting_and_ml - INFO - 특성 선택 후 데이터 shape: (1, 12)
+2024-08-12 01:00:16,007 - backtesting_and_ml - INFO - 스케일링 후 데이터:
+[[ 0.15028861  0.10413783  0.17407103  0.14789709 -0.64293359  0.20035286
+   0.21846696 -0.84235993 -0.38781346 -0.43658946  0.08284839  0.29541603]]
+2024-08-12 01:00:16,008 - backtesting_and_ml - INFO - 예측 결과: 1
+2024-08-12 01:00:16,014 - backtesting_and_ml - INFO - prepare_data 메서드 시작. 데이터 shape: (1440, 14)
+2024-08-12 01:00:16,019 - backtesting_and_ml - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 14)
+2024-08-12 01:00:16,024 - backtesting_and_ml - INFO - 데이터 샘플:
+                           open        high  ...      BB_Upper      BB_Lower
+date                                         ...                            
+2024-08-02 01:10:00  88627000.0  89048000.0  ...  8.936080e+07  8.815980e+07
+2024-08-02 01:20:00  88860000.0  89279000.0  ...  8.936080e+07  8.815980e+07
+2024-08-02 01:30:00  88740000.0  88836000.0  ...  8.936080e+07  8.815980e+07
+2024-08-02 01:40:00  88630000.0  88826000.0  ...  8.936080e+07  8.815980e+07
+2024-08-02 01:50:00  88737000.0  88750000.0  ...  8.936080e+07  8.815980e+07
+
+[5 rows x 12 columns]
+2024-08-12 01:00:16,025 - backtesting_and_ml - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+[91m2024-08-12 01:00:16,025 - __main__ - ERROR - Trading loop error: need to call fit or load_model beforehand[0m
+[91m2024-08-12 01:00:16,025 - __main__ - ERROR - Traceback:[0m
+Traceback (most recent call last):
+  File "C:\Dev\GPT_BTC\pythonProject\gpt-bitcoin\main.py", line 183, in run
+    xgboost_prediction = self.xgboost_predictor.predict(data)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\gpt-bitcoin\backtesting_and_ml.py", line 189, in predict
+    return self.model.predict(X)[-1]
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\.venv\Lib\site-packages\xgboost\sklearn.py", line 1565, in predict
+    class_probs = super().predict(
+                  ^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\.venv\Lib\site-packages\xgboost\sklearn.py", line 1186, in predict
+    predts = self.get_booster().inplace_predict(
+             ^^^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\.venv\Lib\site-packages\xgboost\sklearn.py", line 805, in get_booster
+    raise NotFittedError("need to call fit or load_model beforehand")
+sklearn.exceptions.NotFittedError: need to call fit or load_model beforehand
+2024-08-12 01:01:16,042 - data_manager - INFO - prepare_data_for_ml 메서드 시작. 데이터 shape: (1440, 7)
+2024-08-12 01:01:16,047 - data_manager - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 14)
+2024-08-12 01:01:16,047 - data_manager - INFO - 데이터 컬럼: Index(['open', 'high', 'low', 'close', 'volume', 'value', 'decision', 'sma',
+       'ema', 'rsi', 'macd', 'signal_line', 'BB_Upper', 'BB_Lower'],
+      dtype='object')
+2024-08-12 01:01:16,047 - data_manager - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+2024-08-12 01:01:16,048 - backtesting_and_ml - INFO - predict 메서드 시작. 입력 데이터 shape: (1440, 14)
+2024-08-12 01:01:16,048 - backtesting_and_ml - INFO - 선택된 특성 데이터 shape: (1, 12)
+2024-08-12 01:01:16,048 - backtesting_and_ml - INFO - 선택된 특성 데이터:
+[[ 8.43850000e+07  8.43850000e+07  8.43010000e+07  8.43750000e+07
+   5.52799900e-02  8.46044500e+07  8.46700339e+07  3.95527207e+01
+  -1.45585242e+05 -1.51132319e+05  8.49619852e+07  8.42469148e+07]]
+2024-08-12 01:01:16,049 - backtesting_and_ml - INFO - NaN 처리 후 데이터:
+[[ 8.43850000e+07  8.43850000e+07  8.43010000e+07  8.43750000e+07
+   5.52799900e-02  8.46044500e+07  8.46700339e+07  3.95527207e+01
+  -1.45585242e+05 -1.51132319e+05  8.49619852e+07  8.42469148e+07]]
+2024-08-12 01:01:16,049 - backtesting_and_ml - INFO - 특성 선택 후 데이터 shape: (1, 12)
+2024-08-12 01:01:16,049 - backtesting_and_ml - INFO - 스케일링 후 데이터:
+[[ 0.15028861  0.10413783  0.17407103  0.14789709 -0.64293359  0.20035286
+   0.21846696 -0.84235993 -0.38781346 -0.43658946  0.08284839  0.29541603]]
+2024-08-12 01:01:16,051 - backtesting_and_ml - INFO - 예측 결과: 1
+2024-08-12 01:01:16,057 - backtesting_and_ml - INFO - prepare_data 메서드 시작. 데이터 shape: (1440, 14)
+2024-08-12 01:01:16,060 - backtesting_and_ml - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 14)
+2024-08-12 01:01:16,067 - backtesting_and_ml - INFO - 데이터 샘플:
+                           open        high  ...      BB_Upper      BB_Lower
+date                                         ...                            
+2024-08-02 01:10:00  88627000.0  89048000.0  ...  8.936080e+07  8.815980e+07
+2024-08-02 01:20:00  88860000.0  89279000.0  ...  8.936080e+07  8.815980e+07
+2024-08-02 01:30:00  88740000.0  88836000.0  ...  8.936080e+07  8.815980e+07
+2024-08-02 01:40:00  88630000.0  88826000.0  ...  8.936080e+07  8.815980e+07
+2024-08-02 01:50:00  88737000.0  88750000.0  ...  8.936080e+07  8.815980e+07
+
+[5 rows x 12 columns]
+2024-08-12 01:01:16,068 - backtesting_and_ml - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+[91m2024-08-12 01:01:16,068 - __main__ - ERROR - Trading loop error: need to call fit or load_model beforehand[0m
+[91m2024-08-12 01:01:16,068 - __main__ - ERROR - Traceback:[0m
+Traceback (most recent call last):
+  File "C:\Dev\GPT_BTC\pythonProject\gpt-bitcoin\main.py", line 183, in run
+    xgboost_prediction = self.xgboost_predictor.predict(data)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\gpt-bitcoin\backtesting_and_ml.py", line 189, in predict
+    return self.model.predict(X)[-1]
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\.venv\Lib\site-packages\xgboost\sklearn.py", line 1565, in predict
+    class_probs = super().predict(
+                  ^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\.venv\Lib\site-packages\xgboost\sklearn.py", line 1186, in predict
+    predts = self.get_booster().inplace_predict(
+             ^^^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\.venv\Lib\site-packages\xgboost\sklearn.py", line 805, in get_booster
+    raise NotFittedError("need to call fit or load_model beforehand")
+sklearn.exceptions.NotFittedError: need to call fit or load_model beforehand
+2024-08-12 01:02:16,080 - data_manager - INFO - prepare_data_for_ml 메서드 시작. 데이터 shape: (1440, 7)
+2024-08-12 01:02:16,084 - data_manager - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 14)
+2024-08-12 01:02:16,084 - data_manager - INFO - 데이터 컬럼: Index(['open', 'high', 'low', 'close', 'volume', 'value', 'decision', 'sma',
+       'ema', 'rsi', 'macd', 'signal_line', 'BB_Upper', 'BB_Lower'],
+      dtype='object')
+2024-08-12 01:02:16,085 - data_manager - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+2024-08-12 01:02:16,085 - backtesting_and_ml - INFO - predict 메서드 시작. 입력 데이터 shape: (1440, 14)
+2024-08-12 01:02:16,085 - backtesting_and_ml - INFO - 선택된 특성 데이터 shape: (1, 12)
+2024-08-12 01:02:16,086 - backtesting_and_ml - INFO - 선택된 특성 데이터:
+[[ 8.43850000e+07  8.43850000e+07  8.43010000e+07  8.43750000e+07
+   5.52799900e-02  8.46044500e+07  8.46700339e+07  3.95527207e+01
+  -1.45585242e+05 -1.51132319e+05  8.49619852e+07  8.42469148e+07]]
+2024-08-12 01:02:16,086 - backtesting_and_ml - INFO - NaN 처리 후 데이터:
+[[ 8.43850000e+07  8.43850000e+07  8.43010000e+07  8.43750000e+07
+   5.52799900e-02  8.46044500e+07  8.46700339e+07  3.95527207e+01
+  -1.45585242e+05 -1.51132319e+05  8.49619852e+07  8.42469148e+07]]
+2024-08-12 01:02:16,086 - backtesting_and_ml - INFO - 특성 선택 후 데이터 shape: (1, 12)
+2024-08-12 01:02:16,086 - backtesting_and_ml - INFO - 스케일링 후 데이터:
+[[ 0.15028861  0.10413783  0.17407103  0.14789709 -0.64293359  0.20035286
+   0.21846696 -0.84235993 -0.38781346 -0.43658946  0.08284839  0.29541603]]
+2024-08-12 01:02:16,088 - backtesting_and_ml - INFO - 예측 결과: 1
+2024-08-12 01:02:16,095 - backtesting_and_ml - INFO - prepare_data 메서드 시작. 데이터 shape: (1440, 14)
+2024-08-12 01:02:16,099 - backtesting_and_ml - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 14)
+2024-08-12 01:02:16,104 - backtesting_and_ml - INFO - 데이터 샘플:
+                           open        high  ...      BB_Upper      BB_Lower
+date                                         ...                            
+2024-08-02 01:10:00  88627000.0  89048000.0  ...  8.936080e+07  8.815980e+07
+2024-08-02 01:20:00  88860000.0  89279000.0  ...  8.936080e+07  8.815980e+07
+2024-08-02 01:30:00  88740000.0  88836000.0  ...  8.936080e+07  8.815980e+07
+2024-08-02 01:40:00  88630000.0  88826000.0  ...  8.936080e+07  8.815980e+07
+2024-08-02 01:50:00  88737000.0  88750000.0  ...  8.936080e+07  8.815980e+07
+
+[5 rows x 12 columns]
+2024-08-12 01:02:16,105 - backtesting_and_ml - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+[91m2024-08-12 01:02:16,106 - __main__ - ERROR - Trading loop error: need to call fit or load_model beforehand[0m
+[91m2024-08-12 01:02:16,106 - __main__ - ERROR - Traceback:[0m
+Traceback (most recent call last):
+  File "C:\Dev\GPT_BTC\pythonProject\gpt-bitcoin\main.py", line 183, in run
+  File "C:\Dev\GPT_BTC\pythonProject\gpt-bitcoin\backtesting_and_ml.py", line 189, in predict
+    return self.model.predict(X)[-1]
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\.venv\Lib\site-packages\xgboost\sklearn.py", line 1565, in predict
+    class_probs = super().predict(
+                  ^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\.venv\Lib\site-packages\xgboost\sklearn.py", line 1186, in predict
+    predts = self.get_booster().inplace_predict(
+             ^^^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\.venv\Lib\site-packages\xgboost\sklearn.py", line 805, in get_booster
+    raise NotFittedError("need to call fit or load_model beforehand")
+sklearn.exceptions.NotFittedError: need to call fit or load_model beforehand
+2024-08-12 01:03:16,118 - data_manager - INFO - prepare_data_for_ml 메서드 시작. 데이터 shape: (1440, 7)
+2024-08-12 01:03:16,123 - data_manager - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 14)
+2024-08-12 01:03:16,123 - data_manager - INFO - 데이터 컬럼: Index(['open', 'high', 'low', 'close', 'volume', 'value', 'decision', 'sma',
+       'ema', 'rsi', 'macd', 'signal_line', 'BB_Upper', 'BB_Lower'],
+      dtype='object')
+2024-08-12 01:03:16,124 - data_manager - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+2024-08-12 01:03:16,124 - backtesting_and_ml - INFO - predict 메서드 시작. 입력 데이터 shape: (1440, 14)
+2024-08-12 01:03:16,124 - backtesting_and_ml - INFO - 선택된 특성 데이터 shape: (1, 12)
+2024-08-12 01:03:16,124 - backtesting_and_ml - INFO - 선택된 특성 데이터:
+[[ 8.43850000e+07  8.43850000e+07  8.43010000e+07  8.43750000e+07
+   5.52799900e-02  8.46044500e+07  8.46700339e+07  3.95527207e+01
+  -1.45585242e+05 -1.51132319e+05  8.49619852e+07  8.42469148e+07]]
+2024-08-12 01:03:16,125 - backtesting_and_ml - INFO - NaN 처리 후 데이터:
+[[ 8.43850000e+07  8.43850000e+07  8.43010000e+07  8.43750000e+07
+   5.52799900e-02  8.46044500e+07  8.46700339e+07  3.95527207e+01
+  -1.45585242e+05 -1.51132319e+05  8.49619852e+07  8.42469148e+07]]
+2024-08-12 01:03:16,125 - backtesting_and_ml - INFO - 특성 선택 후 데이터 shape: (1, 12)
+2024-08-12 01:03:16,125 - backtesting_and_ml - INFO - 스케일링 후 데이터:
+[[ 0.15028861  0.10413783  0.17407103  0.14789709 -0.64293359  0.20035286
+   0.21846696 -0.84235993 -0.38781346 -0.43658946  0.08284839  0.29541603]]
+2024-08-12 01:03:16,127 - backtesting_and_ml - INFO - 예측 결과: 1
+2024-08-12 01:03:16,133 - backtesting_and_ml - INFO - prepare_data 메서드 시작. 데이터 shape: (1440, 14)
+2024-08-12 01:03:16,137 - backtesting_and_ml - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 14)
+2024-08-12 01:03:16,142 - backtesting_and_ml - INFO - 데이터 샘플:
+                           open        high  ...      BB_Upper      BB_Lower
+date                                         ...                            
+2024-08-02 01:10:00  88627000.0  89048000.0  ...  8.936080e+07  8.815980e+07
+2024-08-02 01:20:00  88860000.0  89279000.0  ...  8.936080e+07  8.815980e+07
+2024-08-02 01:30:00  88740000.0  88836000.0  ...  8.936080e+07  8.815980e+07
+2024-08-02 01:40:00  88630000.0  88826000.0  ...  8.936080e+07  8.815980e+07
+2024-08-02 01:50:00  88737000.0  88750000.0  ...  8.936080e+07  8.815980e+07
+
+[5 rows x 12 columns]
+2024-08-12 01:03:16,143 - backtesting_and_ml - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+[91m2024-08-12 01:03:16,143 - __main__ - ERROR - Trading loop error: need to call fit or load_model beforehand[0m
+[91m2024-08-12 01:03:16,143 - __main__ - ERROR - Traceback:[0m
+Traceback (most recent call last):
+  File "C:\Dev\GPT_BTC\pythonProject\gpt-bitcoin\main.py", line 183, in run
+  File "C:\Dev\GPT_BTC\pythonProject\gpt-bitcoin\backtesting_and_ml.py", line 189, in predict
+    return self.model.predict(X)[-1]
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\.venv\Lib\site-packages\xgboost\sklearn.py", line 1565, in predict
+    class_probs = super().predict(
+                  ^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\.venv\Lib\site-packages\xgboost\sklearn.py", line 1186, in predict
+    predts = self.get_booster().inplace_predict(
+             ^^^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\.venv\Lib\site-packages\xgboost\sklearn.py", line 805, in get_booster
+    raise NotFittedError("need to call fit or load_model beforehand")
+sklearn.exceptions.NotFittedError: need to call fit or load_model beforehand
+2024-08-12 01:04:16,153 - data_manager - INFO - prepare_data_for_ml 메서드 시작. 데이터 shape: (1440, 7)
+2024-08-12 01:04:16,158 - data_manager - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 14)
+2024-08-12 01:04:16,159 - data_manager - INFO - 데이터 컬럼: Index(['open', 'high', 'low', 'close', 'volume', 'value', 'decision', 'sma',
+       'ema', 'rsi', 'macd', 'signal_line', 'BB_Upper', 'BB_Lower'],
+      dtype='object')
+2024-08-12 01:04:16,159 - data_manager - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+2024-08-12 01:04:16,159 - backtesting_and_ml - INFO - predict 메서드 시작. 입력 데이터 shape: (1440, 14)
+2024-08-12 01:04:16,160 - backtesting_and_ml - INFO - 선택된 특성 데이터 shape: (1, 12)
+2024-08-12 01:04:16,160 - backtesting_and_ml - INFO - 선택된 특성 데이터:
+[[ 8.43850000e+07  8.43850000e+07  8.43010000e+07  8.43750000e+07
+   5.52799900e-02  8.46044500e+07  8.46700339e+07  3.95527207e+01
+  -1.45585242e+05 -1.51132319e+05  8.49619852e+07  8.42469148e+07]]
+2024-08-12 01:04:16,161 - backtesting_and_ml - INFO - NaN 처리 후 데이터:
+[[ 8.43850000e+07  8.43850000e+07  8.43010000e+07  8.43750000e+07
+   5.52799900e-02  8.46044500e+07  8.46700339e+07  3.95527207e+01
+  -1.45585242e+05 -1.51132319e+05  8.49619852e+07  8.42469148e+07]]
+2024-08-12 01:04:16,162 - backtesting_and_ml - INFO - 특성 선택 후 데이터 shape: (1, 12)
+2024-08-12 01:04:16,162 - backtesting_and_ml - INFO - 스케일링 후 데이터:
+[[ 0.15028861  0.10413783  0.17407103  0.14789709 -0.64293359  0.20035286
+   0.21846696 -0.84235993 -0.38781346 -0.43658946  0.08284839  0.29541603]]
+2024-08-12 01:04:16,163 - backtesting_and_ml - INFO - 예측 결과: 1
+2024-08-12 01:04:16,170 - backtesting_and_ml - INFO - prepare_data 메서드 시작. 데이터 shape: (1440, 14)
+2024-08-12 01:04:16,174 - backtesting_and_ml - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 14)
+2024-08-12 01:04:16,179 - backtesting_and_ml - INFO - 데이터 샘플:
+                           open        high  ...      BB_Upper      BB_Lower
+date                                         ...                            
+2024-08-02 01:10:00  88627000.0  89048000.0  ...  8.936080e+07  8.815980e+07
+2024-08-02 01:20:00  88860000.0  89279000.0  ...  8.936080e+07  8.815980e+07
+2024-08-02 01:30:00  88740000.0  88836000.0  ...  8.936080e+07  8.815980e+07
+2024-08-02 01:40:00  88630000.0  88826000.0  ...  8.936080e+07  8.815980e+07
+2024-08-02 01:50:00  88737000.0  88750000.0  ...  8.936080e+07  8.815980e+07
+
+[5 rows x 12 columns]
+2024-08-12 01:04:16,180 - backtesting_and_ml - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+[91m2024-08-12 01:04:16,180 - __main__ - ERROR - Trading loop error: need to call fit or load_model beforehand[0m
+[91m2024-08-12 01:04:16,180 - __main__ - ERROR - Traceback:[0m
+Traceback (most recent call last):
+  File "C:\Dev\GPT_BTC\pythonProject\gpt-bitcoin\main.py", line 183, in run
+  File "C:\Dev\GPT_BTC\pythonProject\gpt-bitcoin\backtesting_and_ml.py", line 189, in predict
+    return self.model.predict(X)[-1]
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\.venv\Lib\site-packages\xgboost\sklearn.py", line 1565, in predict
+    class_probs = super().predict(
+                  ^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\.venv\Lib\site-packages\xgboost\sklearn.py", line 1186, in predict
+    predts = self.get_booster().inplace_predict(
+             ^^^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\.venv\Lib\site-packages\xgboost\sklearn.py", line 805, in get_booster
+    raise NotFittedError("need to call fit or load_model beforehand")
+sklearn.exceptions.NotFittedError: need to call fit or load_model beforehand
+2024-08-12 01:05:16,196 - data_manager - INFO - prepare_data_for_ml 메서드 시작. 데이터 shape: (1440, 7)
+2024-08-12 01:05:16,200 - data_manager - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 14)
+2024-08-12 01:05:16,200 - data_manager - INFO - 데이터 컬럼: Index(['open', 'high', 'low', 'close', 'volume', 'value', 'decision', 'sma',
+       'ema', 'rsi', 'macd', 'signal_line', 'BB_Upper', 'BB_Lower'],
+      dtype='object')
+2024-08-12 01:05:16,201 - data_manager - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+2024-08-12 01:05:16,201 - backtesting_and_ml - INFO - predict 메서드 시작. 입력 데이터 shape: (1440, 14)
+2024-08-12 01:05:16,201 - backtesting_and_ml - INFO - 선택된 특성 데이터 shape: (1, 12)
+2024-08-12 01:05:16,202 - backtesting_and_ml - INFO - 선택된 특성 데이터:
+[[ 8.43850000e+07  8.43850000e+07  8.43010000e+07  8.43750000e+07
+   5.52799900e-02  8.46044500e+07  8.46700339e+07  3.95527207e+01
+  -1.45585242e+05 -1.51132319e+05  8.49619852e+07  8.42469148e+07]]
+2024-08-12 01:05:16,202 - backtesting_and_ml - INFO - NaN 처리 후 데이터:
+[[ 8.43850000e+07  8.43850000e+07  8.43010000e+07  8.43750000e+07
+   5.52799900e-02  8.46044500e+07  8.46700339e+07  3.95527207e+01
+  -1.45585242e+05 -1.51132319e+05  8.49619852e+07  8.42469148e+07]]
+2024-08-12 01:05:16,202 - backtesting_and_ml - INFO - 특성 선택 후 데이터 shape: (1, 12)
+2024-08-12 01:05:16,202 - backtesting_and_ml - INFO - 스케일링 후 데이터:
+[[ 0.15028861  0.10413783  0.17407103  0.14789709 -0.64293359  0.20035286
+   0.21846696 -0.84235993 -0.38781346 -0.43658946  0.08284839  0.29541603]]
+2024-08-12 01:05:16,203 - backtesting_and_ml - INFO - 예측 결과: 1
+2024-08-12 01:05:16,211 - backtesting_and_ml - INFO - prepare_data 메서드 시작. 데이터 shape: (1440, 14)
+2024-08-12 01:05:16,215 - backtesting_and_ml - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 14)
+2024-08-12 01:05:16,220 - backtesting_and_ml - INFO - 데이터 샘플:
+                           open        high  ...      BB_Upper      BB_Lower
+date                                         ...                            
+2024-08-02 01:10:00  88627000.0  89048000.0  ...  8.936080e+07  8.815980e+07
+2024-08-02 01:20:00  88860000.0  89279000.0  ...  8.936080e+07  8.815980e+07
+2024-08-02 01:30:00  88740000.0  88836000.0  ...  8.936080e+07  8.815980e+07
+2024-08-02 01:40:00  88630000.0  88826000.0  ...  8.936080e+07  8.815980e+07
+2024-08-02 01:50:00  88737000.0  88750000.0  ...  8.936080e+07  8.815980e+07
+
+[5 rows x 12 columns]
+2024-08-12 01:05:16,220 - backtesting_and_ml - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+[91m2024-08-12 01:05:16,221 - __main__ - ERROR - Trading loop error: need to call fit or load_model beforehand[0m
+[91m2024-08-12 01:05:16,221 - __main__ - ERROR - Traceback:[0m
+Traceback (most recent call last):
+  File "C:\Dev\GPT_BTC\pythonProject\gpt-bitcoin\main.py", line 183, in run
+  File "C:\Dev\GPT_BTC\pythonProject\gpt-bitcoin\backtesting_and_ml.py", line 189, in predict
+    return self.model.predict(X)[-1]
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\.venv\Lib\site-packages\xgboost\sklearn.py", line 1565, in predict
+    class_probs = super().predict(
+                  ^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\.venv\Lib\site-packages\xgboost\sklearn.py", line 1186, in predict
+    predts = self.get_booster().inplace_predict(
+             ^^^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\.venv\Lib\site-packages\xgboost\sklearn.py", line 805, in get_booster
+    raise NotFittedError("need to call fit or load_model beforehand")
+sklearn.exceptions.NotFittedError: need to call fit or load_model beforehand
+2024-08-12 01:06:16,235 - data_manager - INFO - prepare_data_for_ml 메서드 시작. 데이터 shape: (1440, 7)
+2024-08-12 01:06:16,239 - data_manager - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 14)
+2024-08-12 01:06:16,239 - data_manager - INFO - 데이터 컬럼: Index(['open', 'high', 'low', 'close', 'volume', 'value', 'decision', 'sma',
+       'ema', 'rsi', 'macd', 'signal_line', 'BB_Upper', 'BB_Lower'],
+      dtype='object')
+2024-08-12 01:06:16,240 - data_manager - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+2024-08-12 01:06:16,240 - backtesting_and_ml - INFO - predict 메서드 시작. 입력 데이터 shape: (1440, 14)
+2024-08-12 01:06:16,240 - backtesting_and_ml - INFO - 선택된 특성 데이터 shape: (1, 12)
+2024-08-12 01:06:16,240 - backtesting_and_ml - INFO - 선택된 특성 데이터:
+[[ 8.43850000e+07  8.43850000e+07  8.43010000e+07  8.43750000e+07
+   5.52799900e-02  8.46044500e+07  8.46700339e+07  3.95527207e+01
+  -1.45585242e+05 -1.51132319e+05  8.49619852e+07  8.42469148e+07]]
+2024-08-12 01:06:16,241 - backtesting_and_ml - INFO - NaN 처리 후 데이터:
+[[ 8.43850000e+07  8.43850000e+07  8.43010000e+07  8.43750000e+07
+   5.52799900e-02  8.46044500e+07  8.46700339e+07  3.95527207e+01
+  -1.45585242e+05 -1.51132319e+05  8.49619852e+07  8.42469148e+07]]
+2024-08-12 01:06:16,241 - backtesting_and_ml - INFO - 특성 선택 후 데이터 shape: (1, 12)
+2024-08-12 01:06:16,241 - backtesting_and_ml - INFO - 스케일링 후 데이터:
+[[ 0.15028861  0.10413783  0.17407103  0.14789709 -0.64293359  0.20035286
+   0.21846696 -0.84235993 -0.38781346 -0.43658946  0.08284839  0.29541603]]
+2024-08-12 01:06:16,243 - backtesting_and_ml - INFO - 예측 결과: 1
+2024-08-12 01:06:16,249 - backtesting_and_ml - INFO - prepare_data 메서드 시작. 데이터 shape: (1440, 14)
+2024-08-12 01:06:16,253 - backtesting_and_ml - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 14)
+2024-08-12 01:06:16,258 - backtesting_and_ml - INFO - 데이터 샘플:
+                           open        high  ...      BB_Upper      BB_Lower
+date                                         ...                            
+2024-08-02 01:10:00  88627000.0  89048000.0  ...  8.936080e+07  8.815980e+07
+2024-08-02 01:20:00  88860000.0  89279000.0  ...  8.936080e+07  8.815980e+07
+2024-08-02 01:30:00  88740000.0  88836000.0  ...  8.936080e+07  8.815980e+07
+2024-08-02 01:40:00  88630000.0  88826000.0  ...  8.936080e+07  8.815980e+07
+2024-08-02 01:50:00  88737000.0  88750000.0  ...  8.936080e+07  8.815980e+07
+
+[5 rows x 12 columns]
+2024-08-12 01:06:16,258 - backtesting_and_ml - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+[91m2024-08-12 01:06:16,259 - __main__ - ERROR - Trading loop error: need to call fit or load_model beforehand[0m
+[91m2024-08-12 01:06:16,259 - __main__ - ERROR - Traceback:[0m
+Traceback (most recent call last):
+  File "C:\Dev\GPT_BTC\pythonProject\gpt-bitcoin\main.py", line 183, in run
+  File "C:\Dev\GPT_BTC\pythonProject\gpt-bitcoin\backtesting_and_ml.py", line 189, in predict
+    return self.model.predict(X)[-1]
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\.venv\Lib\site-packages\xgboost\sklearn.py", line 1565, in predict
+    class_probs = super().predict(
+                  ^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\.venv\Lib\site-packages\xgboost\sklearn.py", line 1186, in predict
+    predts = self.get_booster().inplace_predict(
+             ^^^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\.venv\Lib\site-packages\xgboost\sklearn.py", line 805, in get_booster
+    raise NotFittedError("need to call fit or load_model beforehand")
+sklearn.exceptions.NotFittedError: need to call fit or load_model beforehand
+2024-08-12 01:06:32,814 - config - INFO - Configuration loaded successfully from config.json.
+2024-08-12 01:06:32,978 - data_manager - INFO - Tables in database: [('decisions',), ('sqlite_sequence',), ('technical_indicators',), ('ohlcv_data',)]
+2024-08-12 01:06:32,978 - data_manager - INFO - ohlcv_data table structure:
+2024-08-12 01:06:32,978 - data_manager - INFO -   (0, 'date', 'TEXT', 0, None, 1)
+2024-08-12 01:06:32,978 - data_manager - INFO -   (1, 'open', 'REAL', 0, None, 0)
+2024-08-12 01:06:32,978 - data_manager - INFO -   (2, 'high', 'REAL', 0, None, 0)
+2024-08-12 01:06:32,979 - data_manager - INFO -   (3, 'low', 'REAL', 0, None, 0)
+2024-08-12 01:06:32,979 - data_manager - INFO -   (4, 'close', 'REAL', 0, None, 0)
+2024-08-12 01:06:32,979 - data_manager - INFO -   (5, 'volume', 'REAL', 0, None, 0)
+2024-08-12 01:06:32,979 - data_manager - INFO -   (6, 'value', 'REAL', 0, None, 0)
+2024-08-12 01:06:32,979 - data_manager - INFO -   (7, 'decision', 'TEXT', 0, None, 0)
+2024-08-12 01:06:32,979 - data_manager - INFO - Sample data from ohlcv_data:
+2024-08-12 01:06:32,979 - data_manager - INFO -   ('2017-09-25 12:00:00', 4201000.0, 4241000.0, 4195000.0, 4227000.0, 15.94002768, 67378497.00336, None)
+2024-08-12 01:06:32,979 - data_manager - INFO -   ('2017-09-25 12:10:00', 4215000.0, 4244000.0, 4210000.0, 4227000.0, 16.22476888, 68582098.05576, None)
+2024-08-12 01:06:32,979 - data_manager - INFO -   ('2017-09-25 12:20:00', 4215000.0, 4242000.0, 4191000.0, 4221000.0, 16.14499538, 68148025.49898, None)
+2024-08-12 01:06:32,979 - data_manager - INFO -   ('2017-09-25 12:30:00', 4219000.0, 4242000.0, 4202000.0, 4242000.0, 17.94348075, 76116245.3415, None)
+2024-08-12 01:06:32,979 - data_manager - INFO -   ('2017-09-25 12:40:00', 4227000.0, 4233000.0, 4199000.0, 4224000.0, 19.12203232, 80771464.51968, None)
+2024-08-12 01:06:33,120 - backtesting_and_ml - INFO - Starting backtest from 2024-07-13 01:06:33.118683 to 2024-08-12 01:06:33.118683 with initial balance 10000000.
+2024-08-12 01:06:33,320 - backtesting_and_ml - INFO - Backtest complete. Final balance: 9337013.511286486, Total return: -0.06629864887135141, Number of trades: 102
+2024-08-12 01:06:33,337 - backtesting_and_ml - INFO - prepare_data 메서드 시작. 데이터 shape: (1440, 8)
+2024-08-12 01:06:33,342 - backtesting_and_ml - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 15)
+2024-08-12 01:06:33,348 - backtesting_and_ml - INFO - 데이터 샘플:
+         open        high  ...      BB_Upper      BB_Lower
+0  88627000.0  89048000.0  ...  8.936080e+07  8.815980e+07
+1  88860000.0  89279000.0  ...  8.936080e+07  8.815980e+07
+2  88740000.0  88836000.0  ...  8.936080e+07  8.815980e+07
+3  88630000.0  88826000.0  ...  8.936080e+07  8.815980e+07
+4  88737000.0  88750000.0  ...  8.936080e+07  8.815980e+07
+
+[5 rows x 12 columns]
+2024-08-12 01:06:33,348 - backtesting_and_ml - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+2024-08-12 01:06:33,621 - backtesting_and_ml - INFO - 모델 학습 완료. 정확도: 0.5590277777777778, 손실: 0.4409722222222222
+2024-08-12 01:06:34,130 - config - INFO - Configuration loaded successfully from config.json.
+2024-08-12 01:06:34,130 - data_manager - INFO - ohlcv_data columns: ['date', 'open', 'high', 'low', 'close', 'volume', 'value', 'decision']
+2024-08-12 01:06:34,130 - data_manager - INFO - technical_indicators columns: ['timestamp', 'sma', 'ema', 'rsi', 'macd', 'signal_line', 'BB_Upper', 'BB_Lower']
+2024-08-12 01:06:34,313 - data_manager - INFO - Adding new data. Shape: (365, 7)
+2024-08-12 01:06:34,506 - data_manager - INFO - No new data to add
+2024-08-12 01:06:36,720 - data_manager - INFO - prepare_data_for_ml 메서드 시작. 데이터 shape: (1440, 7)
+2024-08-12 01:06:36,726 - data_manager - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 14)
+2024-08-12 01:06:36,726 - data_manager - INFO - 데이터 컬럼: Index(['open', 'high', 'low', 'close', 'volume', 'value', 'decision', 'sma',
+       'ema', 'rsi', 'macd', 'signal_line', 'BB_Upper', 'BB_Lower'],
+      dtype='object')
+2024-08-12 01:06:36,726 - data_manager - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+2024-08-12 01:06:36,727 - backtesting_and_ml - INFO - predict 메서드 시작. 입력 데이터 shape: (1440, 14)
+2024-08-12 01:06:36,727 - backtesting_and_ml - INFO - 선택된 특성 데이터 shape: (1, 12)
+2024-08-12 01:06:36,727 - backtesting_and_ml - INFO - 선택된 특성 데이터:
+[[ 8.43850000e+07  8.43850000e+07  8.43010000e+07  8.43750000e+07
+   5.52799900e-02  8.46044500e+07  8.46700339e+07  3.95527207e+01
+  -1.45585242e+05 -1.51132319e+05  8.49619852e+07  8.42469148e+07]]
+2024-08-12 01:06:36,728 - backtesting_and_ml - INFO - NaN 처리 후 데이터:
+[[ 8.43850000e+07  8.43850000e+07  8.43010000e+07  8.43750000e+07
+   5.52799900e-02  8.46044500e+07  8.46700339e+07  3.95527207e+01
+  -1.45585242e+05 -1.51132319e+05  8.49619852e+07  8.42469148e+07]]
+2024-08-12 01:06:36,728 - backtesting_and_ml - INFO - 특성 선택 후 데이터 shape: (1, 12)
+2024-08-12 01:06:36,728 - backtesting_and_ml - INFO - 스케일링 후 데이터:
+[[ 0.15187462  0.105819    0.17565311  0.14950539 -0.6414309   0.20180481
+   0.21996943 -0.83574889 -0.38745894 -0.43671117  0.08416583  0.29696642]]
+2024-08-12 01:06:36,730 - backtesting_and_ml - INFO - 예측 결과: 0
+2024-08-12 01:06:36,736 - backtesting_and_ml - INFO - prepare_data 메서드 시작. 데이터 shape: (1440, 14)
+2024-08-12 01:06:36,740 - backtesting_and_ml - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 14)
+2024-08-12 01:06:36,745 - backtesting_and_ml - INFO - 데이터 샘플:
+                           open        high  ...      BB_Upper      BB_Lower
+date                                         ...                            
+2024-08-02 01:10:00  88627000.0  89048000.0  ...  8.936080e+07  8.815980e+07
+2024-08-02 01:20:00  88860000.0  89279000.0  ...  8.936080e+07  8.815980e+07
+2024-08-02 01:30:00  88740000.0  88836000.0  ...  8.936080e+07  8.815980e+07
+2024-08-02 01:40:00  88630000.0  88826000.0  ...  8.936080e+07  8.815980e+07
+2024-08-02 01:50:00  88737000.0  88750000.0  ...  8.936080e+07  8.815980e+07
+
+[5 rows x 12 columns]
+2024-08-12 01:06:36,746 - backtesting_and_ml - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+[91m2024-08-12 01:06:36,836 - __main__ - ERROR - Trading loop error: need to call fit or load_model beforehand[0m
+[91m2024-08-12 01:06:36,836 - __main__ - ERROR - Traceback:[0m
+Traceback (most recent call last):
+  File "C:\Dev\GPT_BTC\pythonProject\gpt-bitcoin\main.py", line 185, in run
+    xgboost_prediction = self.xgboost_predictor.predict(data)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\gpt-bitcoin\backtesting_and_ml.py", line 189, in predict
+    return self.model.predict(X)[-1]
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\.venv\Lib\site-packages\xgboost\sklearn.py", line 1565, in predict
+    class_probs = super().predict(
+                  ^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\.venv\Lib\site-packages\xgboost\sklearn.py", line 1186, in predict
+    predts = self.get_booster().inplace_predict(
+             ^^^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\.venv\Lib\site-packages\xgboost\sklearn.py", line 805, in get_booster
+    raise NotFittedError("need to call fit or load_model beforehand")
+sklearn.exceptions.NotFittedError: need to call fit or load_model beforehand
+2024-08-12 01:07:36,846 - data_manager - INFO - prepare_data_for_ml 메서드 시작. 데이터 shape: (1440, 7)
+2024-08-12 01:07:36,850 - data_manager - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 14)
+2024-08-12 01:07:36,851 - data_manager - INFO - 데이터 컬럼: Index(['open', 'high', 'low', 'close', 'volume', 'value', 'decision', 'sma',
+       'ema', 'rsi', 'macd', 'signal_line', 'BB_Upper', 'BB_Lower'],
+      dtype='object')
+2024-08-12 01:07:36,852 - data_manager - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+2024-08-12 01:07:36,852 - backtesting_and_ml - INFO - predict 메서드 시작. 입력 데이터 shape: (1440, 14)
+2024-08-12 01:07:36,852 - backtesting_and_ml - INFO - 선택된 특성 데이터 shape: (1, 12)
+2024-08-12 01:07:36,852 - backtesting_and_ml - INFO - 선택된 특성 데이터:
+[[ 8.43850000e+07  8.43850000e+07  8.43010000e+07  8.43750000e+07
+   5.52799900e-02  8.46044500e+07  8.46700339e+07  3.95527207e+01
+  -1.45585242e+05 -1.51132319e+05  8.49619852e+07  8.42469148e+07]]
+2024-08-12 01:07:36,853 - backtesting_and_ml - INFO - NaN 처리 후 데이터:
+[[ 8.43850000e+07  8.43850000e+07  8.43010000e+07  8.43750000e+07
+   5.52799900e-02  8.46044500e+07  8.46700339e+07  3.95527207e+01
+  -1.45585242e+05 -1.51132319e+05  8.49619852e+07  8.42469148e+07]]
+2024-08-12 01:07:36,853 - backtesting_and_ml - INFO - 특성 선택 후 데이터 shape: (1, 12)
+2024-08-12 01:07:36,853 - backtesting_and_ml - INFO - 스케일링 후 데이터:
+[[ 0.15187462  0.105819    0.17565311  0.14950539 -0.6414309   0.20180481
+   0.21996943 -0.83574889 -0.38745894 -0.43671117  0.08416583  0.29696642]]
+2024-08-12 01:07:36,855 - backtesting_and_ml - INFO - 예측 결과: 0
+2024-08-12 01:07:36,861 - backtesting_and_ml - INFO - prepare_data 메서드 시작. 데이터 shape: (1440, 14)
+2024-08-12 01:07:36,865 - backtesting_and_ml - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 14)
+2024-08-12 01:07:36,870 - backtesting_and_ml - INFO - 데이터 샘플:
+                           open        high  ...      BB_Upper      BB_Lower
+date                                         ...                            
+2024-08-02 01:10:00  88627000.0  89048000.0  ...  8.936080e+07  8.815980e+07
+2024-08-02 01:20:00  88860000.0  89279000.0  ...  8.936080e+07  8.815980e+07
+2024-08-02 01:30:00  88740000.0  88836000.0  ...  8.936080e+07  8.815980e+07
+2024-08-02 01:40:00  88630000.0  88826000.0  ...  8.936080e+07  8.815980e+07
+2024-08-02 01:50:00  88737000.0  88750000.0  ...  8.936080e+07  8.815980e+07
+
+[5 rows x 12 columns]
+2024-08-12 01:07:36,871 - backtesting_and_ml - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+[91m2024-08-12 01:07:36,871 - __main__ - ERROR - Trading loop error: need to call fit or load_model beforehand[0m
+[91m2024-08-12 01:07:36,871 - __main__ - ERROR - Traceback:[0m
+Traceback (most recent call last):
+  File "C:\Dev\GPT_BTC\pythonProject\gpt-bitcoin\main.py", line 185, in run
+    xgboost_prediction = self.xgboost_predictor.predict(data)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\gpt-bitcoin\backtesting_and_ml.py", line 189, in predict
+    return self.model.predict(X)[-1]
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\.venv\Lib\site-packages\xgboost\sklearn.py", line 1565, in predict
+    class_probs = super().predict(
+                  ^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\.venv\Lib\site-packages\xgboost\sklearn.py", line 1186, in predict
+    predts = self.get_booster().inplace_predict(
+             ^^^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\.venv\Lib\site-packages\xgboost\sklearn.py", line 805, in get_booster
+    raise NotFittedError("need to call fit or load_model beforehand")
+sklearn.exceptions.NotFittedError: need to call fit or load_model beforehand
+2024-08-12 01:08:15,081 - config - INFO - Configuration loaded successfully from config.json.
+2024-08-12 01:08:15,244 - data_manager - INFO - Tables in database: [('decisions',), ('sqlite_sequence',), ('technical_indicators',), ('ohlcv_data',)]
+2024-08-12 01:08:15,244 - data_manager - INFO - ohlcv_data table structure:
+2024-08-12 01:08:15,244 - data_manager - INFO -   (0, 'date', 'TEXT', 0, None, 1)
+2024-08-12 01:08:15,244 - data_manager - INFO -   (1, 'open', 'REAL', 0, None, 0)
+2024-08-12 01:08:15,245 - data_manager - INFO -   (2, 'high', 'REAL', 0, None, 0)
+2024-08-12 01:08:15,245 - data_manager - INFO -   (3, 'low', 'REAL', 0, None, 0)
+2024-08-12 01:08:15,245 - data_manager - INFO -   (4, 'close', 'REAL', 0, None, 0)
+2024-08-12 01:08:15,245 - data_manager - INFO -   (5, 'volume', 'REAL', 0, None, 0)
+2024-08-12 01:08:15,245 - data_manager - INFO -   (6, 'value', 'REAL', 0, None, 0)
+2024-08-12 01:08:15,245 - data_manager - INFO -   (7, 'decision', 'TEXT', 0, None, 0)
+2024-08-12 01:08:15,245 - data_manager - INFO - Sample data from ohlcv_data:
+2024-08-12 01:08:15,245 - data_manager - INFO -   ('2017-09-25 12:00:00', 4201000.0, 4241000.0, 4195000.0, 4227000.0, 15.94002768, 67378497.00336, None)
+2024-08-12 01:08:15,245 - data_manager - INFO -   ('2017-09-25 12:10:00', 4215000.0, 4244000.0, 4210000.0, 4227000.0, 16.22476888, 68582098.05576, None)
+2024-08-12 01:08:15,245 - data_manager - INFO -   ('2017-09-25 12:20:00', 4215000.0, 4242000.0, 4191000.0, 4221000.0, 16.14499538, 68148025.49898, None)
+2024-08-12 01:08:15,245 - data_manager - INFO -   ('2017-09-25 12:30:00', 4219000.0, 4242000.0, 4202000.0, 4242000.0, 17.94348075, 76116245.3415, None)
+2024-08-12 01:08:15,245 - data_manager - INFO -   ('2017-09-25 12:40:00', 4227000.0, 4233000.0, 4199000.0, 4224000.0, 19.12203232, 80771464.51968, None)
+2024-08-12 01:08:15,374 - backtesting_and_ml - INFO - Starting backtest from 2024-07-13 01:08:15.372026 to 2024-08-12 01:08:15.372026 with initial balance 10000000.
+2024-08-12 01:08:15,572 - backtesting_and_ml - INFO - Backtest complete. Final balance: 9337013.511286486, Total return: -0.06629864887135141, Number of trades: 102
+2024-08-12 01:08:15,581 - backtesting_and_ml - INFO - prepare_data 메서드 시작. 데이터 shape: (1440, 8)
+2024-08-12 01:08:15,588 - backtesting_and_ml - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 15)
+2024-08-12 01:08:15,593 - backtesting_and_ml - INFO - 데이터 샘플:
+         open        high  ...      BB_Upper      BB_Lower
+0  88627000.0  89048000.0  ...  8.936080e+07  8.815980e+07
+1  88860000.0  89279000.0  ...  8.936080e+07  8.815980e+07
+2  88740000.0  88836000.0  ...  8.936080e+07  8.815980e+07
+3  88630000.0  88826000.0  ...  8.936080e+07  8.815980e+07
+4  88737000.0  88750000.0  ...  8.936080e+07  8.815980e+07
+
+[5 rows x 12 columns]
+2024-08-12 01:08:15,593 - backtesting_and_ml - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+2024-08-12 01:08:15,870 - backtesting_and_ml - INFO - 모델 학습 완료. 정확도: 0.5590277777777778, 손실: 0.4409722222222222
+2024-08-12 01:08:16,325 - config - INFO - Configuration loaded successfully from config.json.
+2024-08-12 01:08:16,325 - data_manager - INFO - ohlcv_data columns: ['date', 'open', 'high', 'low', 'close', 'volume', 'value', 'decision']
+2024-08-12 01:08:16,326 - data_manager - INFO - technical_indicators columns: ['timestamp', 'sma', 'ema', 'rsi', 'macd', 'signal_line', 'BB_Upper', 'BB_Lower']
+2024-08-12 01:08:16,512 - data_manager - INFO - Adding new data. Shape: (365, 7)
+2024-08-12 01:08:16,719 - data_manager - INFO - No new data to add
+2024-08-12 01:09:23,611 - config - INFO - Configuration loaded successfully from config.json.
+2024-08-12 01:09:23,774 - data_manager - INFO - Tables in database: [('decisions',), ('sqlite_sequence',), ('technical_indicators',), ('ohlcv_data',)]
+2024-08-12 01:09:23,774 - data_manager - INFO - ohlcv_data table structure:
+2024-08-12 01:09:23,774 - data_manager - INFO -   (0, 'date', 'TEXT', 0, None, 1)
+2024-08-12 01:09:23,774 - data_manager - INFO -   (1, 'open', 'REAL', 0, None, 0)
+2024-08-12 01:09:23,774 - data_manager - INFO -   (2, 'high', 'REAL', 0, None, 0)
+2024-08-12 01:09:23,774 - data_manager - INFO -   (3, 'low', 'REAL', 0, None, 0)
+2024-08-12 01:09:23,774 - data_manager - INFO -   (4, 'close', 'REAL', 0, None, 0)
+2024-08-12 01:09:23,774 - data_manager - INFO -   (5, 'volume', 'REAL', 0, None, 0)
+2024-08-12 01:09:23,774 - data_manager - INFO -   (6, 'value', 'REAL', 0, None, 0)
+2024-08-12 01:09:23,776 - data_manager - INFO -   (7, 'decision', 'TEXT', 0, None, 0)
+2024-08-12 01:09:23,776 - data_manager - INFO - Sample data from ohlcv_data:
+2024-08-12 01:09:23,776 - data_manager - INFO -   ('2017-09-25 12:00:00', 4201000.0, 4241000.0, 4195000.0, 4227000.0, 15.94002768, 67378497.00336, None)
+2024-08-12 01:09:23,776 - data_manager - INFO -   ('2017-09-25 12:10:00', 4215000.0, 4244000.0, 4210000.0, 4227000.0, 16.22476888, 68582098.05576, None)
+2024-08-12 01:09:23,776 - data_manager - INFO -   ('2017-09-25 12:20:00', 4215000.0, 4242000.0, 4191000.0, 4221000.0, 16.14499538, 68148025.49898, None)
+2024-08-12 01:09:23,776 - data_manager - INFO -   ('2017-09-25 12:30:00', 4219000.0, 4242000.0, 4202000.0, 4242000.0, 17.94348075, 76116245.3415, None)
+2024-08-12 01:09:23,776 - data_manager - INFO -   ('2017-09-25 12:40:00', 4227000.0, 4233000.0, 4199000.0, 4224000.0, 19.12203232, 80771464.51968, None)
+2024-08-12 01:09:23,909 - backtesting_and_ml - INFO - Starting backtest from 2024-07-13 01:09:23.907128 to 2024-08-12 01:09:23.907128 with initial balance 10000000.
+2024-08-12 01:09:24,109 - backtesting_and_ml - INFO - Backtest complete. Final balance: 9337013.511286486, Total return: -0.06629864887135141, Number of trades: 102
+2024-08-12 01:09:24,118 - backtesting_and_ml - INFO - prepare_data 메서드 시작. 데이터 shape: (1440, 8)
+2024-08-12 01:09:24,123 - backtesting_and_ml - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 15)
+2024-08-12 01:09:24,127 - backtesting_and_ml - INFO - 데이터 샘플:
+         open        high  ...      BB_Upper      BB_Lower
+0  88627000.0  89048000.0  ...  8.936080e+07  8.815980e+07
+1  88860000.0  89279000.0  ...  8.936080e+07  8.815980e+07
+2  88740000.0  88836000.0  ...  8.936080e+07  8.815980e+07
+3  88630000.0  88826000.0  ...  8.936080e+07  8.815980e+07
+4  88737000.0  88750000.0  ...  8.936080e+07  8.815980e+07
+
+[5 rows x 12 columns]
+2024-08-12 01:09:24,128 - backtesting_and_ml - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+2024-08-12 01:09:24,400 - backtesting_and_ml - INFO - 모델 학습 완료. 정확도: 0.5590277777777778, 손실: 0.4409722222222222
+2024-08-12 01:09:24,861 - config - INFO - Configuration loaded successfully from config.json.
+2024-08-12 01:09:24,861 - data_manager - INFO - ohlcv_data columns: ['date', 'open', 'high', 'low', 'close', 'volume', 'value', 'decision']
+2024-08-12 01:09:24,861 - data_manager - INFO - technical_indicators columns: ['timestamp', 'sma', 'ema', 'rsi', 'macd', 'signal_line', 'BB_Upper', 'BB_Lower']
+2024-08-12 01:09:25,034 - data_manager - INFO - Adding new data. Shape: (365, 7)
+2024-08-12 01:09:25,222 - data_manager - INFO - No new data to add
+2024-08-12 01:10:19,462 - config - INFO - Configuration loaded successfully from config.json.
+2024-08-12 01:10:19,628 - data_manager - INFO - Tables in database: [('decisions',), ('sqlite_sequence',), ('technical_indicators',), ('ohlcv_data',)]
+2024-08-12 01:10:19,628 - data_manager - INFO - ohlcv_data table structure:
+2024-08-12 01:10:19,628 - data_manager - INFO -   (0, 'date', 'TEXT', 0, None, 1)
+2024-08-12 01:10:19,628 - data_manager - INFO -   (1, 'open', 'REAL', 0, None, 0)
+2024-08-12 01:10:19,628 - data_manager - INFO -   (2, 'high', 'REAL', 0, None, 0)
+2024-08-12 01:10:19,628 - data_manager - INFO -   (3, 'low', 'REAL', 0, None, 0)
+2024-08-12 01:10:19,629 - data_manager - INFO -   (4, 'close', 'REAL', 0, None, 0)
+2024-08-12 01:10:19,629 - data_manager - INFO -   (5, 'volume', 'REAL', 0, None, 0)
+2024-08-12 01:10:19,629 - data_manager - INFO -   (6, 'value', 'REAL', 0, None, 0)
+2024-08-12 01:10:19,629 - data_manager - INFO -   (7, 'decision', 'TEXT', 0, None, 0)
+2024-08-12 01:10:19,629 - data_manager - INFO - Sample data from ohlcv_data:
+2024-08-12 01:10:19,629 - data_manager - INFO -   ('2017-09-25 12:00:00', 4201000.0, 4241000.0, 4195000.0, 4227000.0, 15.94002768, 67378497.00336, None)
+2024-08-12 01:10:19,629 - data_manager - INFO -   ('2017-09-25 12:10:00', 4215000.0, 4244000.0, 4210000.0, 4227000.0, 16.22476888, 68582098.05576, None)
+2024-08-12 01:10:19,629 - data_manager - INFO -   ('2017-09-25 12:20:00', 4215000.0, 4242000.0, 4191000.0, 4221000.0, 16.14499538, 68148025.49898, None)
+2024-08-12 01:10:19,629 - data_manager - INFO -   ('2017-09-25 12:30:00', 4219000.0, 4242000.0, 4202000.0, 4242000.0, 17.94348075, 76116245.3415, None)
+2024-08-12 01:10:19,629 - data_manager - INFO -   ('2017-09-25 12:40:00', 4227000.0, 4233000.0, 4199000.0, 4224000.0, 19.12203232, 80771464.51968, None)
+2024-08-12 01:10:19,817 - data_manager - INFO - Adding new data. Shape: (1, 7)
+2024-08-12 01:10:20,015 - data_manager - INFO - Successfully added 1 new data points
+2024-08-12 01:10:20,025 - backtesting_and_ml - INFO - Starting backtest from 2024-07-13 01:10:20.024348 to 2024-08-12 01:10:20.024348 with initial balance 10000000.
+2024-08-12 01:10:20,209 - backtesting_and_ml - INFO - Backtest complete. Final balance: 9323014.833656773, Total return: -0.0676985166343227, Number of trades: 102
+2024-08-12 01:10:20,221 - backtesting_and_ml - INFO - prepare_data 메서드 시작. 데이터 shape: (1440, 8)
+2024-08-12 01:10:20,225 - backtesting_and_ml - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 15)
+2024-08-12 01:10:20,231 - backtesting_and_ml - INFO - 데이터 샘플:
+         open        high  ...      BB_Upper      BB_Lower
+0  88860000.0  89279000.0  ...  8.941523e+07  8.814417e+07
+1  88740000.0  88836000.0  ...  8.941523e+07  8.814417e+07
+2  88630000.0  88826000.0  ...  8.941523e+07  8.814417e+07
+3  88737000.0  88750000.0  ...  8.941523e+07  8.814417e+07
+4  88723000.0  88724000.0  ...  8.941523e+07  8.814417e+07
+
+[5 rows x 12 columns]
+2024-08-12 01:10:20,231 - backtesting_and_ml - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+2024-08-12 01:10:20,508 - backtesting_and_ml - INFO - 모델 학습 완료. 정확도: 0.5381944444444444, 손실: 0.4618055555555556
+2024-08-12 01:10:20,950 - config - INFO - Configuration loaded successfully from config.json.
+2024-08-12 01:10:20,950 - data_manager - INFO - ohlcv_data columns: ['date', 'open', 'high', 'low', 'close', 'volume', 'value', 'decision']
+2024-08-12 01:10:20,951 - data_manager - INFO - technical_indicators columns: ['timestamp', 'sma', 'ema', 'rsi', 'macd', 'signal_line', 'BB_Upper', 'BB_Lower']
+2024-08-12 01:10:21,136 - data_manager - INFO - Adding new data. Shape: (365, 7)
+2024-08-12 01:10:21,329 - data_manager - INFO - No new data to add
+2024-08-12 01:12:22,961 - config - INFO - Configuration loaded successfully from config.json.
+2024-08-12 01:12:23,126 - data_manager - INFO - Tables in database: [('decisions',), ('sqlite_sequence',), ('technical_indicators',), ('ohlcv_data',)]
+2024-08-12 01:12:23,126 - data_manager - INFO - ohlcv_data table structure:
+2024-08-12 01:12:23,126 - data_manager - INFO -   (0, 'date', 'TEXT', 0, None, 1)
+2024-08-12 01:12:23,126 - data_manager - INFO -   (1, 'open', 'REAL', 0, None, 0)
+2024-08-12 01:12:23,126 - data_manager - INFO -   (2, 'high', 'REAL', 0, None, 0)
+2024-08-12 01:12:23,126 - data_manager - INFO -   (3, 'low', 'REAL', 0, None, 0)
+2024-08-12 01:12:23,126 - data_manager - INFO -   (4, 'close', 'REAL', 0, None, 0)
+2024-08-12 01:12:23,126 - data_manager - INFO -   (5, 'volume', 'REAL', 0, None, 0)
+2024-08-12 01:12:23,127 - data_manager - INFO -   (6, 'value', 'REAL', 0, None, 0)
+2024-08-12 01:12:23,127 - data_manager - INFO -   (7, 'decision', 'TEXT', 0, None, 0)
+2024-08-12 01:12:23,127 - data_manager - INFO - Sample data from ohlcv_data:
+2024-08-12 01:12:23,127 - data_manager - INFO -   ('2017-09-25 12:00:00', 4201000.0, 4241000.0, 4195000.0, 4227000.0, 15.94002768, 67378497.00336, None)
+2024-08-12 01:12:23,127 - data_manager - INFO -   ('2017-09-25 12:10:00', 4215000.0, 4244000.0, 4210000.0, 4227000.0, 16.22476888, 68582098.05576, None)
+2024-08-12 01:12:23,127 - data_manager - INFO -   ('2017-09-25 12:20:00', 4215000.0, 4242000.0, 4191000.0, 4221000.0, 16.14499538, 68148025.49898, None)
+2024-08-12 01:12:23,127 - data_manager - INFO -   ('2017-09-25 12:30:00', 4219000.0, 4242000.0, 4202000.0, 4242000.0, 17.94348075, 76116245.3415, None)
+2024-08-12 01:12:23,127 - data_manager - INFO -   ('2017-09-25 12:40:00', 4227000.0, 4233000.0, 4199000.0, 4224000.0, 19.12203232, 80771464.51968, None)
+2024-08-12 01:12:23,266 - backtesting_and_ml - INFO - Starting backtest from 2024-07-13 01:12:23.264194 to 2024-08-12 01:12:23.264194 with initial balance 10000000.
+2024-08-12 01:12:23,464 - backtesting_and_ml - INFO - Backtest complete. Final balance: 9323014.833656773, Total return: -0.0676985166343227, Number of trades: 102
+2024-08-12 01:12:23,473 - backtesting_and_ml - INFO - prepare_data 메서드 시작. 데이터 shape: (1440, 8)
+2024-08-12 01:12:23,478 - backtesting_and_ml - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 15)
+2024-08-12 01:12:23,483 - backtesting_and_ml - INFO - 데이터 샘플:
+         open        high  ...      BB_Upper      BB_Lower
+0  88860000.0  89279000.0  ...  8.941523e+07  8.814417e+07
+1  88740000.0  88836000.0  ...  8.941523e+07  8.814417e+07
+2  88630000.0  88826000.0  ...  8.941523e+07  8.814417e+07
+3  88737000.0  88750000.0  ...  8.941523e+07  8.814417e+07
+4  88723000.0  88724000.0  ...  8.941523e+07  8.814417e+07
+
+[5 rows x 12 columns]
+2024-08-12 01:12:23,484 - backtesting_and_ml - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+2024-08-12 01:12:23,755 - backtesting_and_ml - INFO - 모델 학습 완료. 정확도: 0.5381944444444444, 손실: 0.4618055555555556
+2024-08-12 01:12:24,209 - config - INFO - Configuration loaded successfully from config.json.
+2024-08-12 01:12:24,209 - data_manager - INFO - ohlcv_data columns: ['date', 'open', 'high', 'low', 'close', 'volume', 'value', 'decision']
+2024-08-12 01:12:24,210 - data_manager - INFO - technical_indicators columns: ['timestamp', 'sma', 'ema', 'rsi', 'macd', 'signal_line', 'BB_Upper', 'BB_Lower']
+2024-08-12 01:12:24,396 - data_manager - INFO - Adding new data. Shape: (365, 7)
+2024-08-12 01:12:24,583 - data_manager - INFO - No new data to add
+2024-08-12 01:12:33,215 - data_manager - INFO - prepare_data_for_ml 메서드 시작. 데이터 shape: (1440, 7)
+2024-08-12 01:12:33,220 - data_manager - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 14)
+2024-08-12 01:12:33,220 - data_manager - INFO - 데이터 컬럼: Index(['open', 'high', 'low', 'close', 'volume', 'value', 'decision', 'sma',
+       'ema', 'rsi', 'macd', 'signal_line', 'BB_Upper', 'BB_Lower'],
+      dtype='object')
+2024-08-12 01:12:33,221 - data_manager - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+2024-08-12 01:12:33,221 - backtesting_and_ml - INFO - predict 메서드 시작. 입력 데이터 shape: (1440, 14)
+2024-08-12 01:12:33,221 - backtesting_and_ml - INFO - 선택된 특성 데이터 shape: (1, 12)
+2024-08-12 01:12:33,222 - backtesting_and_ml - INFO - 선택된 특성 데이터:
+[[ 8.43620000e+07  8.43620000e+07  8.42660000e+07  8.42890000e+07
+   4.87148820e-01  8.45936000e+07  8.46337449e+07  3.77374582e+01
+  -1.58943021e+05 -1.52694460e+05  8.49748135e+07  8.42123865e+07]]
+2024-08-12 01:12:33,222 - backtesting_and_ml - INFO - NaN 처리 후 데이터:
+[[ 8.43620000e+07  8.43620000e+07  8.42660000e+07  8.42890000e+07
+   4.87148820e-01  8.45936000e+07  8.46337449e+07  3.77374582e+01
+  -1.58943021e+05 -1.52694460e+05  8.49748135e+07  8.42123865e+07]]
+2024-08-12 01:12:33,222 - backtesting_and_ml - INFO - 특성 선택 후 데이터 shape: (1, 12)
+2024-08-12 01:12:33,222 - backtesting_and_ml - INFO - 스케일링 후 데이터:
+[[ 0.14684345  0.10074783  0.16770957  0.12845787 -0.63494623  0.19979296
+   0.2114615  -0.99076074 -0.42816018 -0.44144658  0.08836253  0.28973539]]
+2024-08-12 01:12:33,223 - backtesting_and_ml - INFO - 예측 결과: 0
+2024-08-12 01:12:33,231 - backtesting_and_ml - INFO - prepare_data 메서드 시작. 데이터 shape: (1440, 14)
+2024-08-12 01:12:33,235 - backtesting_and_ml - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 14)
+2024-08-12 01:12:33,239 - backtesting_and_ml - INFO - 데이터 샘플:
+                           open        high  ...      BB_Upper      BB_Lower
+date                                         ...                            
+2024-08-02 01:20:00  88860000.0  89279000.0  ...  8.941523e+07  8.814417e+07
+2024-08-02 01:30:00  88740000.0  88836000.0  ...  8.941523e+07  8.814417e+07
+2024-08-02 01:40:00  88630000.0  88826000.0  ...  8.941523e+07  8.814417e+07
+2024-08-02 01:50:00  88737000.0  88750000.0  ...  8.941523e+07  8.814417e+07
+2024-08-02 02:00:00  88723000.0  88724000.0  ...  8.941523e+07  8.814417e+07
+
+[5 rows x 12 columns]
+2024-08-12 01:12:33,240 - backtesting_and_ml - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+[91m2024-08-12 01:12:33,337 - __main__ - ERROR - Trading loop error: need to call fit or load_model beforehand[0m
+[91m2024-08-12 01:12:33,338 - __main__ - ERROR - Traceback:[0m
+Traceback (most recent call last):
+  File "C:\Dev\GPT_BTC\pythonProject\gpt-bitcoin\main.py", line 185, in run
+    xgboost_prediction = self.xgboost_predictor.predict(data)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\gpt-bitcoin\backtesting_and_ml.py", line 189, in predict
+    return self.model.predict(X)[-1]
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\.venv\Lib\site-packages\xgboost\sklearn.py", line 1565, in predict
+    class_probs = super().predict(
+                  ^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\.venv\Lib\site-packages\xgboost\sklearn.py", line 1186, in predict
+    predts = self.get_booster().inplace_predict(
+             ^^^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\.venv\Lib\site-packages\xgboost\sklearn.py", line 805, in get_booster
+    raise NotFittedError("need to call fit or load_model beforehand")
+sklearn.exceptions.NotFittedError: need to call fit or load_model beforehand
+2024-08-12 01:13:33,348 - data_manager - INFO - prepare_data_for_ml 메서드 시작. 데이터 shape: (1440, 7)
+2024-08-12 01:13:33,352 - data_manager - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 14)
+2024-08-12 01:13:33,352 - data_manager - INFO - 데이터 컬럼: Index(['open', 'high', 'low', 'close', 'volume', 'value', 'decision', 'sma',
+       'ema', 'rsi', 'macd', 'signal_line', 'BB_Upper', 'BB_Lower'],
+      dtype='object')
+2024-08-12 01:13:33,353 - data_manager - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+2024-08-12 01:13:33,353 - backtesting_and_ml - INFO - predict 메서드 시작. 입력 데이터 shape: (1440, 14)
+2024-08-12 01:13:33,353 - backtesting_and_ml - INFO - 선택된 특성 데이터 shape: (1, 12)
+2024-08-12 01:13:33,353 - backtesting_and_ml - INFO - 선택된 특성 데이터:
+[[ 8.43620000e+07  8.43620000e+07  8.42660000e+07  8.42890000e+07
+   4.87148820e-01  8.45936000e+07  8.46337449e+07  3.77374582e+01
+  -1.58943021e+05 -1.52694460e+05  8.49748135e+07  8.42123865e+07]]
+2024-08-12 01:13:33,353 - backtesting_and_ml - INFO - NaN 처리 후 데이터:
+[[ 8.43620000e+07  8.43620000e+07  8.42660000e+07  8.42890000e+07
+   4.87148820e-01  8.45936000e+07  8.46337449e+07  3.77374582e+01
+  -1.58943021e+05 -1.52694460e+05  8.49748135e+07  8.42123865e+07]]
+2024-08-12 01:13:33,354 - backtesting_and_ml - INFO - 특성 선택 후 데이터 shape: (1, 12)
+2024-08-12 01:13:33,354 - backtesting_and_ml - INFO - 스케일링 후 데이터:
+[[ 0.14684345  0.10074783  0.16770957  0.12845787 -0.63494623  0.19979296
+   0.2114615  -0.99076074 -0.42816018 -0.44144658  0.08836253  0.28973539]]
+2024-08-12 01:13:33,355 - backtesting_and_ml - INFO - 예측 결과: 0
+2024-08-12 01:13:33,363 - backtesting_and_ml - INFO - prepare_data 메서드 시작. 데이터 shape: (1440, 14)
+2024-08-12 01:13:33,366 - backtesting_and_ml - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 14)
+2024-08-12 01:13:33,371 - backtesting_and_ml - INFO - 데이터 샘플:
+                           open        high  ...      BB_Upper      BB_Lower
+date                                         ...                            
+2024-08-02 01:20:00  88860000.0  89279000.0  ...  8.941523e+07  8.814417e+07
+2024-08-02 01:30:00  88740000.0  88836000.0  ...  8.941523e+07  8.814417e+07
+2024-08-02 01:40:00  88630000.0  88826000.0  ...  8.941523e+07  8.814417e+07
+2024-08-02 01:50:00  88737000.0  88750000.0  ...  8.941523e+07  8.814417e+07
+2024-08-02 02:00:00  88723000.0  88724000.0  ...  8.941523e+07  8.814417e+07
+
+[5 rows x 12 columns]
+2024-08-12 01:13:33,372 - backtesting_and_ml - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+[91m2024-08-12 01:13:33,372 - __main__ - ERROR - Trading loop error: need to call fit or load_model beforehand[0m
+[91m2024-08-12 01:13:33,373 - __main__ - ERROR - Traceback:[0m
+Traceback (most recent call last):
+  File "C:\Dev\GPT_BTC\pythonProject\gpt-bitcoin\main.py", line 185, in run
+    xgboost_prediction = self.xgboost_predictor.predict(data)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\gpt-bitcoin\backtesting_and_ml.py", line 189, in predict
+    return self.model.predict(X)[-1]
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\.venv\Lib\site-packages\xgboost\sklearn.py", line 1565, in predict
+    class_probs = super().predict(
+                  ^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\.venv\Lib\site-packages\xgboost\sklearn.py", line 1186, in predict
+    predts = self.get_booster().inplace_predict(
+             ^^^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\.venv\Lib\site-packages\xgboost\sklearn.py", line 805, in get_booster
+    raise NotFittedError("need to call fit or load_model beforehand")
+sklearn.exceptions.NotFittedError: need to call fit or load_model beforehand
+2024-08-12 01:16:44,273 - config - INFO - Configuration loaded successfully from config.json.
+2024-08-12 01:16:44,433 - data_manager - INFO - Tables in database: [('decisions',), ('sqlite_sequence',), ('technical_indicators',), ('ohlcv_data',)]
+2024-08-12 01:16:44,433 - data_manager - INFO - ohlcv_data table structure:
+2024-08-12 01:16:44,433 - data_manager - INFO -   (0, 'date', 'TEXT', 0, None, 1)
+2024-08-12 01:16:44,433 - data_manager - INFO -   (1, 'open', 'REAL', 0, None, 0)
+2024-08-12 01:16:44,433 - data_manager - INFO -   (2, 'high', 'REAL', 0, None, 0)
+2024-08-12 01:16:44,433 - data_manager - INFO -   (3, 'low', 'REAL', 0, None, 0)
+2024-08-12 01:16:44,433 - data_manager - INFO -   (4, 'close', 'REAL', 0, None, 0)
+2024-08-12 01:16:44,433 - data_manager - INFO -   (5, 'volume', 'REAL', 0, None, 0)
+2024-08-12 01:16:44,433 - data_manager - INFO -   (6, 'value', 'REAL', 0, None, 0)
+2024-08-12 01:16:44,433 - data_manager - INFO -   (7, 'decision', 'TEXT', 0, None, 0)
+2024-08-12 01:16:44,433 - data_manager - INFO - Sample data from ohlcv_data:
+2024-08-12 01:16:44,433 - data_manager - INFO -   ('2017-09-25 12:00:00', 4201000.0, 4241000.0, 4195000.0, 4227000.0, 15.94002768, 67378497.00336, None)
+2024-08-12 01:16:44,433 - data_manager - INFO -   ('2017-09-25 12:10:00', 4215000.0, 4244000.0, 4210000.0, 4227000.0, 16.22476888, 68582098.05576, None)
+2024-08-12 01:16:44,433 - data_manager - INFO -   ('2017-09-25 12:20:00', 4215000.0, 4242000.0, 4191000.0, 4221000.0, 16.14499538, 68148025.49898, None)
+2024-08-12 01:16:44,433 - data_manager - INFO -   ('2017-09-25 12:30:00', 4219000.0, 4242000.0, 4202000.0, 4242000.0, 17.94348075, 76116245.3415, None)
+2024-08-12 01:16:44,433 - data_manager - INFO -   ('2017-09-25 12:40:00', 4227000.0, 4233000.0, 4199000.0, 4224000.0, 19.12203232, 80771464.51968, None)
+2024-08-12 01:16:44,595 - backtesting_and_ml - INFO - Starting backtest from 2024-07-13 01:16:44.593632 to 2024-08-12 01:16:44.593632 with initial balance 10000000.
+2024-08-12 01:16:44,793 - backtesting_and_ml - INFO - Backtest complete. Final balance: 9323014.833656773, Total return: -0.0676985166343227, Number of trades: 102
+2024-08-12 01:16:44,802 - backtesting_and_ml - INFO - prepare_data 메서드 시작. 데이터 shape: (1440, 8)
+2024-08-12 01:16:44,807 - backtesting_and_ml - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 15)
+2024-08-12 01:16:44,813 - backtesting_and_ml - INFO - 데이터 샘플:
+         open        high  ...      BB_Upper      BB_Lower
+0  88860000.0  89279000.0  ...  8.941523e+07  8.814417e+07
+1  88740000.0  88836000.0  ...  8.941523e+07  8.814417e+07
+2  88630000.0  88826000.0  ...  8.941523e+07  8.814417e+07
+3  88737000.0  88750000.0  ...  8.941523e+07  8.814417e+07
+4  88723000.0  88724000.0  ...  8.941523e+07  8.814417e+07
+
+[5 rows x 12 columns]
+2024-08-12 01:16:44,814 - backtesting_and_ml - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+2024-08-12 01:16:45,098 - backtesting_and_ml - INFO - 모델 학습 완료. 정확도: 0.5381944444444444, 손실: 0.4618055555555556
+2024-08-12 01:16:45,550 - config - INFO - Configuration loaded successfully from config.json.
+2024-08-12 01:16:45,551 - data_manager - INFO - ohlcv_data columns: ['date', 'open', 'high', 'low', 'close', 'volume', 'value', 'decision']
+2024-08-12 01:16:45,551 - data_manager - INFO - technical_indicators columns: ['timestamp', 'sma', 'ema', 'rsi', 'macd', 'signal_line', 'BB_Upper', 'BB_Lower']
+2024-08-12 01:16:45,722 - data_manager - INFO - Adding new data. Shape: (365, 7)
+2024-08-12 01:16:45,923 - data_manager - INFO - No new data to add
+2024-08-12 01:16:54,680 - data_manager - INFO - prepare_data_for_ml 메서드 시작. 데이터 shape: (1440, 7)
+2024-08-12 01:16:54,685 - data_manager - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 14)
+2024-08-12 01:16:54,686 - data_manager - INFO - 데이터 컬럼: Index(['open', 'high', 'low', 'close', 'volume', 'value', 'decision', 'sma',
+       'ema', 'rsi', 'macd', 'signal_line', 'BB_Upper', 'BB_Lower'],
+      dtype='object')
+2024-08-12 01:16:54,686 - data_manager - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+2024-08-12 01:16:54,846 - backtesting_and_ml - INFO - predict 메서드 시작. 입력 데이터 shape: (1440, 7)
+[91m2024-08-12 01:16:54,847 - backtesting_and_ml - ERROR - 예측 중 오류 발생: "['sma', 'ema', 'rsi', 'macd', 'signal_line', 'BB_Upper', 'BB_Lower'] not in index"[0m
+[91m2024-08-12 01:16:54,847 - backtesting_and_ml - ERROR - 상세 오류:[0m
+Traceback (most recent call last):
+  File "C:\Dev\GPT_BTC\pythonProject\gpt-bitcoin\backtesting_and_ml.py", line 109, in predict
+    X = data[self.features].astype(float).values[-1].reshape(1, -1)
+        ~~~~^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\.venv\Lib\site-packages\pandas\core\frame.py", line 4108, in __getitem__
+    indexer = self.columns._get_indexer_strict(key, "columns")[1]
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Dev\GPT_BTC\pythonProject\.venv\Lib\site-packages\pandas\core\indexes\base.py", line 6200, in _get_indexer_strict
+    self._raise_if_missing(keyarr, indexer, axis_name)
+  File "C:\Dev\GPT_BTC\pythonProject\.venv\Lib\site-packages\pandas\core\indexes\base.py", line 6252, in _raise_if_missing
+    raise KeyError(f"{not_found} not in index")
+KeyError: "['sma', 'ema', 'rsi', 'macd', 'signal_line', 'BB_Upper', 'BB_Lower'] not in index"
+2024-08-12 01:16:54,851 - backtesting_and_ml - INFO - prepare_data 메서드 시작. 데이터 shape: (1440, 7)
+2024-08-12 01:16:54,860 - backtesting_and_ml - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 14)
+2024-08-12 01:16:54,873 - backtesting_and_ml - INFO - 데이터 샘플:
+                           open        high  ...      BB_Upper      BB_Lower
+date                                         ...                            
+2024-08-02 01:20:00  88860000.0  89279000.0  ...  8.941523e+07  8.814417e+07
+2024-08-02 01:30:00  88740000.0  88836000.0  ...  8.941523e+07  8.814417e+07
+2024-08-02 01:40:00  88630000.0  88826000.0  ...  8.941523e+07  8.814417e+07
+2024-08-02 01:50:00  88737000.0  88750000.0  ...  8.941523e+07  8.814417e+07
+2024-08-02 02:00:00  88723000.0  88724000.0  ...  8.941523e+07  8.814417e+07
+
+[5 rows x 12 columns]
+2024-08-12 01:16:54,875 - backtesting_and_ml - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+[91m2024-08-12 01:16:55,819 - __main__ - ERROR - 성능 계산 중 오류 발생: unsupported operand type(s) for -: 'float' and 'NoneType'[0m
+2024-08-12 01:16:58,429 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2024-08-12 01:16:58,432 - __main__ - INFO - Decision weights - GPT4: 0.25, ML: 0.2, XGBoost: 0.2, RL: 0.15, LSTM: 0.2
+2024-08-12 01:16:58,433 - __main__ - INFO - Individual decisions - GPT4: 0, ML: -1, XGBoost: -1, RL: 0, LSTM: 1
+2024-08-12 01:16:58,433 - __main__ - INFO - Weighted decision: -0.2
+2024-08-12 01:16:58,433 - __main__ - INFO - Final trading decision: sell
+[93m2024-08-12 01:16:58,496 - trading_logic - WARNING - Sell amount (0.00 KRW) is less than minimum trade amount (5000 KRW)[0m
+[93m2024-08-12 01:16:58,496 - __main__ - WARNING - Trade failed: 매도 금액이 최소 거래 금액(5000 KRW)보다 작습니다.[0m
+2024-08-12 01:16:58,499 - backtesting_and_ml - INFO - Starting backtest from 2024-07-13 01:16:58.496048 to 2024-08-12 01:16:58.496048 with initial balance 10000000.
+2024-08-12 01:16:58,692 - backtesting_and_ml - INFO - Backtest complete. Final balance: 9323014.833656773, Total return: -0.0676985166343227, Number of trades: 102
+2024-08-12 01:16:58,702 - backtesting_and_ml - INFO - prepare_data 메서드 시작. 데이터 shape: (1440, 8)
+2024-08-12 01:16:58,706 - backtesting_and_ml - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 15)
+2024-08-12 01:16:58,711 - backtesting_and_ml - INFO - 데이터 샘플:
+         open        high  ...      BB_Upper      BB_Lower
+0  88860000.0  89279000.0  ...  8.941523e+07  8.814417e+07
+1  88740000.0  88836000.0  ...  8.941523e+07  8.814417e+07
+2  88630000.0  88826000.0  ...  8.941523e+07  8.814417e+07
+3  88737000.0  88750000.0  ...  8.941523e+07  8.814417e+07
+4  88723000.0  88724000.0  ...  8.941523e+07  8.814417e+07
+
+[5 rows x 12 columns]
+2024-08-12 01:16:58,712 - backtesting_and_ml - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+2024-08-12 01:16:58,990 - backtesting_and_ml - INFO - 모델 학습 완료. 정확도: 0.5381944444444444, 손실: 0.4618055555555556
+2024-08-12 01:16:58,990 - data_manager - INFO - prepare_data_for_ml 메서드 시작. 데이터 shape: (1440, 14)
+2024-08-12 01:16:58,994 - data_manager - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 14)
+2024-08-12 01:16:58,994 - data_manager - INFO - 데이터 컬럼: Index(['open', 'high', 'low', 'close', 'volume', 'value', 'decision', 'sma',
+       'ema', 'rsi', 'macd', 'signal_line', 'BB_Upper', 'BB_Lower'],
+      dtype='object')
+2024-08-12 01:16:58,995 - data_manager - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+[91m2024-08-12 01:17:08,155 - __main__ - ERROR - Trading loop error: 'PerformanceMonitor' object has no attribute 'update_lstm_metrics'[0m
+[91m2024-08-12 01:17:08,155 - __main__ - ERROR - Traceback:[0m
+Traceback (most recent call last):
+  File "C:\Dev\GPT_BTC\pythonProject\gpt-bitcoin\main.py", line 247, in run
+    self.periodic_update(historical_data)
+  File "C:\Dev\GPT_BTC\pythonProject\gpt-bitcoin\main.py", line 427, in periodic_update
+    self.performance_monitor.update_lstm_metrics(lstm_accuracy)  # LSTM 메트릭 업데이트
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'PerformanceMonitor' object has no attribute 'update_lstm_metrics'. Did you mean: 'update_ml_metrics'?
+2024-08-12 01:19:06,388 - config - INFO - Configuration loaded successfully from config.json.
+2024-08-12 01:19:06,545 - data_manager - INFO - Tables in database: [('decisions',), ('sqlite_sequence',), ('technical_indicators',), ('ohlcv_data',)]
+2024-08-12 01:19:06,545 - data_manager - INFO - ohlcv_data table structure:
+2024-08-12 01:19:06,545 - data_manager - INFO -   (0, 'date', 'TEXT', 0, None, 1)
+2024-08-12 01:19:06,545 - data_manager - INFO -   (1, 'open', 'REAL', 0, None, 0)
+2024-08-12 01:19:06,545 - data_manager - INFO -   (2, 'high', 'REAL', 0, None, 0)
+2024-08-12 01:19:06,546 - data_manager - INFO -   (3, 'low', 'REAL', 0, None, 0)
+2024-08-12 01:19:06,546 - data_manager - INFO -   (4, 'close', 'REAL', 0, None, 0)
+2024-08-12 01:19:06,546 - data_manager - INFO -   (5, 'volume', 'REAL', 0, None, 0)
+2024-08-12 01:19:06,546 - data_manager - INFO -   (6, 'value', 'REAL', 0, None, 0)
+2024-08-12 01:19:06,546 - data_manager - INFO -   (7, 'decision', 'TEXT', 0, None, 0)
+2024-08-12 01:19:06,546 - data_manager - INFO - Sample data from ohlcv_data:
+2024-08-12 01:19:06,546 - data_manager - INFO -   ('2017-09-25 12:00:00', 4201000.0, 4241000.0, 4195000.0, 4227000.0, 15.94002768, 67378497.00336, None)
+2024-08-12 01:19:06,546 - data_manager - INFO -   ('2017-09-25 12:10:00', 4215000.0, 4244000.0, 4210000.0, 4227000.0, 16.22476888, 68582098.05576, None)
+2024-08-12 01:19:06,546 - data_manager - INFO -   ('2017-09-25 12:20:00', 4215000.0, 4242000.0, 4191000.0, 4221000.0, 16.14499538, 68148025.49898, None)
+2024-08-12 01:19:06,547 - data_manager - INFO -   ('2017-09-25 12:30:00', 4219000.0, 4242000.0, 4202000.0, 4242000.0, 17.94348075, 76116245.3415, None)
+2024-08-12 01:19:06,547 - data_manager - INFO -   ('2017-09-25 12:40:00', 4227000.0, 4233000.0, 4199000.0, 4224000.0, 19.12203232, 80771464.51968, None)
+2024-08-12 01:19:06,701 - backtesting_and_ml - INFO - Starting backtest from 2024-07-13 01:19:06.699148 to 2024-08-12 01:19:06.699148 with initial balance 10000000.
+2024-08-12 01:19:06,898 - backtesting_and_ml - INFO - Backtest complete. Final balance: 9323014.833656773, Total return: -0.0676985166343227, Number of trades: 102
+2024-08-12 01:19:06,908 - backtesting_and_ml - INFO - prepare_data 메서드 시작. 데이터 shape: (1440, 8)
+2024-08-12 01:19:06,913 - backtesting_and_ml - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 15)
+2024-08-12 01:19:06,918 - backtesting_and_ml - INFO - 데이터 샘플:
+         open        high  ...      BB_Upper      BB_Lower
+0  88860000.0  89279000.0  ...  8.941523e+07  8.814417e+07
+1  88740000.0  88836000.0  ...  8.941523e+07  8.814417e+07
+2  88630000.0  88826000.0  ...  8.941523e+07  8.814417e+07
+3  88737000.0  88750000.0  ...  8.941523e+07  8.814417e+07
+4  88723000.0  88724000.0  ...  8.941523e+07  8.814417e+07
+
+[5 rows x 12 columns]
+2024-08-12 01:19:06,919 - backtesting_and_ml - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+2024-08-12 01:19:07,200 - backtesting_and_ml - INFO - 모델 학습 완료. 정확도: 0.5381944444444444, 손실: 0.4618055555555556
+2024-08-12 01:19:07,668 - config - INFO - Configuration loaded successfully from config.json.
+2024-08-12 01:19:07,668 - data_manager - INFO - ohlcv_data columns: ['date', 'open', 'high', 'low', 'close', 'volume', 'value', 'decision']
+2024-08-12 01:19:07,669 - data_manager - INFO - technical_indicators columns: ['timestamp', 'sma', 'ema', 'rsi', 'macd', 'signal_line', 'BB_Upper', 'BB_Lower']
+2024-08-12 01:19:07,850 - data_manager - INFO - Adding new data. Shape: (365, 7)
+2024-08-12 01:19:08,048 - data_manager - INFO - No new data to add
+2024-08-12 01:19:17,201 - data_manager - INFO - prepare_data_for_ml 메서드 시작. 데이터 shape: (1440, 7)
+2024-08-12 01:19:17,205 - data_manager - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 14)
+2024-08-12 01:19:17,206 - data_manager - INFO - 데이터 컬럼: Index(['open', 'high', 'low', 'close', 'volume', 'value', 'decision', 'sma',
+       'ema', 'rsi', 'macd', 'signal_line', 'BB_Upper', 'BB_Lower'],
+      dtype='object')
+2024-08-12 01:19:17,206 - data_manager - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+2024-08-12 01:19:17,352 - backtesting_and_ml - INFO - predict 메서드 시작. 입력 데이터 shape: (1440, 7)
+2024-08-12 01:19:17,358 - backtesting_and_ml - INFO - 선택된 특성 데이터 shape: (1, 12)
+2024-08-12 01:19:17,358 - backtesting_and_ml - INFO - 선택된 특성 데이터:
+[[ 8.43620000e+07  8.43620000e+07  8.42660000e+07  8.42890000e+07
+   4.87148820e-01  8.45936000e+07  8.46337449e+07  3.77374582e+01
+  -1.58943021e+05 -1.52694460e+05  8.49748135e+07  8.42123865e+07]]
+2024-08-12 01:19:17,359 - backtesting_and_ml - INFO - NaN 처리 후 데이터:
+[[ 8.43620000e+07  8.43620000e+07  8.42660000e+07  8.42890000e+07
+   4.87148820e-01  8.45936000e+07  8.46337449e+07  3.77374582e+01
+  -1.58943021e+05 -1.52694460e+05  8.49748135e+07  8.42123865e+07]]
+2024-08-12 01:19:17,359 - backtesting_and_ml - INFO - 특성 선택 후 데이터 shape: (1, 12)
+2024-08-12 01:19:17,359 - backtesting_and_ml - INFO - 스케일링 후 데이터:
+[[ 0.14684345  0.10074783  0.16770957  0.12845787 -0.63494623  0.19979296
+   0.2114615  -0.99076074 -0.42816018 -0.44144658  0.08836253  0.28973539]]
+2024-08-12 01:19:17,361 - backtesting_and_ml - INFO - 예측 결과: 0
+2024-08-12 01:19:17,361 - backtesting_and_ml - INFO - prepare_data 메서드 시작. 데이터 shape: (1440, 14)
+2024-08-12 01:19:17,366 - backtesting_and_ml - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 14)
+2024-08-12 01:19:17,373 - backtesting_and_ml - INFO - 데이터 샘플:
+                           open        high  ...      BB_Upper      BB_Lower
+date                                         ...                            
+2024-08-02 01:20:00  88860000.0  89279000.0  ...  8.941523e+07  8.814417e+07
+2024-08-02 01:30:00  88740000.0  88836000.0  ...  8.941523e+07  8.814417e+07
+2024-08-02 01:40:00  88630000.0  88826000.0  ...  8.941523e+07  8.814417e+07
+2024-08-02 01:50:00  88737000.0  88750000.0  ...  8.941523e+07  8.814417e+07
+2024-08-02 02:00:00  88723000.0  88724000.0  ...  8.941523e+07  8.814417e+07
+
+[5 rows x 12 columns]
+2024-08-12 01:19:17,373 - backtesting_and_ml - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+2024-08-12 01:19:18,258 - __main__ - INFO - 현재 전략 성능: 시장 수익률 6.07%, 실제 수익률 0.00%, 샤프 비율 0.10, 최대 손실폭 30.68%
+2024-08-12 01:19:20,563 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2024-08-12 01:19:20,565 - __main__ - INFO - Decision weights - GPT4: 0.25, ML: 0.2, XGBoost: 0.2, RL: 0.15, LSTM: 0.2
+2024-08-12 01:19:20,565 - __main__ - INFO - Individual decisions - GPT4: -1, ML: -1, XGBoost: -1, RL: -1, LSTM: 1
+2024-08-12 01:19:20,565 - __main__ - INFO - Weighted decision: -0.6000000000000001
+2024-08-12 01:19:20,565 - __main__ - INFO - Final trading decision: sell
+2024-08-12 01:19:20,701 - trading_logic - INFO - 매도 주문 성공: 0.00632184 BTC at 84301000.0 KRW
+2024-08-12 01:19:20,702 - trading_logic - INFO - Sell order executed: 0.00632184 BTC at 84301000.0 KRW
+2024-08-12 01:19:20,702 - __main__ - INFO - Trade executed: Sell order executed: 0.00632184 BTC at 84301000.0 KRW
+2024-08-12 01:19:20,702 - __main__ - INFO - Added new order: b1c2181c-ed53-4654-90c9-b4d3c03bcf1a with stop loss at 84400000 and take profit at 84000000
+2024-08-12 01:19:20,705 - backtesting_and_ml - INFO - Starting backtest from 2024-07-13 01:19:20.702259 to 2024-08-12 01:19:20.702259 with initial balance 10000000.
+2024-08-12 01:19:20,896 - backtesting_and_ml - INFO - Backtest complete. Final balance: 9323014.833656773, Total return: -0.0676985166343227, Number of trades: 102
+2024-08-12 01:19:20,904 - backtesting_and_ml - INFO - prepare_data 메서드 시작. 데이터 shape: (1440, 8)
+2024-08-12 01:19:20,908 - backtesting_and_ml - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 15)
+2024-08-12 01:19:20,913 - backtesting_and_ml - INFO - 데이터 샘플:
+         open        high  ...      BB_Upper      BB_Lower
+0  88860000.0  89279000.0  ...  8.941523e+07  8.814417e+07
+1  88740000.0  88836000.0  ...  8.941523e+07  8.814417e+07
+2  88630000.0  88826000.0  ...  8.941523e+07  8.814417e+07
+3  88737000.0  88750000.0  ...  8.941523e+07  8.814417e+07
+4  88723000.0  88724000.0  ...  8.941523e+07  8.814417e+07
+
+[5 rows x 12 columns]
+2024-08-12 01:19:20,913 - backtesting_and_ml - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+2024-08-12 01:19:21,187 - backtesting_and_ml - INFO - 모델 학습 완료. 정확도: 0.5381944444444444, 손실: 0.4618055555555556
+2024-08-12 01:19:21,188 - data_manager - INFO - prepare_data_for_ml 메서드 시작. 데이터 shape: (1440, 14)
+2024-08-12 01:19:21,192 - data_manager - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 14)
+2024-08-12 01:19:21,192 - data_manager - INFO - 데이터 컬럼: Index(['open', 'high', 'low', 'close', 'volume', 'value', 'decision', 'sma',
+       'ema', 'rsi', 'macd', 'signal_line', 'BB_Upper', 'BB_Lower'],
+      dtype='object')
+2024-08-12 01:19:21,193 - data_manager - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+[91m2024-08-12 01:19:30,173 - __main__ - ERROR - Trading loop error: 'PerformanceMonitor' object has no attribute 'update_lstm_metrics'[0m
+[91m2024-08-12 01:19:30,173 - __main__ - ERROR - Traceback:[0m
+Traceback (most recent call last):
+  File "C:\Dev\GPT_BTC\pythonProject\gpt-bitcoin\main.py", line 247, in run
+    self.periodic_update(historical_data)
+  File "C:\Dev\GPT_BTC\pythonProject\gpt-bitcoin\main.py", line 427, in periodic_update
+    self.performance_monitor.update_lstm_metrics(lstm_accuracy)  # LSTM 메트릭 업데이트
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'PerformanceMonitor' object has no attribute 'update_lstm_metrics'. Did you mean: 'update_ml_metrics'?
+[91m2024-08-12 01:21:20,353 - trading_logic - ERROR - 매수 주문 실행 중 오류 발생: 'str' object has no attribute 'get'[0m
+[91m2024-08-12 01:21:30,379 - trading_logic - ERROR - 매수 주문 실행 중 오류 발생: 'str' object has no attribute 'get'[0m
+[91m2024-08-12 01:21:40,408 - trading_logic - ERROR - 매수 주문 실행 중 오류 발생: 'str' object has no attribute 'get'[0m
+[91m2024-08-12 01:21:50,438 - trading_logic - ERROR - 매수 주문 실행 중 오류 발생: 'str' object has no attribute 'get'[0m
+[91m2024-08-12 01:22:00,463 - trading_logic - ERROR - 매수 주문 실행 중 오류 발생: 'str' object has no attribute 'get'[0m
+2024-08-12 01:27:08,169 - config - INFO - Configuration loaded successfully from config.json.
+2024-08-12 01:27:08,325 - data_manager - INFO - Tables in database: [('decisions',), ('sqlite_sequence',), ('technical_indicators',), ('ohlcv_data',)]
+2024-08-12 01:27:08,325 - data_manager - INFO - ohlcv_data table structure:
+2024-08-12 01:27:08,325 - data_manager - INFO -   (0, 'date', 'TEXT', 0, None, 1)
+2024-08-12 01:27:08,325 - data_manager - INFO -   (1, 'open', 'REAL', 0, None, 0)
+2024-08-12 01:27:08,325 - data_manager - INFO -   (2, 'high', 'REAL', 0, None, 0)
+2024-08-12 01:27:08,325 - data_manager - INFO -   (3, 'low', 'REAL', 0, None, 0)
+2024-08-12 01:27:08,325 - data_manager - INFO -   (4, 'close', 'REAL', 0, None, 0)
+2024-08-12 01:27:08,325 - data_manager - INFO -   (5, 'volume', 'REAL', 0, None, 0)
+2024-08-12 01:27:08,325 - data_manager - INFO -   (6, 'value', 'REAL', 0, None, 0)
+2024-08-12 01:27:08,325 - data_manager - INFO -   (7, 'decision', 'TEXT', 0, None, 0)
+2024-08-12 01:27:08,325 - data_manager - INFO - Sample data from ohlcv_data:
+2024-08-12 01:27:08,325 - data_manager - INFO -   ('2017-09-25 12:00:00', 4201000.0, 4241000.0, 4195000.0, 4227000.0, 15.94002768, 67378497.00336, None)
+2024-08-12 01:27:08,327 - data_manager - INFO -   ('2017-09-25 12:10:00', 4215000.0, 4244000.0, 4210000.0, 4227000.0, 16.22476888, 68582098.05576, None)
+2024-08-12 01:27:08,327 - data_manager - INFO -   ('2017-09-25 12:20:00', 4215000.0, 4242000.0, 4191000.0, 4221000.0, 16.14499538, 68148025.49898, None)
+2024-08-12 01:27:08,327 - data_manager - INFO -   ('2017-09-25 12:30:00', 4219000.0, 4242000.0, 4202000.0, 4242000.0, 17.94348075, 76116245.3415, None)
+2024-08-12 01:27:08,327 - data_manager - INFO -   ('2017-09-25 12:40:00', 4227000.0, 4233000.0, 4199000.0, 4224000.0, 19.12203232, 80771464.51968, None)
+2024-08-12 01:27:08,519 - data_manager - INFO - Adding new data. Shape: (1, 7)
+2024-08-12 01:27:08,726 - data_manager - INFO - Successfully added 1 new data points
+2024-08-12 01:27:08,737 - backtesting_and_ml - INFO - Starting backtest from 2024-07-13 01:27:08.735804 to 2024-08-12 01:27:08.735804 with initial balance 10000000.
+2024-08-12 01:27:08,923 - backtesting_and_ml - INFO - Backtest complete. Final balance: 9315822.918719016, Total return: -0.0684177081280984, Number of trades: 102
+2024-08-12 01:27:08,931 - backtesting_and_ml - INFO - prepare_data 메서드 시작. 데이터 shape: (1440, 8)
+2024-08-12 01:27:08,937 - backtesting_and_ml - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 15)
+2024-08-12 01:27:08,942 - backtesting_and_ml - INFO - 데이터 샘플:
+         open        high         low  ...  signal_line      BB_Upper      BB_Lower
+0  88740000.0  88836000.0  88616000.0  ...   748925.466  8.949790e+07  8.812570e+07
+1  88630000.0  88826000.0  88311000.0  ...   748925.466  8.949790e+07  8.812570e+07
+2  88737000.0  88750000.0  88636000.0  ...   748925.466  8.949790e+07  8.812570e+07
+3  88723000.0  88724000.0  88401000.0  ...   748925.466  8.949790e+07  8.812570e+07
+4  88401000.0  88481000.0  88274000.0  ...   748925.466  8.949790e+07  8.812570e+07
+
+[5 rows x 12 columns]
+2024-08-12 01:27:08,943 - backtesting_and_ml - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+2024-08-12 01:27:09,221 - backtesting_and_ml - INFO - 모델 학습 완료. 정확도: 0.5347222222222222, 손실: 0.4652777777777778
+2024-08-12 01:27:09,697 - config - INFO - Configuration loaded successfully from config.json.
+2024-08-12 01:27:09,697 - data_manager - INFO - ohlcv_data columns: ['date', 'open', 'high', 'low', 'close', 'volume', 'value', 'decision']
+2024-08-12 01:27:09,697 - data_manager - INFO - technical_indicators columns: ['timestamp', 'sma', 'ema', 'rsi', 'macd', 'signal_line', 'BB_Upper', 'BB_Lower']
+2024-08-12 01:27:09,887 - data_manager - INFO - Adding new data. Shape: (365, 7)
+2024-08-12 01:27:10,085 - data_manager - INFO - No new data to add
+2024-08-12 01:27:18,819 - data_manager - INFO - prepare_data_for_ml 메서드 시작. 데이터 shape: (1440, 7)
+2024-08-12 01:27:18,825 - data_manager - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 14)
+2024-08-12 01:27:18,825 - data_manager - INFO - 데이터 컬럼: Index(['open', 'high', 'low', 'close', 'volume', 'value', 'decision', 'sma',
+       'ema', 'rsi', 'macd', 'signal_line', 'BB_Upper', 'BB_Lower'],
+      dtype='object')
+2024-08-12 01:27:18,826 - data_manager - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+2024-08-12 01:27:18,975 - backtesting_and_ml - INFO - predict 메서드 시작. 입력 데이터 shape: (1440, 7)
+2024-08-12 01:27:18,981 - backtesting_and_ml - INFO - 선택된 특성 데이터 shape: (1, 12)
+2024-08-12 01:27:18,981 - backtesting_and_ml - INFO - 선택된 특성 데이터:
+[[ 8.43150000e+07  8.44430000e+07  8.42560000e+07  8.43770000e+07
+   8.60308578e+00  8.45809500e+07  8.46092930e+07  4.07347702e+01
+  -1.60577259e+05 -1.54271019e+05  8.49731257e+07  8.41887743e+07]]
+2024-08-12 01:27:18,982 - backtesting_and_ml - INFO - NaN 처리 후 데이터:
+[[ 8.43150000e+07  8.44430000e+07  8.42560000e+07  8.43770000e+07
+   8.60308578e+00  8.45809500e+07  8.46092930e+07  4.07347702e+01
+  -1.60577259e+05 -1.54271019e+05  8.49731257e+07  8.41887743e+07]]
+2024-08-12 01:27:18,982 - backtesting_and_ml - INFO - 특성 선택 후 데이터 shape: (1, 12)
+2024-08-12 01:27:18,982 - backtesting_and_ml - INFO - 스케일링 후 데이터:
+[[ 0.13574021  0.12276464  0.16606119  0.15176557 -0.5206676   0.19727065
+   0.20594565 -0.73182911 -0.43482483 -0.44574897  0.08846417  0.28506551]]
+2024-08-12 01:27:18,984 - backtesting_and_ml - INFO - 예측 결과: 1
+2024-08-12 01:27:18,984 - backtesting_and_ml - INFO - prepare_data 메서드 시작. 데이터 shape: (1440, 14)
+2024-08-12 01:27:18,989 - backtesting_and_ml - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 14)
+2024-08-12 01:27:18,995 - backtesting_and_ml - INFO - 데이터 샘플:
+                           open        high  ...      BB_Upper      BB_Lower
+date                                         ...                            
+2024-08-02 01:30:00  88740000.0  88836000.0  ...  8.949790e+07  8.812570e+07
+2024-08-02 01:40:00  88630000.0  88826000.0  ...  8.949790e+07  8.812570e+07
+2024-08-02 01:50:00  88737000.0  88750000.0  ...  8.949790e+07  8.812570e+07
+2024-08-02 02:00:00  88723000.0  88724000.0  ...  8.949790e+07  8.812570e+07
+2024-08-02 02:10:00  88401000.0  88481000.0  ...  8.949790e+07  8.812570e+07
+
+[5 rows x 12 columns]
+2024-08-12 01:27:18,996 - backtesting_and_ml - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+2024-08-12 01:27:19,900 - __main__ - INFO - 현재 전략 성능: 시장 수익률 6.27%, 실제 수익률 0.00%, 샤프 비율 0.10, 최대 손실폭 30.75%
+2024-08-12 01:27:22,063 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2024-08-12 01:27:22,065 - __main__ - INFO - Decision weights - GPT4: 0.25, ML: 0.2, XGBoost: 0.2, RL: 0.15, LSTM: 0.2
+2024-08-12 01:27:22,065 - __main__ - INFO - Individual decisions - GPT4: 0, ML: 1, XGBoost: 1, RL: 1, LSTM: 1
+2024-08-12 01:27:22,065 - __main__ - INFO - Weighted decision: 0.75
+2024-08-12 01:27:22,065 - __main__ - INFO - Final trading decision: buy
+[93m2024-08-12 01:27:22,138 - trading_logic - WARNING - Buy amount (0.00 KRW) is less than minimum trade amount (5000 KRW)[0m
+[93m2024-08-12 01:27:22,138 - __main__ - WARNING - Trade failed: 매수 금액이 최소 거래 금액(5000 KRW)보다 작습니다.[0m
+2024-08-12 01:27:22,142 - backtesting_and_ml - INFO - Starting backtest from 2024-07-13 01:27:22.138967 to 2024-08-12 01:27:22.138967 with initial balance 10000000.
+2024-08-12 01:27:22,331 - backtesting_and_ml - INFO - Backtest complete. Final balance: 9315822.918719016, Total return: -0.0684177081280984, Number of trades: 102
+2024-08-12 01:27:22,341 - backtesting_and_ml - INFO - prepare_data 메서드 시작. 데이터 shape: (1440, 8)
+2024-08-12 01:27:22,346 - backtesting_and_ml - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 15)
+2024-08-12 01:27:22,350 - backtesting_and_ml - INFO - 데이터 샘플:
+         open        high         low  ...  signal_line      BB_Upper      BB_Lower
+0  88740000.0  88836000.0  88616000.0  ...   748925.466  8.949790e+07  8.812570e+07
+1  88630000.0  88826000.0  88311000.0  ...   748925.466  8.949790e+07  8.812570e+07
+2  88737000.0  88750000.0  88636000.0  ...   748925.466  8.949790e+07  8.812570e+07
+3  88723000.0  88724000.0  88401000.0  ...   748925.466  8.949790e+07  8.812570e+07
+4  88401000.0  88481000.0  88274000.0  ...   748925.466  8.949790e+07  8.812570e+07
+
+[5 rows x 12 columns]
+2024-08-12 01:27:22,351 - backtesting_and_ml - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+2024-08-12 01:27:22,626 - backtesting_and_ml - INFO - 모델 학습 완료. 정확도: 0.5347222222222222, 손실: 0.4652777777777778
+2024-08-12 01:27:22,626 - data_manager - INFO - prepare_data_for_ml 메서드 시작. 데이터 shape: (1440, 14)
+2024-08-12 01:27:22,630 - data_manager - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 14)
+2024-08-12 01:27:22,631 - data_manager - INFO - 데이터 컬럼: Index(['open', 'high', 'low', 'close', 'volume', 'value', 'decision', 'sma',
+       'ema', 'rsi', 'macd', 'signal_line', 'BB_Upper', 'BB_Lower'],
+      dtype='object')
+2024-08-12 01:27:22,631 - data_manager - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+2024-08-12 01:27:31,672 - performance_monitor - INFO - LSTM Metrics Updated - Accuracy: 0.9989
+2024-08-12 01:27:31,673 - __main__ - INFO - Strategy readjusted: {'risk_factor': 0.9, 'stop_loss_factor': 0.018000000000000002}
+2024-08-12 01:27:31,673 - __main__ - INFO - Recent backtest results: {'total_return': -0.0684177081280984, 'num_trades': 102, 'final_balance': 9315822.918719016}
+2024-08-12 01:27:31,673 - __main__ - INFO - ML accuracy: 0.5347222222222222
+2024-08-12 01:27:31,673 - __main__ - INFO - XGBoost accuracy: 0.5138888888888888
+2024-08-12 01:27:31,673 - __main__ - INFO - LSTM accuracy: 0.9988590539433062
+2024-08-12 01:27:31,805 - __main__ - INFO - 현재 전략 성능: 시장 수익률 6.27%, 실제 수익률 0.00%, 샤프 비율 0.10, 최대 손실폭 30.75%
+2024-08-12 01:27:32,140 - discord_notifier - INFO - Message sent to Discord successfully.
+2024-08-12 01:27:32,141 - __main__ - INFO - Performance report sent
+2024-08-12 01:27:32,261 - __main__ - INFO - Performance recorded: buy at 84394000.0
+2024-08-12 01:32:23,101 - data_manager - INFO - Adding new data. Shape: (1, 7)
+2024-08-12 01:32:23,307 - data_manager - INFO - Successfully added 1 new data points
+2024-08-12 01:32:23,317 - backtesting_and_ml - INFO - predict 메서드 시작. 입력 데이터 shape: (1440, 7)
+2024-08-12 01:32:23,323 - backtesting_and_ml - INFO - 선택된 특성 데이터 shape: (1, 12)
+2024-08-12 01:32:23,323 - backtesting_and_ml - INFO - 선택된 특성 데이터:
+[[ 8.43930000e+07  8.44980000e+07  8.43930000e+07  8.44300000e+07
+   1.31630679e+00  8.45863500e+07  8.45922175e+07  4.25292150e+01
+  -1.55799783e+05 -1.54576772e+05  8.49669171e+07  8.42057829e+07]]
+2024-08-12 01:32:23,324 - backtesting_and_ml - INFO - NaN 처리 후 데이터:
+[[ 8.43930000e+07  8.44980000e+07  8.43930000e+07  8.44300000e+07
+   1.31630679e+00  8.45863500e+07  8.45922175e+07  4.25292150e+01
+  -1.55799783e+05 -1.54576772e+05  8.49669171e+07  8.42057829e+07]]
+2024-08-12 01:32:23,324 - backtesting_and_ml - INFO - 특성 선택 후 데이터 shape: (1, 12)
+2024-08-12 01:32:23,324 - backtesting_and_ml - INFO - 스케일링 후 데이터:
+[[ 0.1556296   0.13706603  0.20045834  0.16528603 -0.6228059   0.19865415
+   0.20154783 -0.57623592 -0.42125088 -0.44664628  0.08675696  0.28904549]]
+2024-08-12 01:32:23,326 - backtesting_and_ml - INFO - 예측 결과: 0
+2024-08-12 01:32:23,326 - backtesting_and_ml - INFO - prepare_data 메서드 시작. 데이터 shape: (1440, 14)
+2024-08-12 01:32:23,329 - backtesting_and_ml - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 14)
+2024-08-12 01:32:23,335 - backtesting_and_ml - INFO - 데이터 샘플:
+                           open        high  ...      BB_Upper      BB_Lower
+date                                         ...                            
+2024-08-02 01:40:00  88630000.0  88826000.0  ...  8.958602e+07  8.811918e+07
+2024-08-02 01:50:00  88737000.0  88750000.0  ...  8.958602e+07  8.811918e+07
+2024-08-02 02:00:00  88723000.0  88724000.0  ...  8.958602e+07  8.811918e+07
+2024-08-02 02:10:00  88401000.0  88481000.0  ...  8.958602e+07  8.811918e+07
+2024-08-02 02:20:00  88304000.0  88434000.0  ...  8.958602e+07  8.811918e+07
+
+[5 rows x 12 columns]
+2024-08-12 01:32:23,336 - backtesting_and_ml - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+2024-08-12 01:32:24,280 - __main__ - INFO - 현재 전략 성능: 시장 수익률 6.42%, 실제 수익률 0.00%, 샤프 비율 0.11, 최대 손실폭 30.78%
+2024-08-12 01:32:27,281 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2024-08-12 01:32:27,282 - __main__ - INFO - Decision weights - GPT4: 0.25, ML: 0.2, XGBoost: 0.2, RL: 0.15, LSTM: 0.2
+2024-08-12 01:32:27,282 - __main__ - INFO - Individual decisions - GPT4: 1, ML: -1, XGBoost: 1, RL: 1, LSTM: 1
+2024-08-12 01:32:27,282 - __main__ - INFO - Weighted decision: 0.6000000000000001
+2024-08-12 01:32:27,282 - __main__ - INFO - Final trading decision: buy
+[93m2024-08-12 01:32:27,410 - trading_logic - WARNING - 매수 주문 실패. 반환된 결과: None[0m
+[93m2024-08-12 01:32:27,411 - __main__ - WARNING - Trade failed: 매수 주문 실패[0m
+2024-08-12 01:32:27,698 - discord_notifier - INFO - Message sent to Discord successfully.
+2024-08-12 01:32:27,698 - __main__ - INFO - Performance report sent
+2024-08-12 01:32:27,806 - __main__ - INFO - Performance recorded: buy at 84430000.0
+2024-08-12 01:37:28,643 - backtesting_and_ml - INFO - predict 메서드 시작. 입력 데이터 shape: (1440, 7)
+2024-08-12 01:37:28,648 - backtesting_and_ml - INFO - 선택된 특성 데이터 shape: (1, 12)
+2024-08-12 01:37:28,649 - backtesting_and_ml - INFO - 선택된 특성 데이터:
+[[ 8.43930000e+07  8.44980000e+07  8.43930000e+07  8.44300000e+07
+   1.31630679e+00  8.45863500e+07  8.45922175e+07  4.25292150e+01
+  -1.55799783e+05 -1.54576772e+05  8.49669171e+07  8.42057829e+07]]
+2024-08-12 01:37:28,649 - backtesting_and_ml - INFO - NaN 처리 후 데이터:
+[[ 8.43930000e+07  8.44980000e+07  8.43930000e+07  8.44300000e+07
+   1.31630679e+00  8.45863500e+07  8.45922175e+07  4.25292150e+01
+  -1.55799783e+05 -1.54576772e+05  8.49669171e+07  8.42057829e+07]]
+2024-08-12 01:37:28,649 - backtesting_and_ml - INFO - 특성 선택 후 데이터 shape: (1, 12)
+2024-08-12 01:37:28,649 - backtesting_and_ml - INFO - 스케일링 후 데이터:
+[[ 0.1556296   0.13706603  0.20045834  0.16528603 -0.6228059   0.19865415
+   0.20154783 -0.57623592 -0.42125088 -0.44664628  0.08675696  0.28904549]]
+2024-08-12 01:37:28,651 - backtesting_and_ml - INFO - 예측 결과: 0
+2024-08-12 01:37:28,651 - backtesting_and_ml - INFO - prepare_data 메서드 시작. 데이터 shape: (1440, 14)
+2024-08-12 01:37:28,655 - backtesting_and_ml - INFO - 기술적 지표 추가 후 데이터 shape: (1440, 14)
+2024-08-12 01:37:28,661 - backtesting_and_ml - INFO - 데이터 샘플:
+                           open        high  ...      BB_Upper      BB_Lower
+date                                         ...                            
+2024-08-02 01:40:00  88630000.0  88826000.0  ...  8.958602e+07  8.811918e+07
+2024-08-02 01:50:00  88737000.0  88750000.0  ...  8.958602e+07  8.811918e+07
+2024-08-02 02:00:00  88723000.0  88724000.0  ...  8.958602e+07  8.811918e+07
+2024-08-02 02:10:00  88401000.0  88481000.0  ...  8.958602e+07  8.811918e+07
+2024-08-02 02:20:00  88304000.0  88434000.0  ...  8.958602e+07  8.811918e+07
+
+[5 rows x 12 columns]
+2024-08-12 01:37:28,662 - backtesting_and_ml - INFO - 최종 X shape: (1439, 12), y shape: (1439,)
+2024-08-12 01:37:29,561 - __main__ - INFO - 현재 전략 성능: 시장 수익률 6.42%, 실제 수익률 0.00%, 샤프 비율 0.11, 최대 손실폭 30.78%
+2024-08-12 01:37:31,409 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2024-08-12 01:37:31,410 - __main__ - INFO - Decision weights - GPT4: 0.25, ML: 0.2, XGBoost: 0.2, RL: 0.15, LSTM: 0.2
+2024-08-12 01:37:31,410 - __main__ - INFO - Individual decisions - GPT4: 0, ML: -1, XGBoost: 1, RL: -1, LSTM: 1
+2024-08-12 01:37:31,410 - __main__ - INFO - Weighted decision: 0.05000000000000002
+2024-08-12 01:37:31,410 - __main__ - INFO - Final trading decision: hold
+2024-08-12 01:37:31,716 - discord_notifier - INFO - Message sent to Discord successfully.
+2024-08-12 01:37:31,716 - __main__ - INFO - Performance report sent

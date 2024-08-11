@@ -8,10 +8,9 @@ import schedule
 from typing import Dict, Any
 from trading_logic import execute_sell, execute_buy
 from dotenv import load_dotenv
-from backtesting_and_ml import MLPredictor, RLAgent, XGBoostPredictor
 from api_client import UpbitClient, OpenAIClient, PositionManager
 from auto_adjustment import AutoAdjustment, AnomalyDetector, MarketRegimeDetector, DynamicTradingFrequencyAdjuster
-from backtesting_and_ml import MLPredictor, RLAgent, run_backtest
+from backtesting_and_ml import MLPredictor, RLAgent, run_backtest, LSTMPredictor, XGBoostPredictor
 from config import load_config, setup_logging
 from data_manager import DataManager
 from discord_notifier import send_discord_message
@@ -129,16 +128,24 @@ class TradingLoop:
         self.dynamic_adjuster = dynamic_adjuster
         self.performance_monitor = performance_monitor
         self.xgboost_predictor = XGBoostPredictor()
+        self.lstm_predictor = LSTMPredictor()  # LSTM 예측기 추가
         self.position_monitor = position_monitor
         self.counter = 0
         self.last_trade_time = None
-        self.trading_interval = 600  # 10 minutes in seconds
-        self.xgboost_predictor = XGBoostPredictor()
-        self.xgboost_trained = False  # XGBoost 모델 학습 여부를 추적하는 플래그 추가
-
+        self.trading_interval = 600  # 10분
         self.last_decision = None
-        self.hodl_performance = None
-        self.config = config
+        self.buy_and_hold_performance = None
+        self.config = load_config()
+        self.initial_balance = None
+        self.trading_history = []
+
+        # 모델 가중치 초기화
+        self.ml_weight = 0.2
+        self.gpt_weight = 0.3
+        self.xgboost_weight = 0.2
+        self.rl_weight = 0.15
+        self.lstm_weight = 0.15
+
         if 'trading_parameters' not in self.config:
             self.config['trading_parameters'] = {}
         if 'buy_threshold' not in self.config['trading_parameters']:
@@ -147,39 +154,37 @@ class TradingLoop:
             self.config['trading_parameters']['sell_threshold'] = 0.01
 
     def run(self, initial_strategy, initial_backtest_results, historical_data):
-        global config
-
         self.data_manager.check_table_structure()
-        config['trading_parameters'] = initial_strategy
+        self.config['trading_parameters'] = initial_strategy
         last_backtest_results = initial_backtest_results
         self.data_manager.fetch_extended_historical_data(days=365)
 
         # HODL 성능 계산
         initial_price = historical_data['close'].iloc[0]
-        self.hodl_performance = (historical_data['close'].iloc[-1] - initial_price) / initial_price
+        final_price = historical_data['close'].iloc[-1]
+        self.hodl_performance = (final_price - initial_price) / initial_price
+
+        # LSTM 모델 초기 학습
+        self.lstm_predictor.train(historical_data)
+
+        # XGBoost 모델 초기 학습
+        X, y = self.data_manager.prepare_data_for_ml(historical_data)
+        self.xgboost_predictor.train(X, y)
 
         while True:
             try:
                 current_time = time.time()
 
                 if self.last_trade_time is None or (current_time - self.last_trade_time) >= self.trading_interval:
-                    # 데이터 가져오기 및 날짜 형식 변환
                     data = self.data_manager.ensure_sufficient_data()
                     data['date'] = pd.to_datetime(data['date'])
                     data.set_index('date', inplace=True)
-                    X, y = self.data_manager.prepare_data_for_ml(data)
-
-                    # XGBoost 모델 학습 (아직 학습되지 않은 경우)
-                    if not self.xgboost_trained:
-                        self.xgboost_predictor.train(X, y)
-                        self.xgboost_trained = True
-                        logger.info("XGBoost model trained successfully")
 
                     ml_prediction = self.ml_predictor.predict(data)
                     xgboost_prediction = self.xgboost_predictor.predict(data)
                     rl_action = self.rl_agent.act(self.prepare_state(data))
+                    lstm_prediction = self.lstm_predictor.predict(data)  # LSTM 예측 추가
 
-                    # historical_data 업데이트
                     latest_data = self.data_manager.ensure_sufficient_data()
                     latest_data['date'] = pd.to_datetime(latest_data['date'])
                     latest_data.set_index('date', inplace=True)
@@ -196,38 +201,41 @@ class TradingLoop:
                     self.trading_interval = max(300, int(600 * self.dynamic_adjuster.decision_threshold))
 
                     gpt4_advice = analyze_data_with_gpt4(
-                        data,
-                        self.openai_client,
-                        config['trading_parameters'],
-                        self.upbit_client,
-                        average_accuracy,
-                        anomalies,
-                        anomaly_scores,
-                        current_regime,
-                        ml_prediction,
-                        xgboost_prediction,
-                        rl_action,
-                        last_backtest_results,
-                        market_analysis
+                        data=data,
+                        openai_client=self.openai_client,
+                        params=self.config['trading_parameters'],
+                        upbit_client=self.upbit_client,
+                        average_accuracy=self.data_manager.get_average_accuracy(),
+                        anomalies=anomalies,
+                        anomaly_scores=anomaly_scores,
+                        market_regime=current_regime,
+                        ml_prediction=ml_prediction,
+                        xgboost_prediction=xgboost_prediction,
+                        rl_action=rl_action,
+                        lstm_prediction=lstm_prediction,
+                        backtest_results=last_backtest_results,
+                        market_analysis=market_analysis,
+                        current_balance=self.upbit_client.get_balance("KRW"),
+                        current_btc_balance=self.upbit_client.get_balance("BTC"),
+                        hodl_performance=self.hodl_performance,
+                        current_performance=self.calculate_current_performance(),
+                        trading_history=self.get_recent_trading_history()
                     )
 
-                    decision = self.make_trading_decision(gpt4_advice, ml_prediction, xgboost_prediction, rl_action)
+                    decision = self.make_trading_decision(gpt4_advice, ml_prediction, xgboost_prediction, rl_action,
+                                                          lstm_prediction)
 
-                    # 이전 결정 리뷰 및 개선
                     if self.last_decision:
                         self.review_last_decision(data)
 
                     if decision['decision'] in ['buy', 'sell']:
-                        result = execute_trade(self.upbit_client, decision, config)
+                        result = execute_trade(self.upbit_client, decision, self.config)
                         if result['success']:
                             logger.info(f"Trade executed: {result['message']}")
                             if result['uuid']:
                                 self.position_monitor.add_order(
-                                    result['uuid'],
-                                    decision['decision'],
-                                    decision['target_price'],
-                                    decision['stop_loss'],
-                                    decision['take_profit']
+                                    result['uuid'], decision['decision'], decision['target_price'],
+                                    decision['stop_loss'], decision['take_profit']
                                 )
                             self.last_decision = decision
                         else:
@@ -240,10 +248,8 @@ class TradingLoop:
 
                     self.send_performance_report()
                     self.record_performance(decision)
-                    self.last_trade_time = current_time
                     self.counter += 1
 
-                # 실시간 모니터링 및 손절/익절 처리
                 self.monitor_positions()
 
                 time.sleep(10)  # 10초마다 체크
@@ -288,6 +294,20 @@ class TradingLoop:
         rs = gain / loss
         return 100 - (100 / (1 + rs.iloc[-1]))
 
+    def get_recent_trading_history(self, n=5):
+        return self.trading_history[-n:]
+
+    def record_trade(self, trade):
+        self.trading_history.append(trade)
+        if len(self.trading_history) > 100:  # 최근 100개의 거래만 유지
+            self.trading_history.pop(0)
+
+    def get_initial_balance(self):
+        krw_balance = self.upbit_client.get_balance("KRW")
+        btc_balance = self.upbit_client.get_balance("BTC")
+        btc_price = self.upbit_client.get_current_price("KRW-BTC")
+        return krw_balance + (btc_balance * btc_price)
+
     def record_performance(self, decision: Dict[str, Any]):
         try:
             current_price = self.upbit_client.get_current_price("KRW-BTC")
@@ -324,22 +344,27 @@ class TradingLoop:
         except Exception as e:
             logger.error(f"Error sending performance report: {e}")
 
-    def make_trading_decision(self, gpt4_advice, ml_prediction, xgboost_prediction, rl_action):
+    def make_trading_decision(self, gpt4_advice, ml_prediction, xgboost_prediction, rl_action, lstm_prediction):
+        weights = {'gpt4': 0.25, 'ml': 0.2, 'xgboost': 0.2, 'rl': 0.15, 'lstm': 0.2}
+
         gpt4_decision = 1 if gpt4_advice['decision'] == 'buy' else -1 if gpt4_advice['decision'] == 'sell' else 0
         ml_decision = 1 if ml_prediction == 1 else -1 if ml_prediction == 0 else 0
         xgboost_decision = 1 if xgboost_prediction == 1 else -1 if xgboost_prediction == 0 else 0
         rl_decision = 1 if rl_action == 2 else -1 if rl_action == 0 else 0
+        lstm_decision = 1 if lstm_prediction > 0 else -1 if lstm_prediction < 0 else 0
 
-        weights = {'gpt4': 0.3, 'ml': 0.25, 'xgboost': 0.25, 'rl': 0.2}
-        weighted_decision = (gpt4_decision * weights['gpt4'] +
-                             ml_decision * weights['ml'] +
-                             xgboost_decision * weights['xgboost'] +
-                             rl_decision * weights['rl'])
+        weighted_decision = (
+                gpt4_decision * weights['gpt4'] +
+                ml_decision * weights['ml'] +
+                xgboost_decision * weights['xgboost'] +
+                rl_decision * weights['rl'] +
+                lstm_decision * weights['lstm']
+        )
 
         logger.info(
-            f"Decision weights - GPT4: {weights['gpt4']}, ML: {weights['ml']}, XGBoost: {weights['xgboost']}, RL: {weights['rl']}")
+            f"Decision weights - GPT4: {weights['gpt4']}, ML: {weights['ml']}, XGBoost: {weights['xgboost']}, RL: {weights['rl']}, LSTM: {weights['lstm']}")
         logger.info(
-            f"Individual decisions - GPT4: {gpt4_decision}, ML: {ml_decision}, XGBoost: {xgboost_decision}, RL: {rl_decision}")
+            f"Individual decisions - GPT4: {gpt4_decision}, ML: {ml_decision}, XGBoost: {xgboost_decision}, RL: {rl_decision}, LSTM: {lstm_decision}")
         logger.info(f"Weighted decision: {weighted_decision}")
 
         final_decision = 'buy' if weighted_decision > 0.1 else 'sell' if weighted_decision < -0.1 else 'hold'
@@ -352,7 +377,7 @@ class TradingLoop:
             'target_price': gpt4_advice.get('target_price'),
             'stop_loss': gpt4_advice.get('stop_loss'),
             'take_profit': gpt4_advice.get('take_profit'),
-            'reasoning': f"Weighted decision based on GPT-4 ({weights['gpt4']:.2f}), ML ({weights['ml']:.2f}), XGBoost ({weights['xgboost']:.2f}), and RL ({weights['rl']:.2f}). {gpt4_advice.get('reasoning', '')}"
+            'reasoning': f"Weighted decision based on GPT-4 ({weights['gpt4']:.2f}), ML ({weights['ml']:.2f}), XGBoost ({weights['xgboost']:.2f}), RL ({weights['rl']:.2f}), and LSTM ({weights['lstm']:.2f}). {gpt4_advice.get('reasoning', '')}"
         }
 
     def review_last_decision(self, current_data):
@@ -373,13 +398,11 @@ class TradingLoop:
 
     def adjust_strategy_based_on_failure(self, last_decision, current_price):
         if last_decision['decision'] == 'buy' and current_price < last_decision['target_price']:
-            config['trading_parameters']['buy_threshold'] = config['trading_parameters'].get('buy_threshold',
-                                                                                             0.01) * 1.05
+            self.config['trading_parameters']['risk_factor'] *= 0.95
         elif last_decision['decision'] == 'sell' and current_price > last_decision['target_price']:
-            config['trading_parameters']['sell_threshold'] = config['trading_parameters'].get('sell_threshold',
-                                                                                              0.01) * 0.95
+            self.config['trading_parameters']['risk_factor'] *= 1.05
 
-        logger.info(f"Adjusted trading parameters: {config['trading_parameters']}")
+        logger.info(f"Adjusted trading parameters: {self.config['trading_parameters']}")
 
     def monitor_positions(self):
         current_price = self.upbit_client.get_current_price("KRW-BTC")
@@ -395,66 +418,59 @@ class TradingLoop:
         last_backtest_results = run_backtest(self.data_manager, historical_data)
         ml_accuracy, _, ml_performance = self.ml_predictor.train(self.data_manager)
 
-        # 백테스트 결과 비교 로깅
-        if hasattr(self, 'previous_backtest_results'):
-            logger.info(f"Previous backtest results: {self.previous_backtest_results}")
-            logger.info(f"Current backtest results: {last_backtest_results}")
-            logger.info(
-                f"Backtest performance change: {last_backtest_results['total_return'] - self.previous_backtest_results['total_return']:.2f}%")
-
-        self.previous_backtest_results = last_backtest_results
-
-        # XGBoost 모델 재학습
         X, y = self.data_manager.prepare_data_for_ml(historical_data)
         xgboost_accuracy, _, _ = self.xgboost_predictor.train(X, y)
-        logger.info(f"XGBoost model retrained. Accuracy: {xgboost_accuracy}")
+        lstm_accuracy = self.lstm_predictor.train(historical_data)  # LSTM 모델 재학습
 
-        # 성능 모니터에 메트릭 업데이트
         self.performance_monitor.update_ml_metrics(ml_accuracy, ml_performance['loss'])
         self.performance_monitor.update_xgboost_metrics(xgboost_accuracy)
+        self.performance_monitor.update_lstm_metrics(lstm_accuracy)  # LSTM 메트릭 업데이트
 
         adjusted_strategy = self.auto_adjuster.adjust_strategy(last_backtest_results, ml_accuracy, ml_performance)
-        config['trading_parameters'] = adjusted_strategy
+        self.config['trading_parameters'] = adjusted_strategy
 
         logger.info(f"Strategy readjusted: {adjusted_strategy}")
         logger.info(f"Recent backtest results: {last_backtest_results}")
+        logger.info(f"ML accuracy: {ml_accuracy}")
         logger.info(f"XGBoost accuracy: {xgboost_accuracy}")
+        logger.info(f"LSTM accuracy: {lstm_accuracy}")
 
-        # HODL 전략과 비교
         current_performance = self.calculate_current_performance()
         if current_performance <= self.hodl_performance:
             logger.warning("Current strategy is underperforming HODL strategy. Adjusting parameters.")
             self.adjust_strategy_for_better_performance()
 
     def calculate_current_performance(self):
-        """현재 전략의 성능을 계산합니다."""
         try:
-            # 최근 거래 데이터 가져오기
             recent_data = self.data_manager.get_recent_trades(days=30)  # 최근 30일 데이터
-
             if recent_data.empty:
                 logger.warning("최근 거래 데이터가 없습니다.")
                 return 0
 
-            # 초기 가격과 최종 가격 계산
             initial_price = recent_data['close'].iloc[0]
             final_price = recent_data['close'].iloc[-1]
-
-            # 수익률 계산
             performance = (final_price - initial_price) / initial_price
 
-            # 변동성 조정 샤프 비율 계산
             daily_returns = recent_data['close'].pct_change().dropna()
             sharpe_ratio = np.sqrt(252) * daily_returns.mean() / daily_returns.std()
 
-            # 최대 손실폭 계산
             cumulative_returns = (1 + daily_returns).cumprod()
             max_drawdown = (cumulative_returns.cummax() - cumulative_returns).max()
 
-            logger.info(f"현재 전략 성능: 수익률 {performance:.2%}, 샤프 비율 {sharpe_ratio:.2f}, 최대 손실폭 {max_drawdown:.2%}")
+            # 실제 거래 성과 반영
+            current_balance = self.upbit_client.get_balance("KRW") + \
+                              self.upbit_client.get_balance("BTC") * self.upbit_client.get_current_price("KRW-BTC")
 
-            # 종합 성능 점수 계산 (예: 수익률 50%, 샤프 비율 30%, 최대 손실폭 20% 가중치)
-            performance_score = 0.5 * performance + 0.3 * sharpe_ratio - 0.2 * max_drawdown
+            if self.initial_balance is None:
+                self.initial_balance = current_balance  # 초기 잔액이 설정되지 않았다면 현재 잔액으로 설정
+
+            actual_performance = (current_balance - self.initial_balance) / self.initial_balance if self.initial_balance else 0
+
+            logger.info(f"현재 전략 성능: 시장 수익률 {performance:.2%}, 실제 수익률 {actual_performance:.2%}, "
+                        f"샤프 비율 {sharpe_ratio:.2f}, 최대 손실폭 {max_drawdown:.2%}")
+
+            # 종합 성능 점수 계산 (시장 수익률, 실제 수익률, 샤프 비율, 최대 손실폭 고려)
+            performance_score = 0.3 * performance + 0.3 * actual_performance + 0.2 * sharpe_ratio - 0.2 * max_drawdown
 
             return performance_score
 
@@ -463,46 +479,53 @@ class TradingLoop:
             return 0
 
     def adjust_strategy_for_better_performance(self):
-        """HODL 전략보다 성능이 낮을 때 전략을 조정합니다."""
         try:
             current_performance = self.calculate_current_performance()
 
             if current_performance <= self.hodl_performance:
-                logger.warning(
-                    f"현재 전략 성능({current_performance:.4f})이 HODL 전략 성능({self.hodl_performance:.4f})보다 낮습니다. 전략을 조정합니다.")
+                logger.warning(f"현재 전략 성능({current_performance:.4f})이 HODL 전략 성능({self.hodl_performance:.4f})보다 낮습니다. 전략을 조정합니다.")
 
                 # 거래 빈도 조정
                 self.trading_interval = min(self.trading_interval * 1.2, 3600)  # 최대 1시간까지 증가
 
-                # 리스크 조정
-                config['trading_parameters']['risk_factor'] *= 0.9  # 리스크 10% 감소
+                # 리스크 및 거래 파라미터 조정
+                self.config['trading_parameters']['risk_factor'] *= 0.9  # 리스크 10% 감소
+                self.config['trading_parameters']['stop_loss_factor'] *= 1.1  # 손절 폭 10% 증가
+                self.config['trading_parameters']['take_profit_factor'] *= 0.9  # 익절 폭 10% 감소
 
-                # 손절/익절 폭 조정
-                config['trading_parameters']['stop_loss_factor'] *= 1.1  # 손절 폭 10% 증가
-                config['trading_parameters']['take_profit_factor'] *= 0.9  # 익절 폭 10% 감소
-
-                # ML 모델 가중치 조정
-                self.ml_weight = max(self.ml_weight * 0.9, 0.1)  # ML 모델 가중치 10% 감소 (최소 10%까지)
-                self.gpt_weight = min(self.gpt_weight * 1.1, 0.5)  # GPT 모델 가중치 10% 증가 (최대 50%까지)
+                # 모델 가중치 조정
+                self.adjust_model_weights()
 
                 # 기술적 지표 임계값 조정
-                config['trading_parameters']['rsi_buy_threshold'] = max(
-                    config['trading_parameters']['rsi_buy_threshold'] - 2, 20)
-                config['trading_parameters']['rsi_sell_threshold'] = min(
-                    config['trading_parameters']['rsi_sell_threshold'] + 2, 80)
+                self.adjust_technical_indicators()
 
-                logger.info(
-                    f"전략 조정 완료: 거래 간격 {self.trading_interval}초, 리스크 팩터 {config['trading_parameters']['risk_factor']:.2f}")
-                logger.info(f"ML 가중치: {self.ml_weight:.2f}, GPT 가중치: {self.gpt_weight:.2f}")
-                logger.info(
-                    f"RSI 매수 임계값: {config['trading_parameters']['rsi_buy_threshold']}, RSI 매도 임계값: {config['trading_parameters']['rsi_sell_threshold']}")
+                logger.info(f"전략 조정 완료: 거래 간격 {self.trading_interval}초, "
+                            f"리스크 팩터 {self.config['trading_parameters']['risk_factor']:.2f}, "
+                            f"손절 팩터 {self.config['trading_parameters']['stop_loss_factor']:.2f}, "
+                            f"익절 팩터 {self.config['trading_parameters']['take_profit_factor']:.2f}")
+                logger.info(f"모델 가중치: ML {self.ml_weight:.2f}, GPT {self.gpt_weight:.2f}, "
+                            f"XGBoost {self.xgboost_weight:.2f}, RL {self.rl_weight:.2f}, LSTM {self.lstm_weight:.2f}")
+                logger.info(f"기술적 지표 임계값: RSI 매수 {self.config['trading_parameters']['rsi_buy_threshold']}, "
+                            f"RSI 매도 {self.config['trading_parameters']['rsi_sell_threshold']}")
 
             else:
-                logger.info(
-                    f"현재 전략 성능({current_performance:.4f})이 HODL 전략 성능({self.hodl_performance:.4f})보다 높습니다. 전략을 유지합니다.")
+                logger.info(f"현재 전략 성능({current_performance:.4f})이 HODL 전략 성능({self.hodl_performance:.4f})보다 높습니다. 전략을 유지합니다.")
 
         except Exception as e:
             logger.error(f"전략 조정 중 오류 발생: {e}")
+
+    def adjust_model_weights(self):
+        self.ml_weight = max(self.ml_weight * 0.9, 0.1)
+        self.gpt_weight = min(self.gpt_weight * 1.1, 0.5)
+        self.xgboost_weight = max(self.xgboost_weight * 0.95, 0.1)
+        self.rl_weight = max(self.rl_weight * 0.95, 0.1)
+        self.lstm_weight = min(self.lstm_weight * 1.05, 0.3)
+
+    def adjust_technical_indicators(self):
+        self.config['trading_parameters']['rsi_buy_threshold'] = max(
+            self.config['trading_parameters'].get('rsi_buy_threshold', 30) - 2, 20)
+        self.config['trading_parameters']['rsi_sell_threshold'] = min(
+            self.config['trading_parameters'].get('rsi_sell_threshold', 70) + 2, 80)
 
 
 def main():

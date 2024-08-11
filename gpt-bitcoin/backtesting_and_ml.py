@@ -1,10 +1,14 @@
 import logging
+
 import pandas_ta as ta
 from sklearn.metrics import accuracy_score
 from tensorflow import keras
 from xgboost import XGBClassifier
 
 logger = logging.getLogger(__name__)
+import torch
+from torch import nn
+from sklearn.preprocessing import MinMaxScaler
 
 import numpy as np
 import pandas as pd
@@ -102,6 +106,20 @@ class MLPredictor:
         logger.info(f"predict 메서드 시작. 입력 데이터 shape: {data.shape}")
 
         try:
+            # 필요한 기술적 지표 계산
+            data['sma'] = ta.sma(data['close'], length=20)
+            data['ema'] = ta.ema(data['close'], length=20)
+            data['rsi'] = ta.rsi(data['close'], length=14)
+            macd = ta.macd(data['close'])
+            data['macd'] = macd['MACD_12_26_9']
+            data['signal_line'] = macd['MACDs_12_26_9']
+            bb = ta.bbands(data['close'], length=20)
+            data['BB_Upper'] = bb['BBU_20_2.0']
+            data['BB_Lower'] = bb['BBL_20_2.0']
+
+            # NaN 값을 앞뒤 값으로 채우기
+            data = data.ffill().bfill()
+
             X = data[self.features].astype(float).values[-1].reshape(1, -1)
 
             logger.info(f"선택된 특성 데이터 shape: {X.shape}")
@@ -164,19 +182,17 @@ class XGBoostPredictor(MLPredictor):
     def __init__(self):
         super().__init__()
         self.model = XGBClassifier(n_estimators=100, learning_rate=0.1, max_depth=3, random_state=42)
+        self.is_fitted = False
 
     def train(self, X, y):
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
         self.model.fit(X_train, y_train)
+        self.is_fitted = True
         accuracy = self.model.score(X_test, y_test)
         return accuracy, 1 - accuracy, {}
 
     def predict(self, data):
-        print('predict')
-        print(data)
-        print(not hasattr(self.model, 'fitted_'))
-        print(not self.model.fit)
-        if not hasattr(self.model, 'fit') or not self.model.fit:
+        if not self.is_fitted:
             raise ValueError("Model is not fitted yet. Call 'train' before using 'predict'.")
         X, _ = self.prepare_data(data)
         return self.model.predict(X)[-1]
@@ -341,3 +357,99 @@ def tune_hyperparameters(self, X, y):
     random_search.fit(X, y)
     self.model = random_search.best_estimator_
     return random_search.best_params_
+
+
+class LSTMModel(nn.Module):
+    def __init__(self, input_dim, hidden_dim, num_layers, output_dim):
+        super(LSTMModel, self).__init__()
+        self.hidden_dim = hidden_dim
+        self.num_layers = num_layers
+        self.lstm = nn.LSTM(input_dim, hidden_dim, num_layers, batch_first=True)
+        self.fc = nn.Linear(hidden_dim, output_dim)
+
+    def forward(self, x):
+        # x shape: (batch_size, seq_len, input_dim)
+        batch_size = x.size(0)
+        seq_len = x.size(1)
+
+        # Initialize hidden state with zeros
+        h0 = torch.zeros(self.num_layers, batch_size, self.hidden_dim).to(x.device)
+        c0 = torch.zeros(self.num_layers, batch_size, self.hidden_dim).to(x.device)
+
+        # We need to detach as we are doing truncated backpropagation through time (BPTT)
+        # If we don't, we'll backprop all the way to the start even after going through another batch
+        out, (hn, cn) = self.lstm(x, (h0.detach(), c0.detach()))
+
+        # Index hidden state of last time step
+        out = self.fc(out[:, -1, :])
+        return out
+
+
+class LSTMPredictor:
+    def __init__(self, input_dim=5, hidden_dim=64, num_layers=2, output_dim=1):
+        self.model = LSTMModel(input_dim, hidden_dim, num_layers, output_dim)
+        self.scaler = MinMaxScaler(feature_range=(-1, 1))
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.model.to(self.device)
+        self.criterion = nn.MSELoss()
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=0.001)
+        self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, patience=10, factor=0.5)
+
+    def prepare_data(self, data):
+        features = ['open', 'high', 'low', 'close', 'volume']
+        X = self.scaler.fit_transform(data[features])
+        y = self.scaler.fit_transform(data[['close']])
+
+        # Create sequences
+        seq_length = 10  # You can adjust this
+        X_seq, y_seq = [], []
+        for i in range(len(X) - seq_length):
+            X_seq.append(X[i:i + seq_length])
+            y_seq.append(y[i + seq_length])
+
+        return np.array(X_seq), np.array(y_seq)
+
+    def train(self, data, epochs=100, batch_size=32):
+        X, y = self.prepare_data(data)
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+        train_dataset = torch.utils.data.TensorDataset(torch.FloatTensor(X_train), torch.FloatTensor(y_train))
+        train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+
+        for epoch in range(epochs):
+            self.model.train()
+            total_loss = 0
+            for batch_X, batch_y in train_loader:
+                batch_X, batch_y = batch_X.to(self.device), batch_y.to(self.device)
+                self.optimizer.zero_grad()
+                outputs = self.model(batch_X)
+                loss = self.criterion(outputs, batch_y)
+                loss.backward()
+                self.optimizer.step()
+                total_loss += loss.item()
+
+            avg_loss = total_loss / len(train_loader)
+            self.scheduler.step(avg_loss)
+
+            if (epoch + 1) % 10 == 0:
+                print(f'Epoch [{epoch + 1}/{epochs}], Loss: {avg_loss:.4f}')
+
+        self.model.eval()
+        with torch.no_grad():
+            X_test = torch.FloatTensor(X_test).to(self.device)
+            y_test = torch.FloatTensor(y_test).to(self.device)
+            test_outputs = self.model(X_test)
+            test_loss = self.criterion(test_outputs, y_test)
+        print(f'Test Loss: {test_loss.item():.4f}')
+
+        # 간단한 정확도 계산 (회귀 문제이므로 근사치)
+        accuracy = 1.0 - test_loss.item()
+        return accuracy
+
+    def predict(self, data):
+        self.model.eval()
+        X, _ = self.prepare_data(data)
+        X = torch.FloatTensor(X[-1:]).to(self.device)
+        with torch.no_grad():
+            prediction = self.model(X)
+        return self.scaler.inverse_transform(prediction.cpu().numpy())[0, 0]

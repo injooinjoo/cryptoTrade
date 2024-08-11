@@ -1,7 +1,6 @@
 import json
 import logging
 import time
-from pprint import pprint
 from typing import Dict, Any, List, Optional
 
 import numpy as np
@@ -48,7 +47,10 @@ def analyze_data_with_gpt4(data: pd.DataFrame, openai_client: OpenAIClient, para
                            upbit_client: UpbitClient, average_accuracy: float, anomalies: List[bool],
                            anomaly_scores: List[float], market_regime: str, ml_prediction: Optional[int],
                            xgboost_prediction: Optional[int], rl_action: Optional[int],
-                           backtest_results: Dict[str, Any], market_analysis: Dict[str, Any]) -> Dict[str, Any]:
+                           lstm_prediction: Optional[int], backtest_results: Dict[str, Any],
+                           market_analysis: Dict[str, Any], current_balance: float,
+                           current_btc_balance: float, hodl_performance: float,
+                           current_performance: float, trading_history: List[Dict[str, Any]]) -> Dict[str, Any]:
     recent_data = data.tail(144)
     current_price = float(recent_data['close'].iloc[-1])
 
@@ -59,11 +61,10 @@ def analyze_data_with_gpt4(data: pd.DataFrame, openai_client: OpenAIClient, para
     bb_lower = float(recent_data['BB_Lower'].fillna(current_price).infer_objects(copy=False).iloc[-1])
 
     trend = "Bullish" if current_price > sma_60 and current_price > ema_60 else "Bearish" if current_price < sma_60 and current_price < ema_60 else "Neutral"
-
     rsi_state = "Oversold" if rsi_14 < 30 else "Overbought" if rsi_14 > 70 else "Neutral"
     bb_state = "Lower Band Touch" if current_price <= bb_lower else "Upper Band Touch" if current_price >= bb_upper else "Inside Bands"
 
-    market_analysis = {
+    market_analysis.update({
         "current_price": current_price,
         "sma_60": sma_60,
         "ema_60": ema_60,
@@ -75,7 +76,7 @@ def analyze_data_with_gpt4(data: pd.DataFrame, openai_client: OpenAIClient, para
         "bb_state": bb_state,
         "sma_diff": float((current_price - sma_60) / sma_60 * 100),
         "ema_diff": float((current_price - ema_60) / ema_60 * 100),
-    }
+    })
 
     decision_evaluation = evaluate_decisions(data_manager.get_recent_decisions(5), current_price)
 
@@ -86,13 +87,18 @@ def analyze_data_with_gpt4(data: pd.DataFrame, openai_client: OpenAIClient, para
 
     ml_rl_predictions = {
         "ml_prediction": "Up" if ml_prediction == 1 else "Down" if ml_prediction == 0 else "Unknown",
-        "rl_action": ["Sell", "Hold", "Buy"][rl_action] if rl_action is not None else "Unknown"
+        "xgboost_prediction": "Up" if xgboost_prediction == 1 else "Down" if xgboost_prediction == 0 else "Unknown",
+        "rl_action": ["Sell", "Hold", "Buy"][rl_action] if rl_action is not None else "Unknown",
+        "lstm_prediction": "Up" if lstm_prediction == 1 else "Down" if lstm_prediction == 0 else "Unknown"
     }
 
+    # Aggregate all analysis data
     analysis_data = {
-        "market_analysis": market_analysis,  # 추가
+        "market_analysis": market_analysis,
         "ml_prediction": ml_prediction,
-        "xgboost_prediction": xgboost_prediction,  # 추가
+        "xgboost_prediction": xgboost_prediction,
+        "rl_action": rl_action,
+        "lstm_prediction": lstm_prediction,
         "decision_evaluation": decision_evaluation,
         "current_params": params,
         "average_accuracy": float(average_accuracy),
@@ -100,6 +106,11 @@ def analyze_data_with_gpt4(data: pd.DataFrame, openai_client: OpenAIClient, para
         "market_regime": market_regime,
         "ml_rl_predictions": ml_rl_predictions,
         "backtest_summary": summarize_backtest_results(backtest_results),
+        "current_balance": current_balance,
+        "current_btc_balance": current_btc_balance,
+        "hodl_performance": hodl_performance,
+        "current_performance": current_performance,
+        "trading_history": trading_history,
     }
 
     # numpy 타입을 Python 기본 타입으로 변환
@@ -120,6 +131,12 @@ def analyze_data_with_gpt4(data: pd.DataFrame, openai_client: OpenAIClient, para
 
         try:
             gpt4_advice = json.loads(response.choices[0].message.content)
+            print(gpt4_advice)
+            # 'decision' 키가 없는 경우 기본값 설정
+            if 'decision' not in gpt4_advice:
+                gpt4_advice['decision'] = 'hold'
+
+            return gpt4_advice
         except json.JSONDecodeError as json_error:
             logger.error(f"JSON 파싱 오류: {json_error}")
             logger.error(f"GPT-4 응답 내용: {response.choices[0].message.content}")
@@ -387,8 +404,8 @@ def execute_trade(upbit_client: UpbitClient, decision: Dict[str, Any], config: D
         return {"success": False, "message": f"Error: {str(e)}", "uuid": None}
 
 
-
-def execute_buy(upbit_client: UpbitClient, amount_to_buy: float, current_price: float, config: Dict[str, Any]) -> Dict[str, Any]:
+def execute_buy(upbit_client: UpbitClient, amount_to_buy: float, current_price: float, config: Dict[str, Any]) -> Dict[
+    str, Any]:
     try:
         min_trade_amount = config.get('min_trade_amount', 5000)
 
@@ -396,11 +413,17 @@ def execute_buy(upbit_client: UpbitClient, amount_to_buy: float, current_price: 
             return {"success": False, "message": f"매수 금액이 최소 거래 금액({min_trade_amount} KRW)보다 작습니다."}
 
         result = upbit_client.buy_limit_order("KRW-BTC", current_price, amount_to_buy)
-        if result and 'uuid' in result:
+
+        # result가 문자열인 경우 처리
+        if isinstance(result, str):
+            logger.warning(f"Unexpected result type from buy_limit_order: {result}")
+            return {"success": False, "message": f"Unexpected result: {result}"}
+
+        if result and isinstance(result, dict) and 'uuid' in result:
             logger.info(f"매수 주문 성공: {amount_to_buy:.8f} BTC at {current_price} KRW")
             return {"success": True, "amount": amount_to_buy, "price": current_price, "uuid": result['uuid']}
         else:
-            logger.warning("매수 주문 실패")
+            logger.warning(f"매수 주문 실패. 반환된 결과: {result}")
             return {"success": False, "message": "매수 주문 실패"}
     except Exception as e:
         logger.error(f"매수 주문 실행 중 오류 발생: {e}")

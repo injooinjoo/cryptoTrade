@@ -8,6 +8,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 class PerformanceMonitor:
     def __init__(self, file_path='performance_data.csv'):
         self.file_path = file_path
@@ -15,6 +16,10 @@ class PerformanceMonitor:
         self.total_trades = len(self.data)
         self.initial_btc_price = self.data['current_price'].iloc[0] if not self.data.empty else None
         self.initial_balance = self.data['balance'].iloc[0] if not self.data.empty else None
+        self.lstm_accuracy_history = []
+        self.lstm_loss_history = []
+        self.lstm_mse_history = []
+        self.lstm_mae_history = []
 
     def record(self, decision: dict, current_price: float, balance: float, btc_amount: float,
                params: dict, regime: str, anomalies: bool, ml_accuracy: float, ml_loss: float):
@@ -47,6 +52,50 @@ class PerformanceMonitor:
         if os.path.exists(self.file_path):
             return pd.read_csv(self.file_path)
         return pd.DataFrame()
+
+    def update_lstm_metrics(self, accuracy, loss=None, predictions=None, actual_values=None):
+        """
+        LSTM 모델의 성능 지표를 업데이트합니다.
+
+        :param accuracy: LSTM 모델의 정확도
+        :param loss: LSTM 모델의 손실 값 (옵션)
+        :param predictions: LSTM 모델의 예측값 배열 (옵션)
+        :param actual_values: 실제 값 배열 (옵션)
+        """
+        global mse, mae
+        self.lstm_accuracy_history.append(accuracy)
+
+        if loss is not None:
+            self.lstm_loss_history.append(loss)
+
+        if predictions is not None and actual_values is not None:
+            mse = np.mean((np.array(predictions) - np.array(actual_values)) ** 2)
+            mae = np.mean(np.abs(np.array(predictions) - np.array(actual_values)))
+            self.lstm_mse_history.append(mse)
+            self.lstm_mae_history.append(mae)
+
+        # 최근 N개의 지표만 유지 (예: 최근 100개)
+        max_history_length = 100
+        self.lstm_accuracy_history = self.lstm_accuracy_history[-max_history_length:]
+        self.lstm_loss_history = self.lstm_loss_history[-max_history_length:]
+        self.lstm_mse_history = self.lstm_mse_history[-max_history_length:]
+        self.lstm_mae_history = self.lstm_mae_history[-max_history_length:]
+
+        # 로깅
+        logger.info(f"LSTM Metrics Updated - Accuracy: {accuracy:.4f}")
+        if loss is not None:
+            logger.info(f"LSTM Loss: {loss:.4f}")
+        if predictions is not None and actual_values is not None:
+            logger.info(f"LSTM MSE: {mse:.4f}, MAE: {mae:.4f}")
+
+    def get_lstm_performance_summary(self):
+        """LSTM 모델의 성능 요약을 반환합니다."""
+        return {
+            'average_accuracy': np.mean(self.lstm_accuracy_history) if self.lstm_accuracy_history else None,
+            'average_loss': np.mean(self.lstm_loss_history) if self.lstm_loss_history else None,
+            'average_mse': np.mean(self.lstm_mse_history) if self.lstm_mse_history else None,
+            'average_mae': np.mean(self.lstm_mae_history) if self.lstm_mae_history else None,
+        }
 
     def get_performance_comparison(self) -> dict:
         if self.data.empty or self.initial_btc_price is None or self.initial_balance is None:
