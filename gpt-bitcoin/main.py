@@ -1,13 +1,14 @@
 import logging
 import threading
 import time
+from collections import deque
+from typing import Dict, Any
 
 import numpy as np
 import pandas as pd
 import schedule
-from typing import Dict, Any
-from trading_logic import execute_sell, execute_buy
 from dotenv import load_dotenv
+
 from api_client import UpbitClient, OpenAIClient, PositionManager
 from auto_adjustment import AutoAdjustment, AnomalyDetector, MarketRegimeDetector, DynamicTradingFrequencyAdjuster
 from backtesting_and_ml import MLPredictor, RLAgent, run_backtest, LSTMPredictor, XGBoostPredictor
@@ -89,25 +90,10 @@ class PositionMonitor(threading.Thread):
         except Exception as e:
             logger.error(f"Error executing sell for {'order ' + order_id if order_id else 'dynamic trigger'}: {e}")
 
-    def add_order(self, order_id: str, order_type: str, price: float, stop_loss: float, take_profit: float):
-        self.active_orders[order_id] = {
-            'type': order_type,
-            'price': price,
-            'stop_loss': stop_loss,
-            'take_profit': take_profit
-        }
-        logger.info(f"Added new order: {order_id} with stop loss at {stop_loss} and take profit at {take_profit}")
-
     def remove_order(self, order_id: str):
         if order_id in self.active_orders:
             del self.active_orders[order_id]
             logger.info(f"Removed order: {order_id}")
-
-    def update_stop_loss_take_profit(self, order_id: str, stop_loss: float, take_profit: float):
-        if order_id in self.active_orders:
-            self.active_orders[order_id]['stop_loss'] = stop_loss
-            self.active_orders[order_id]['take_profit'] = take_profit
-            logger.info(f"Updated order {order_id}: new stop loss at {stop_loss} and take profit at {take_profit}")
 
     def stop(self):
         self.running = False
@@ -138,20 +124,74 @@ class TradingLoop:
         self.config = load_config()
         self.initial_balance = None
         self.trading_history = []
+        self.initial_balance = None
+        self.trade_history = []
+        self.pending_evaluations = deque()
+        self.evaluation_delay = 600  # 10분 (초 단위)
+        self.upbit_client = upbit_client
+        self.openai_client = openai_client
+        self.data_manager = data_manager
+        self.ml_predictor = ml_predictor
+        self.rl_agent = rl_agent
+        self.auto_adjuster = auto_adjuster
+        self.anomaly_detector = anomaly_detector
+        self.regime_detector = regime_detector
+        self.dynamic_adjuster = dynamic_adjuster
+        self.performance_monitor = performance_monitor
+        self.xgboost_predictor = XGBoostPredictor()
+        self.lstm_predictor = LSTMPredictor()
+        self.position_monitor = position_monitor
+        self.counter = 0
+        self.last_trade_time = None
+        self.trading_interval = 600
+        self.last_decision = None
+        self.buy_and_hold_performance = None
+        self.config = load_config()
+        self.initial_balance = None
+        self.trading_history = []
+        self.trade_history = []
 
         # 모델 가중치 초기화
         self.ml_weight = 0.2
-        self.gpt_weight = 0.3
+        self.gpt_weight = 0.2
         self.xgboost_weight = 0.2
-        self.rl_weight = 0.15
-        self.lstm_weight = 0.15
+        self.rl_weight = 0.2
+        self.lstm_weight = 0.2
 
-        if 'trading_parameters' not in self.config:
-            self.config['trading_parameters'] = {}
-        if 'buy_threshold' not in self.config['trading_parameters']:
-            self.config['trading_parameters']['buy_threshold'] = 0.01
-        if 'sell_threshold' not in self.config['trading_parameters']:
-            self.config['trading_parameters']['sell_threshold'] = 0.01
+        self.strategy_performance = {
+            'gpt': {'success': 0, 'failure': 0},
+            'ml': {'success': 0, 'failure': 0},
+            'xgboost': {'success': 0, 'failure': 0},
+            'rl': {'success': 0, 'failure': 0},
+            'lstm': {'success': 0, 'failure': 0}
+        }
+        # 가중치 조정 비율 설정
+        self.weight_adjustment_rate = 0.01
+        self.last_weight_update_time = time.time()
+
+        # 새로운 속성 추가
+        self.prediction_history = {
+            'gpt': [],
+            'ml': [],
+            'xgboost': [],
+            'rl': [],
+            'lstm': []
+        }
+        self.prediction_accuracy = {
+            'gpt': 0.5,
+            'ml': 0.5,
+            'xgboost': 0.5,
+            'rl': 0.5,
+            'lstm': 0.5
+        }
+        self.model_predictions = {
+            'gpt': [], 'ml': [], 'xgboost': [], 'rl': [], 'lstm': []
+        }
+        self.weights = {
+            'gpt': 0.2, 'ml': 0.2, 'xgboost': 0.2, 'rl': 0.2, 'lstm': 0.2
+        }
+        self.weight_adjustment = 0.01
+        self.prediction_history = []
 
     def run(self, initial_strategy, initial_backtest_results, historical_data):
         self.data_manager.check_table_structure()
@@ -175,6 +215,9 @@ class TradingLoop:
             try:
                 current_time = time.time()
 
+                # 보류 중인 거래 평가 실행
+                self.evaluate_pending_trades()
+
                 if self.last_trade_time is None or (current_time - self.last_trade_time) >= self.trading_interval:
                     # 기존 미체결 주문 취소
                     self.cancel_existing_orders()
@@ -185,7 +228,7 @@ class TradingLoop:
                     ml_prediction = self.ml_predictor.predict(data)
                     xgboost_prediction = self.xgboost_predictor.predict(data)
                     rl_action = self.rl_agent.act(self.prepare_state(data))
-                    lstm_prediction = self.lstm_predictor.predict(data)  # LSTM 예측 추가
+                    lstm_prediction = self.lstm_predictor.predict(data)
 
                     latest_data = self.data_manager.ensure_sufficient_data()
                     latest_data['date'] = pd.to_datetime(latest_data['date'])
@@ -224,44 +267,75 @@ class TradingLoop:
                         trading_history=self.get_recent_trading_history()
                     )
 
-                    decision = self.make_trading_decision(gpt4_advice, ml_prediction, xgboost_prediction, rl_action,
-                                                          lstm_prediction)
+                    # 예측 결과 기록
+                    self.record_predictions(gpt4_advice['decision'], ml_prediction, xgboost_prediction, rl_action,
+                                            lstm_prediction)
 
-                    if self.last_decision:
-                        self.review_last_decision(data)
+                    # 이전 예측 평가 및 가중치 업데이트
+                    self.evaluate_previous_predictions()
 
+                    # 예측 결과 및 가중치 로깅
+                    self.log_predictions_and_weights()
+
+                    # 새로운 의사결정 메서드 호출
+                    decision = self.make_weighted_decision(gpt4_advice, ml_prediction, xgboost_prediction, rl_action,
+                                                           lstm_prediction)
+
+                    # 성능 모니터 업데이트
+                    strategy_performance = self.calculate_strategy_performance()
+                    hodl_performance = self.calculate_hodl_performance(historical_data)
+                    current_balance = self.upbit_client.get_balance("KRW") + self.upbit_client.get_balance(
+                        "BTC") * self.upbit_client.get_current_price("KRW-BTC")
+
+                    self.performance_monitor.update(
+                        strategy_performance,
+                        hodl_performance,
+                        self.prediction_accuracy,
+                        self.calculate_model_weights(),
+                        current_balance,
+                        decision['decision'],
+                        decision['target_price'],
+                        decision['percentage']
+                    )
+
+                    # 'hold' 결정에 대한 처리 추가
+                    if decision['decision'] == 'hold':
+                        # 'hold' 결정을 성공으로 간주하고, 수익은 0으로 처리
+                        self.performance_monitor.update_trade_result(True, 0)
+
+                        # 성공률 업데이트
+                        buy_hold_success_rate, sell_success_rate = self.calculate_success_rates()
+                        self.performance_monitor.update_success_rates(buy_hold_success_rate, sell_success_rate)
+
+                    # 거래 실행
                     if decision['decision'] in ['buy', 'sell']:
                         result = execute_trade(self.upbit_client, decision, self.config)
                         if result['success']:
-                            logger.info(f"Trade executed: {result['message']}")
-                            actual_result = "성공" if result['success'] else "실패"
-                            self.performance_monitor.add_decision(decision['decision'], decision['reasoning'],
-                                                                  actual_result)
+                            # 거래 결과를 보류 중인 평가 목록에 추가
+                            self.add_pending_evaluation(decision, result)
 
-                            # 다음 거래 전에 개선 제안 요청
-                            improvement_suggestion = self.performance_monitor.get_improvement_suggestion(
-                                self.openai_client)
-                            logger.info(f"Improvement suggestion: {improvement_suggestion}")
-
-                            if result['uuid']:
-                                self.position_monitor.add_order(
-                                    result['uuid'], decision['decision'], decision['target_price'],
-                                    decision['stop_loss'], decision['take_profit']
-                                )
-                            self.last_decision = decision
-                        else:
-                            logger.warning(f"Trade failed: {result['message']}")
+                            # 거래 정보 기록
+                            trade_info = {
+                                'timestamp': time.time(),
+                                'decision': decision['decision'],
+                                'price': result['price'],
+                                'amount': result['amount']
+                            }
+                            self.performance_monitor.record_trade(trade_info)
 
                     self.last_trade_time = current_time
 
-                    if self.counter % 144 == 0:  # 약 1일마다
-                        self.periodic_update(historical_data)
+                    # 성능 보고서 출력 (10분마다)
+                    if self.counter % 60 == 0:
+                        performance_summary = self.performance_monitor.get_performance_summary()
+                        logger.info(f"Performance Summary:\n{performance_summary}")
+                        send_discord_message(performance_summary)
 
-                    self.send_performance_report()
-                    self.record_performance(decision)
                     self.counter += 1
 
-                self.monitor_positions()
+                # 주기적 업데이트 (예: 1시간마다)
+                if self.counter % 360 == 0:  # 6시간마다 (10분 * 36)
+                    self.periodic_update(historical_data)
 
                 time.sleep(10)  # 10초마다 체크
 
@@ -270,10 +344,57 @@ class TradingLoop:
                 logger.exception("Traceback:")
                 time.sleep(60)
 
+    def add_pending_evaluation(self, decision, result):
+        evaluation_time = time.time() + self.evaluation_delay
+        self.pending_evaluations.append({
+            'decision': decision,
+            'result': result,
+            'evaluation_time': evaluation_time
+        })
+
+    def evaluate_pending_trades(self):
+        current_time = time.time()
+        while self.pending_evaluations and self.pending_evaluations[0]['evaluation_time'] <= current_time:
+            trade = self.pending_evaluations.popleft()
+            success = self.evaluate_trade_success(trade['decision'], trade['result'])
+            self.update_strategy_performance(trade['decision']['strategy'], success)
+
     def calculate_market_volatility(self, data: pd.DataFrame, window: int = 20) -> float:
         returns = data['close'].pct_change().dropna()
         volatility = returns.rolling(window=window).std().iloc[-1]
         return volatility * np.sqrt(252)  # 연간화된 변동성
+
+    def update_strategy_performance(self, strategy, success):
+        if success:
+            self.strategy_performance[strategy]['success'] += 1
+        else:
+            self.strategy_performance[strategy]['failure'] += 1
+
+    def evaluate_previous_predictions(self):
+        if len(self.prediction_history) < 2:
+            return
+
+        previous_predictions, previous_price = self.prediction_history[-2]
+        current_price = self.upbit_client.get_current_price("KRW-BTC")
+        price_change = current_price - previous_price
+
+        for model, prediction in previous_predictions.items():
+            if (prediction > 0 and price_change > 0) or (prediction < 0 and price_change < 0):
+                self.weights[model] += self.weight_adjustment
+            else:
+                self.weights[model] = max(0, self.weights[model] - self.weight_adjustment)
+
+        logger.info(f"Updated weights: {self.weights}")
+
+    def log_predictions_and_weights(self):
+        logger.info("모델별 가중치:")
+        for model, weight in self.weights.items():
+            logger.info(f"{model.upper()}: 가중치 {weight:.4f}")
+
+        logger.info("최근 예측 결과:")
+        for model in self.model_predictions:
+            recent_predictions = [pred[model] for pred, _ in self.prediction_history[-5:]]
+            logger.info(f"{model.upper()}: {recent_predictions}")
 
     def analyze_market(self, data: pd.DataFrame) -> Dict[str, Any]:
         current_price = data['close'].iloc[-1]
@@ -307,133 +428,6 @@ class TradingLoop:
 
     def get_recent_trading_history(self, n=5):
         return self.trading_history[-n:]
-
-    # def record_trade(self, trade):
-    #     self.trading_history.append(trade)
-    #     if len(self.trading_history) > 100:  # 최근 100개의 거래만 유지
-    #         self.trading_history.pop(0)
-    #
-    # def get_initial_balance(self):
-    #     krw_balance = self.upbit_client.get_balance("KRW")
-    #     btc_balance = self.upbit_client.get_balance("BTC")
-    #     btc_price = self.upbit_client.get_current_price("KRW-BTC")
-    #     return krw_balance + (btc_balance * btc_price)
-
-    def record_performance(self, decision: Dict[str, Any]):
-        try:
-            current_price = self.upbit_client.get_current_price("KRW-BTC")
-            current_balance = self.upbit_client.get_balance("KRW")
-            current_btc_amount = self.upbit_client.get_balance("BTC")
-
-            # Assuming you have functions or data to populate these
-            parameter_dict = {}  # Example: populate with actual parameters if available
-            market_regime = "bull"  # Example: determine the market regime
-            anomalies_detected = []  # Example: populate based on detected anomalies
-            ml_model_accuracy = self.ml_predictor.get_accuracy()  # Example: retrieve model accuracy
-            ml_model_loss = self.ml_predictor.get_loss()  # Example: retrieve model loss
-
-            self.performance_monitor.record(
-                decision=decision,
-                current_price=current_price,
-                balance=current_balance,
-                btc_amount=current_btc_amount,
-                params=parameter_dict,
-                regime=market_regime,
-                anomalies=anomalies_detected,
-                ml_accuracy=ml_model_accuracy,
-                ml_loss=ml_model_loss
-            )
-            logger.info(f"Performance recorded: {decision['decision']} at {current_price}")
-        except Exception as e:
-            logger.error(f"Error recording performance: {e}")
-
-    def send_performance_report(self):
-        try:
-            report = self.performance_monitor.get_performance_summary()
-            send_discord_message(report)
-            logger.info("Performance report sent")
-        except Exception as e:
-            logger.error(f"Error sending performance report: {e}")
-
-    def make_trading_decision(self, gpt4_advice, ml_prediction, xgboost_prediction, rl_action, lstm_prediction):
-        weights = {'gpt4': 0.25, 'ml': 0.2, 'xgboost': 0.2, 'rl': 0.15, 'lstm': 0.2}
-
-        gpt4_decision = 1 if gpt4_advice['decision'] == 'buy' else -1 if gpt4_advice['decision'] == 'sell' else 0
-        ml_decision = 1 if ml_prediction == 1 else -1 if ml_prediction == 0 else 0
-        xgboost_decision = 1 if xgboost_prediction == 1 else -1 if xgboost_prediction == 0 else 0
-        rl_decision = 1 if rl_action == 2 else -1 if rl_action == 0 else 0
-        lstm_decision = 1 if lstm_prediction > 0 else -1 if lstm_prediction < 0 else 0
-
-        weighted_decision = (
-                gpt4_decision * weights['gpt4'] +
-                ml_decision * weights['ml'] +
-                xgboost_decision * weights['xgboost'] +
-                rl_decision * weights['rl'] +
-                lstm_decision * weights['lstm']
-        )
-
-        logger.info(
-            f"Decision weights - GPT4: {weights['gpt4']}, ML: {weights['ml']}, XGBoost: {weights['xgboost']}, RL: {weights['rl']}, LSTM: {weights['lstm']}")
-        logger.info(
-            f"Individual decisions - GPT4: {gpt4_decision}, ML: {ml_decision}, XGBoost: {xgboost_decision}, RL: {rl_decision}, LSTM: {lstm_decision}")
-        logger.info(f"Weighted decision: {weighted_decision}")
-
-        final_decision = 'buy' if weighted_decision > 0.1 else 'sell' if weighted_decision < -0.1 else 'hold'
-
-        logger.info(f"Final trading decision: {final_decision}")
-
-        if final_decision == 'buy' and gpt4_advice['decision'] == 'hold':
-            percentage = gpt4_advice['potential_buy']['percentage']
-            target_price = gpt4_advice['potential_buy']['target_price']
-        elif final_decision == 'sell' and gpt4_advice['decision'] == 'hold':
-            percentage = gpt4_advice['potential_sell']['percentage']
-            target_price = gpt4_advice['potential_sell']['target_price']
-        else:
-            percentage = gpt4_advice['percentage']
-            target_price = gpt4_advice['target_price']
-
-        return {
-            'decision': final_decision,
-            'percentage': percentage,
-            'target_price': target_price,
-            'stop_loss': gpt4_advice['stop_loss'],
-            'take_profit': gpt4_advice['take_profit'],
-            'reasoning': f"Weighted decision based on GPT-4 ({weights['gpt4']:.2f}), ML ({weights['ml']:.2f}), XGBoost ({weights['xgboost']:.2f}), RL ({weights['rl']:.2f}), and LSTM ({weights['lstm']:.2f}). {gpt4_advice.get('reasoning', '')}"
-        }
-
-    def review_last_decision(self, current_data):
-        if self.last_decision:
-            last_price = self.last_decision.get('target_price')
-            current_price = current_data['close'].iloc[-1]
-            if self.last_decision['decision'] == 'buy':
-                success = current_price > last_price
-            elif self.last_decision['decision'] == 'sell':
-                success = current_price < last_price
-            else:
-                success = abs(current_price - last_price) / last_price < 0.01
-
-            logger.info(f"Last decision review: {'Successful' if success else 'Unsuccessful'}")
-
-            if not success:
-                self.adjust_strategy_based_on_failure(self.last_decision, current_price)
-
-    def adjust_strategy_based_on_failure(self, last_decision, current_price):
-        if last_decision['decision'] == 'buy' and current_price < last_decision['target_price']:
-            self.config['trading_parameters']['risk_factor'] *= 0.95
-        elif last_decision['decision'] == 'sell' and current_price > last_decision['target_price']:
-            self.config['trading_parameters']['risk_factor'] *= 1.05
-
-        logger.info(f"Adjusted trading parameters: {self.config['trading_parameters']}")
-
-    def monitor_positions(self):
-        current_price = self.upbit_client.get_current_price("KRW-BTC")
-        for order_id, order in self.position_monitor.active_orders.items():
-            if order['type'] == 'buy':
-                if current_price <= order['stop_loss'] or current_price >= order['take_profit']:
-                    execute_sell(self.upbit_client, order_id, current_price, "Stop Loss/Take Profit")
-            elif order['type'] == 'sell':
-                if current_price >= order['stop_loss'] or current_price <= order['take_profit']:
-                    execute_buy(self.upbit_client, order_id, current_price, "Stop Loss/Take Profit")
 
     def periodic_update(self, historical_data):
         last_backtest_results = run_backtest(self.data_manager, historical_data)
@@ -566,6 +560,110 @@ class TradingLoop:
         except Exception as e:
             logger.error(f"미체결 주문 취소 중 오류 발생: {e}")
 
+    def record_predictions(self, gpt4_decision, ml_prediction, xgboost_prediction, rl_action, lstm_prediction):
+        current_price = self.upbit_client.get_current_price("KRW-BTC")
+        predictions = {
+            'gpt': 1 if gpt4_decision == 'buy' else -1 if gpt4_decision == 'sell' else 0,
+            'ml': ml_prediction,
+            'xgboost': xgboost_prediction,
+            'rl': 1 if rl_action == 2 else -1 if rl_action == 0 else 0,
+            'lstm': 1 if lstm_prediction > current_price else -1 if lstm_prediction < current_price else 0
+        }
+        self.prediction_history.append((predictions, current_price))
+        if len(self.prediction_history) > 100:
+            self.prediction_history.pop(0)
+
+    def make_weighted_decision(self, gpt4_advice, ml_prediction, xgboost_prediction, rl_action, lstm_prediction):
+        current_price = self.upbit_client.get_current_price("KRW-BTC")
+
+        decisions = {
+            'gpt': 1 if gpt4_advice['decision'] == 'buy' else -1 if gpt4_advice['decision'] == 'sell' else 0,
+            'ml': ml_prediction,
+            'xgboost': xgboost_prediction,
+            'rl': 1 if rl_action == 2 else -1 if rl_action == 0 else 0,
+            'lstm': 1 if lstm_prediction > current_price else -1 if lstm_prediction < current_price else 0
+        }
+
+        weighted_decision = sum(decisions[model] * self.weights[model] for model in decisions)
+
+        logger.info(f"Weighted contributions:")
+        for model in decisions:
+            logger.info(f"{model.upper()}: {decisions[model] * self.weights[model]:.4f}")
+        logger.info(f"Total weighted decision: {weighted_decision:.4f}")
+
+        # 결정 로직
+        if weighted_decision > 0.1:
+            final_decision = 'buy'
+            target_price = gpt4_advice['potential_buy']['target_price'] if gpt4_advice['decision'] == 'hold' else \
+            gpt4_advice['target_price']
+            percentage = gpt4_advice['potential_buy']['percentage'] if gpt4_advice['decision'] == 'hold' else \
+            gpt4_advice['percentage']
+        elif weighted_decision < -0.1:
+            final_decision = 'sell'
+            target_price = gpt4_advice['potential_sell']['target_price'] if gpt4_advice['decision'] == 'hold' else \
+            gpt4_advice['target_price']
+            percentage = gpt4_advice['potential_sell']['percentage'] if gpt4_advice['decision'] == 'hold' else \
+            gpt4_advice['percentage']
+        else:
+            final_decision = 'hold'
+            target_price = None
+            percentage = 0
+
+        logger.info(f"Final decision: {final_decision}")
+        logger.info(f"Target price: {target_price}")
+        logger.info(f"Percentage: {percentage}%")
+
+        # 예측 결과 기록
+        return {
+            'decision': final_decision,
+            'percentage': percentage,
+            'target_price': target_price,
+            'stop_loss': gpt4_advice.get('stop_loss'),
+            'take_profit': gpt4_advice.get('take_profit'),
+            'reasoning': f"Weighted decision ({weighted_decision:.4f}) based on individual model predictions. {gpt4_advice['reasoning']}"
+        }
+
+    def calculate_strategy_performance(self):
+        if self.initial_balance is None:
+            self.initial_balance = self.upbit_client.get_balance("KRW") + \
+                                   self.upbit_client.get_balance("BTC") * self.upbit_client.get_current_price("KRW-BTC")
+        current_balance = self.upbit_client.get_balance("KRW") + \
+                          self.upbit_client.get_balance("BTC") * self.upbit_client.get_current_price("KRW-BTC")
+        return (current_balance - self.initial_balance) / self.initial_balance * 100
+
+    def calculate_hodl_performance(self, historical_data):
+        if len(historical_data) < 2:
+            return 0
+        initial_price = historical_data['close'].iloc[0]
+        current_price = historical_data['close'].iloc[-1]
+        return (current_price - initial_price) / initial_price * 100
+
+    def calculate_model_weights(self):
+        total_accuracy = sum(self.prediction_accuracy.values())
+        if total_accuracy == 0:
+            return {model: 0.2 for model in self.prediction_accuracy.keys()}
+        return {model: acc / total_accuracy for model, acc in self.prediction_accuracy.items()}
+
+    def evaluate_trade_success(self, decision, result):
+        current_price = self.upbit_client.get_current_price("KRW-BTC")
+        if decision['decision'] == 'buy':
+            return current_price > result['price']
+        elif decision['decision'] == 'sell':
+            return current_price < result['price']
+        return False
+
+    def calculate_success_rates(self):
+        if not self.trade_history:
+            return 0, 0
+        buy_hold_trades = [trade for trade in self.trade_history if trade['decision'] in ['buy', 'hold']]
+        sell_trades = [trade for trade in self.trade_history if trade['decision'] == 'sell']
+
+        buy_hold_success = sum(1 for trade in buy_hold_trades if trade['success']) / len(
+            buy_hold_trades) if buy_hold_trades else 0
+        sell_success = sum(1 for trade in sell_trades if trade['success']) / len(sell_trades) if sell_trades else 0
+
+        return buy_hold_success * 100, sell_success * 100
+
 
 def main():
     upbit_client = UpbitClient(config['upbit_access_key'], config['upbit_secret_key'])
@@ -583,7 +681,7 @@ def main():
     anomaly_detector = AnomalyDetector()
     regime_detector = MarketRegimeDetector()
     dynamic_adjuster = DynamicTradingFrequencyAdjuster()
-    performance_monitor = PerformanceMonitor()
+    performance_monitor = PerformanceMonitor(upbit_client)
     position_manager = PositionManager(upbit_client)
 
     position_monitor = PositionMonitor(upbit_client, position_manager, stop_loss_percentage=5,

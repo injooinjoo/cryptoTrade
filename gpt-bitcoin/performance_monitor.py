@@ -1,15 +1,17 @@
 import logging
 import os
-from datetime import datetime, timedelta
+from datetime import datetime
 
 import numpy as np
 import pandas as pd
+from api_client import UpbitClient
 
 logger = logging.getLogger(__name__)
 
 
 class PerformanceMonitor:
-    def __init__(self, file_path='performance_data.csv'):
+    def __init__(self, upbit_client, file_path='performance_data.csv'):
+        self.upbit_client = upbit_client
         self.file_path = file_path
         self.data = self.load_data()
         self.total_trades = len(self.data)
@@ -39,6 +41,24 @@ class PerformanceMonitor:
         self.total_successful_holds = \
         self.data[(self.data['decision'] == 'hold') & (self.data['success'] == True)].shape[
             0] if 'success' in self.data.columns else 0
+        self.hodl_performance = 0
+        self.strategy_performance = 0
+        self.model_accuracies = {
+            'gpt': 0, 'ml': 0, 'xgboost': 0, 'rl': 0, 'lstm': 0
+        }
+        self.model_weights = {
+            'gpt': 0.2, 'ml': 0.2, 'xgboost': 0.2, 'rl': 0.2, 'lstm': 0.2
+        }
+        self.initial_balance = 0
+        self.current_balance = 0
+        self.last_decision = {'decision': 'hold', 'price': 0, 'percentage': 0}
+        self.last_result = {'success': False, 'profit': 0}
+        self.buy_hold_success_rate = 0
+        self.sell_success_rate = 0
+        self.total_trades = 0
+        self.total_profit = 0
+        self.trades = []
+
 
     def record(self, decision: dict, current_price: float, balance: float, btc_amount: float,
                params: dict, regime: str, anomalies: bool, ml_accuracy: float, ml_loss: float):
@@ -94,79 +114,111 @@ class PerformanceMonitor:
         else:  # hold
             return abs(current_price - prev_price) / prev_price < 0.01
 
+    def get_current_balances(self):
+        krw_balance = self.upbit_client.get_balance("KRW")
+        btc_balance = self.upbit_client.get_balance("BTC")
+        btc_price = self.upbit_client.get_current_price("KRW-BTC")
+        total_balance = krw_balance + (btc_balance * btc_price)
+        return krw_balance, btc_balance, total_balance
+
     def get_performance_summary(self):
-        if self.data.empty:
-            return "데이터가 충분하지 않습니다."
+        def safe_format(value, format_spec):
+            return format(value, format_spec) if value is not None else "N/A"
 
-        self.data['timestamp'] = pd.to_datetime(self.data['timestamp'], format='mixed')
-        recent_data = self.data[self.data['timestamp'] > datetime.now() - timedelta(hours=10)]
+        current_krw, current_btc, current_total = self.get_current_balances()
 
-        total_return = (self.data['balance'].iloc[
-                            -1] - self.initial_balance) / self.initial_balance * 100 if self.initial_balance else 0
-        recent_return = (recent_data['balance'].iloc[-1] - recent_data['balance'].iloc[0]) / \
-                        recent_data['balance'].iloc[0] * 100 if not recent_data.empty else 0
-
-        total_price_change = (self.data['current_price'].iloc[
-                                  -1] - self.initial_btc_price) / self.initial_btc_price * 100 if self.initial_btc_price else 0
-        recent_price_change = (recent_data['current_price'].iloc[-1] - recent_data['current_price'].iloc[0]) / \
-                              recent_data['current_price'].iloc[0] * 100 if not recent_data.empty else 0
-
-        total_success_rate = (self.total_successful_trades / self.total_trades * 100) if self.total_trades > 0 else 0
-        recent_success_rate = (recent_data['success'].sum() / len(
-            recent_data) * 100) if not recent_data.empty and 'success' in recent_data.columns else 0
-
-        recent_improvements = "; ".join(self.improvement_suggestions[-3:])
-
-        last_decision = self.data['decision'].iloc[-1] if not self.data.empty else "N/A"
-        last_success = "성공" if ('success' in self.data.columns and not self.data.empty and self.data['success'].iloc[-1]) else "N/A"
-
-        return f"""
-        전체 트레이딩 성과 (프로젝트 시작 이후)
+        summary = f"""
+        트레이딩 성과 요약
         ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        📈 트레이딩 수익률: {total_return:.2f}%
-        💹 누적 트레이딩 성과:
-        🔢 총 거래 횟수: {self.total_trades}회
-          • 🛒 매수: {self.total_buy_trades}회 (성공: {self.total_successful_buys}회)
-          • 💰 매도: {self.total_sell_trades}회 (성공: {self.total_successful_sells}회)
-          • 💼 홀딩: {self.total_hold_trades}회 (성공: {self.total_successful_holds}회)
-        📉 BTC 가격 변동: {total_price_change:.2f}%
-           (시작 가격: {self.initial_btc_price:,.0f} KRW, 현재 가격: {self.data['current_price'].iloc[-1]:,.0f} KRW)
-        💸 총 자산 변동: {total_return:.2f}%
-           (시작 자산: {self.initial_balance:,.0f} KRW, 현재 자산: {self.data['balance'].iloc[-1]:,.0f} KRW)
-        ✅ 전체 거래 성공률: {total_success_rate:.2f}%
+        1. 수익률 비교:
+           • 전략 진행 수익률: {safe_format(self.strategy_performance, '.2f')}%
+           • HODL 수익률: {safe_format(self.hodl_performance, '.2f')}%
 
-        트레이딩 성과 비교 (최근 10시간)
-        ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        📈 트레이딩 수익률: {recent_return:.2f}%
-        💹 최근 트레이딩 성과:
-        🔢 총 거래 횟수: {len(recent_data)}회
-          • 🛒 매수: {recent_data['decision'].value_counts().get('buy', 0)}회 (성공: {recent_data[recent_data['decision'] == 'buy']['success'].sum() if 'success' in recent_data.columns else 0}회)
-          • 💰 매도: {recent_data['decision'].value_counts().get('sell', 0)}회 (성공: {recent_data[recent_data['decision'] == 'sell']['success'].sum() if 'success' in recent_data.columns else 0}회)
-          • 💼 홀딩: {recent_data['decision'].value_counts().get('hold', 0)}회 (성공: {recent_data[recent_data['decision'] == 'hold']['success'].sum() if 'success' in recent_data.columns else 0}회)
-        📉 BTC 가격 변동: {recent_price_change:.2f}%
-           (시작 가격: {recent_data['current_price'].iloc[0]:,.0f} KRW, 현재 가격: {recent_data['current_price'].iloc[-1]:,.0f} KRW)
-        💸 총 자산 변동: {recent_return:.2f}%
-           (시작 자산: {recent_data['balance'].iloc[0]:,.0f} KRW, 현재 자산: {recent_data['balance'].iloc[-1]:,.0f} KRW)
-        ✅ 최근 거래 성공률: {recent_success_rate:.2f}%
+        2. 모델별 예측 성공률:
+           • GPT: {safe_format(self.model_accuracies.get('gpt') * 100, '.2f')}%
+           • ML: {safe_format(self.model_accuracies.get('ml') * 100, '.2f')}%
+           • XGBoost: {safe_format(self.model_accuracies.get('xgboost') * 100, '.2f')}%
+           • RL: {safe_format(self.model_accuracies.get('rl') * 100, '.2f')}%
+           • LSTM: {safe_format(self.model_accuracies.get('lstm') * 100, '.2f')}%
 
-        최근 판단 리뷰:
-        ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        마지막 결정: {last_decision}
-        결과: {last_success}
-        개선점: {recent_improvements}
+        3. 모델별 의사결정 비중:
+           • GPT: {safe_format(self.model_weights.get('gpt'), '.2f')}
+           • ML: {safe_format(self.model_weights.get('ml'), '.2f')}
+           • XGBoost: {safe_format(self.model_weights.get('xgboost'), '.2f')}
+           • RL: {safe_format(self.model_weights.get('rl'), '.2f')}
+           • LSTM: {safe_format(self.model_weights.get('lstm'), '.2f')}
 
-        📊 현재 시장 상태:
-        ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        💰 현재 BTC 가격: {self.data['current_price'].iloc[-1]:,.0f} KRW
-        💼 현재 총 자산: {self.data['balance'].iloc[-1]:,.0f} KRW
-        🏦 보유 BTC: {self.data['btc_amount'].iloc[-1]:.8f} BTC
+        4. 자산 현황:
+           • 시작 금액: {safe_format(self.initial_balance, ',.0f')} KRW
+           • 현재 KRW: {safe_format(current_krw, ',.0f')} KRW
+           • 현재 BTC: {safe_format(current_btc, '.8f')} BTC
+           • 현재 총 자산 가치: {safe_format(current_total, ',.0f')} KRW
 
-        🕒 프로젝트 시작 시간: {self.start_time.strftime('%Y-%m-%d %H:%M:%S')}
-        🕒 마지막 업데이트: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+        5. 최근 거래 정보:
+           • 결정: {self.last_decision.get('decision', 'N/A')}
+           • 거래가: {safe_format(self.last_decision.get('price'), ',.0f')} KRW
+           • 거래 비율: {safe_format(self.last_decision.get('percentage'), '.2f')}%
+
+        6. 거래 성공률:
+           • 매수(+홀드) 성공률: {safe_format(self.buy_hold_success_rate, '.2f')}%
+           • 매도 성공률: {safe_format(self.sell_success_rate, '.2f')}%
+
+        7. 직전 거래 결과:
+           • 성공 여부: {'성공' if self.last_result.get('success') else '실패'}
+           • 수익: {safe_format(self.last_result.get('profit'), ',.0f')} KRW
+
+        마지막 업데이트: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
         """
+        return summary
 
     def save_to_file(self):
+        new_record = {
+            'timestamp': pd.Timestamp.now(),
+            'strategy_performance': self.strategy_performance,
+            'hodl_performance': self.hodl_performance,
+            'current_balance': self.current_balance,
+            'total_trades': self.total_trades,
+            'total_profit': self.total_profit,
+            'buy_hold_success_rate': self.buy_hold_success_rate,
+            'sell_success_rate': self.sell_success_rate,
+            'last_decision': self.last_decision['decision'],
+            'last_trade_price': self.last_decision['price'],
+            'last_trade_percentage': self.last_decision['percentage'],
+            'last_trade_success': self.last_result['success'],
+            'last_trade_profit': self.last_result['profit']
+        }
+
+        # NaN 값을 None으로 대체
+        new_record = {k: (v if pd.notna(v) else None) for k, v in new_record.items()}
+
+        new_df = pd.DataFrame([new_record])
+
+        if self.data.empty:
+            self.data = new_df
+        else:
+            # 기존 데이터와 새 데이터의 컬럼을 일치시킵니다
+            all_columns = set(self.data.columns) | set(new_df.columns)
+            for col in all_columns:
+                if col not in self.data.columns:
+                    self.data[col] = None
+                if col not in new_df.columns:
+                    new_df[col] = None
+
+            # 데이터 타입을 일치시킵니다
+            for col in all_columns:
+                if self.data[col].dtype != new_df[col].dtype:
+                    # 문자열(object) 타입으로 통일
+                    self.data[col] = self.data[col].astype(str)
+                    new_df[col] = new_df[col].astype(str)
+
+            # 데이터 연결
+            self.data = pd.concat([self.data, new_df], ignore_index=True)
+
+        # 데이터 저장
         self.data.to_csv(self.file_path, index=False)
+
+        # 로깅 추가
+        logger.info(f"Data saved to {self.file_path}. Total records: {len(self.data)}")
 
     def load_data(self) -> pd.DataFrame:
         if os.path.exists(self.file_path):
@@ -219,44 +271,33 @@ class PerformanceMonitor:
         if loss is not None:
             self.xgboost_loss = loss
 
-    def add_decision(self, decision, reason, actual_result):
-        self.decision_history.append({
+    def update(self, strategy_performance, hodl_performance, model_accuracies, model_weights,
+               current_balance, decision, trade_price, trade_percentage):
+        self.strategy_performance = strategy_performance
+        self.hodl_performance = hodl_performance
+        self.model_accuracies = model_accuracies
+        self.model_weights = model_weights
+        self.current_balance = current_balance
+        self.last_decision = {
             'decision': decision,
-            'reason': reason,
-            'actual_result': actual_result,
-            'timestamp': pd.Timestamp.now()
-        })
-        if len(self.decision_history) > 100:  # 최근 100개의 결정만 유지
-            self.decision_history.pop(0)
+            'price': trade_price,
+            'percentage': trade_percentage
+        }
+        self.save_to_file()
 
-    def get_improvement_suggestion(self, openai_client):
-        # GPT에 개선 제안을 요청
-        prompt = f"다음은 최근 트레이딩 결정과 그 결과입니다:\n\n"
-        for decision in self.decision_history[-5:]:  # 최근 5개의 결정만 사용
-            prompt += f"결정: {decision['decision']}\n"
-            prompt += f"이유: {decision['reason']}\n"
-            prompt += f"실제 결과: {decision['actual_result']}\n\n"
-        prompt += "이 정보를 바탕으로, 트레이딩 전략을 개선하기 위한 제안을 해주세요."
+    def update_trade_result(self, success, profit):
+        self.last_result = {'success': success, 'profit': profit}
+        self.total_trades += 1
+        self.total_profit += profit
+        if success:
+            self.total_successful_trades += 1
+        self.save_to_file()
 
-        try:
-            response = openai_client.chat_completion(
-                model="gpt-4o-mini",
-                messages=[
-                    {"role": "system",
-                     "content": "Please provide an analysis of a past decision made by GPT for a BTC trade, including the reasons behind the decision and the outcome. Afterward, please outline the factors that GPT should take into consideration to avoid repeating the same mistake in future trades. Please answer in a structured way to enhance readability."},
-                    {"role": "user", "content": prompt}
-                ],
-                max_tokens=150,
-                response_format={"type": "text"}
-            )
+    def update_success_rates(self, buy_hold_success_rate, sell_success_rate):
+        self.buy_hold_success_rate = buy_hold_success_rate
+        self.sell_success_rate = sell_success_rate
+        self.save_to_file()
 
-            suggestion = response.choices[0].message.content
-            self.improvement_suggestions.append(suggestion)
-            if len(self.improvement_suggestions) > 10:  # 최근 10개의 제안만 유지
-                self.improvement_suggestions.pop(0)
-
-            return suggestion
-        except Exception as e:
-            logger.error(f"GPT-4로부터 개선 제안을 받는 중 오류 발생: {e}")
-            return "개선 제안을 받는 중 오류가 발생했습니다."
-
+    def record_trade(self, trade_info):
+        self.trades.append(trade_info)
+        logger.info(f"Trade recorded: {trade_info}")

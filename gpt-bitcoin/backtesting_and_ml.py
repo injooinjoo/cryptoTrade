@@ -157,14 +157,6 @@ class MLPredictor:
     def get_loss(self):
         return self.last_loss
 
-    def clean_data(self, data: pd.DataFrame) -> pd.DataFrame:
-        # 무한대 값을 NaN으로 변환
-        data = data.replace([np.inf, -np.inf], np.nan)
-
-        # NaN 값이 있는 행 제거
-        data = data.dropna()
-
-        return data
 
     def validate_data(self, data: pd.DataFrame) -> bool:
         if not all(col in data.columns for col in self.features):
@@ -289,36 +281,6 @@ class Backtester:
             'final_balance': final_balance
         }
 
-    def calculate_sharpe_ratio(self, trades, data):
-        if len(trades) < 2:
-            return 0
-
-        returns = []
-        for i in range(1, len(trades)):
-            if trades[i][0] == 'sell' and trades[i - 1][0] == 'buy':
-                returns.append((trades[i][1] - trades[i - 1][1]) / trades[i - 1][1])
-
-        if not returns:
-            return 0
-
-        return np.mean(returns) / np.std(returns) if np.std(returns) != 0 else 0
-
-    def calculate_max_drawdown(self, trades, data):
-        if len(trades) < 2:
-            return 0
-
-        peak = 0
-        max_drawdown = 0
-
-        for trade in trades:
-            if trade[0] == 'buy':
-                peak = max(peak, trade[1])
-            elif trade[0] == 'sell':
-                drawdown = (peak - trade[1]) / peak
-                max_drawdown = max(max_drawdown, drawdown)
-
-        return max_drawdown
-
 def simple_moving_average_strategy(data: pd.DataFrame) -> int:
     if len(data) < 20:
         return 0
@@ -345,18 +307,6 @@ def run_backtest(data_manager, historical_data):
     results = backtester.run_backtest(simple_moving_average_strategy, start_time, end_time, historical_data)
 
     return results
-
-
-def tune_hyperparameters(self, X, y):
-    param_dist = {
-        'n_estimators': [10, 50, 100, 200],
-        'learning_rate': [0.01, 0.1, 0.3],
-        'max_depth': [3, 5, 7]
-    }
-    random_search = RandomizedSearchCV(self.model, param_distributions=param_dist, n_iter=10, cv=3, random_state=42)
-    random_search.fit(X, y)
-    self.model = random_search.best_estimator_
-    return random_search.best_params_
 
 
 class LSTMModel(nn.Module):

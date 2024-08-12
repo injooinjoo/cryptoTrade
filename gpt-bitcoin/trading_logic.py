@@ -168,56 +168,6 @@ def summarize_backtest_results(backtest_results: Dict[str, Any]) -> Dict[str, An
     }
 
 
-def get_market_analysis(data: pd.DataFrame) -> Dict[str, Any]:
-    current_price = data['close'].iloc[-1]
-    sma_60 = data['SMA'].iloc[-1] if 'SMA' in data.columns else current_price
-    ema_60 = data['EMA'].iloc[-1] if 'EMA' in data.columns else current_price
-    rsi_14 = data['RSI'].iloc[-1] if 'RSI' in data.columns else 50
-
-    return {
-        "current_price": current_price,
-        "sma_60_diff": (current_price - sma_60) / sma_60 * 100,
-        "ema_60_diff": (current_price - ema_60) / ema_60 * 100,
-        "rsi_14": rsi_14,
-        "rsi_state": get_rsi_state(rsi_14),
-        "bb_state": get_bb_state(data),
-        "trend": "Bullish" if current_price > sma_60 else "Bearish",
-        "volume_ratio": get_volume_ratio(data),
-    }
-
-
-def get_rsi_state(rsi: float) -> str:
-    if rsi < 30:
-        return "Oversold"
-    elif rsi > 70:
-        return "Overbought"
-    else:
-        return "Neutral"
-
-
-def get_volume_ratio(data: pd.DataFrame) -> float:
-    avg_volume = data['volume'].mean()
-    current_volume = data['volume'].iloc[-1]
-    return current_volume / avg_volume if avg_volume != 0 else 1.0
-
-
-def get_bb_state(data: pd.DataFrame) -> str:
-    """볼린저 밴드 상태를 확인합니다."""
-    if 'BB_Lower' not in data.columns or 'BB_Upper' not in data.columns:
-        return "BB_Lower or BB_Upper not found in data"
-
-    current_price = data['close'].iloc[-1]
-    bb_lower = data['BB_Lower'].iloc[-1]
-    bb_upper = data['BB_Upper'].iloc[-1]
-
-    if pd.isna(bb_lower) or pd.isna(bb_upper):
-        return "BB values are NaN"
-
-    if current_price <= bb_lower:
-        return "Lower Band Touch"
-    elif current_price >= bb_upper:
-        return "Upper Band Touch"
-    return "Inside Bands"
 
 
 def evaluate_decisions(recent_decisions: List[Dict[str, Any]], current_price: float) -> Dict[str, Any]:
@@ -281,11 +231,15 @@ def get_gpt4_instructions() -> str:
         },
         "potential_buy": {
             "percentage": number between 0 and 100,
-            "target_price": number
+            "target_price": number,
+            "stop_loss": number (must be realistic for the next 10 minutes),
+            "take_profit": number (must be realistic for the next 10 minutes),
         },
         "potential_sell": {
             "percentage": number between 0 and 100,
-            "target_price": number
+            "target_price": number,
+            "stop_loss": number (must be realistic for the next 10 minutes),
+            "take_profit": number (must be realistic for the next 10 minutes),
         }
         }
         response in response_format json
@@ -318,48 +272,6 @@ def default_hold_decision() -> Dict[str, Any]:
     }
 
 
-def trading_strategy(data: pd.DataFrame, params: Dict[str, Any], openai_client: OpenAIClient,
-                     upbit_client: UpbitClient) -> Dict[str, Any]:
-    end_time = int(time.time())
-    start_time = end_time - (60 * 60 * 24)  # 24시간 데이터
-    data = data_manager.get_data_for_training(start_time, end_time)
-
-    ml_prediction = ml_predictor.predict(data)
-    rl_action = rl_agent.act(prepare_state(data))
-    gpt4_advice = analyze_data_with_gpt4(data, openai_client, params, upbit_client,
-                                         data_manager.get_average_accuracy(), [], [], "", ml_prediction, rl_action, {})
-
-    ml_accuracy = ml_predictor.get_accuracy()
-    rl_reward = rl_agent.get_average_reward()
-    gpt_accuracy = data_manager.get_average_accuracy()
-
-    weights = calculate_weights(ml_accuracy, rl_reward, gpt_accuracy)
-
-    decisions = {
-        'ml': 1 if ml_prediction == 1 else -1,
-        'rl': 1 if rl_action == 2 else -1 if rl_action == 0 else 0,
-        'gpt4': 1 if gpt4_advice['decision'] == 'buy' else -1 if gpt4_advice['decision'] == 'sell' else 0
-    }
-
-    weighted_decision = sum(decisions[model] * weight for model, weight in weights.items())
-
-    final_decision = 'buy' if weighted_decision > 0 else 'sell' if weighted_decision < 0 else 'hold'
-
-    return {
-        'decision': final_decision,
-        'percentage': gpt4_advice['percentage'],
-        'target_price': gpt4_advice['target_price'],
-        'stop_loss': gpt4_advice['stop_loss'],
-        'take_profit': gpt4_advice['take_profit'],
-        'reasoning': f"Weighted decision based on ML ({weights['ml']:.2f}), RL ({weights['rl']:.2f}), and GPT-4 ({weights['gpt4']:.2f}). {gpt4_advice['reasoning']}"
-    }
-
-
-def prepare_state(data: pd.DataFrame) -> np.ndarray:
-    """RL 에이전트를 위한 상태를 준비합니다."""
-    return data[['open', 'high', 'low', 'close', 'volume']].values[-1].reshape(1, -1)
-
-
 def execute_trade(upbit_client: UpbitClient, decision: Dict[str, Any], config: Dict[str, Any]) -> Dict[str, Any]:
     try:
         if decision['decision'] == 'hold':
@@ -371,72 +283,80 @@ def execute_trade(upbit_client: UpbitClient, decision: Dict[str, Any], config: D
 
         min_trade_amount = config.get('min_trade_amount', 5000)
 
-        if decision['decision'] == 'buy':
-            krw_balance = upbit_client.get_balance("KRW")
-            if krw_balance is None:
-                return {"success": False, "message": "Failed to get KRW balance", "uuid": None}
+        # 총 자산 가치 계산
+        krw_balance = upbit_client.get_balance("KRW")
+        btc_balance = upbit_client.get_balance("BTC")
+        total_asset_value = krw_balance + (btc_balance * current_price)
+        logger.info(f'총 자산 가치: {total_asset_value:.2f} KRW (KRW: {krw_balance:.2f}, BTC: {btc_balance:.8f})')
 
-            amount_to_buy = (krw_balance * decision['percentage'] / 100) / current_price
-            if amount_to_buy * current_price < min_trade_amount:
-                logger.warning(
-                    f"Buy amount ({amount_to_buy * current_price:.2f} KRW) is less than minimum trade amount ({min_trade_amount} KRW)")
+        trade_percentage = decision.get('percentage', 100)  # 기본값을 100%로 설정
+
+        if decision['decision'] == 'buy':
+            amount_to_buy_krw = min(total_asset_value * trade_percentage / 100, krw_balance)
+            amount_to_buy = amount_to_buy_krw / current_price
+            logger.info(f'매수 시도: {amount_to_buy:.8f} BTC (약 {amount_to_buy_krw:.2f} KRW)')
+
+            if amount_to_buy_krw < min_trade_amount:
                 return {"success": False, "message": f"매수 금액이 최소 거래 금액({min_trade_amount} KRW)보다 작습니다.", "uuid": None}
 
             result = execute_buy(upbit_client, amount_to_buy, current_price, config)
         else:  # sell
-            btc_balance = upbit_client.get_balance("BTC")
-            if btc_balance is None:
-                return {"success": False, "message": "Failed to get BTC balance", "uuid": None}
+            amount_to_sell_btc = min(btc_balance * trade_percentage / 100, btc_balance)
+            amount_to_sell_krw = amount_to_sell_btc * current_price
+            logger.info(f'매도 시도: {amount_to_sell_btc:.8f} BTC (약 {amount_to_sell_krw:.2f} KRW)')
 
-            amount_to_sell = btc_balance * decision['percentage'] / 100
-            if amount_to_sell * current_price < min_trade_amount:
-                logger.warning(
-                    f"Sell amount ({amount_to_sell * current_price:.2f} KRW) is less than minimum trade amount ({min_trade_amount} KRW)")
+            if amount_to_sell_krw < min_trade_amount:
                 return {"success": False, "message": f"매도 금액이 최소 거래 금액({min_trade_amount} KRW)보다 작습니다.", "uuid": None}
 
-            result = execute_sell(upbit_client, amount_to_sell, current_price, config)
+            result = execute_sell(upbit_client, amount_to_sell_btc, current_price, config)
 
-        if result['success']:
-            logger.info(
-                f"{decision['decision'].capitalize()} order executed: {result['amount']:.8f} BTC at {result['price']} KRW")
-            return {
-                "success": True,
-                "message": f"{decision['decision'].capitalize()} order executed: {result['amount']:.8f} BTC at {result['price']} KRW",
-                "uuid": result['uuid'],
-                "amount": result['amount'],
-                "price": result['price'],
-                "stop_loss": decision.get('stop_loss'),
-                "take_profit": decision.get('take_profit')
-            }
-        else:
-            return {"success": False, "message": result['message'], "uuid": None}
+        logger.info(f'거래 결과: {result}')
+        return result
 
     except Exception as e:
         logger.error(f"Error executing trade: {e}")
         return {"success": False, "message": f"Error: {str(e)}", "uuid": None}
 
 
-def execute_buy(upbit_client: UpbitClient, amount_to_buy: float, current_price: float, config: Dict[str, Any]) -> Dict[str, Any]:
+def execute_buy(upbit_client: UpbitClient, amount_to_buy: float, current_price: float, config: Dict[str, Any]) -> Dict[
+    str, Any]:
     try:
         min_trade_amount = config.get('min_trade_amount', 5000)
 
         # BTC 주문 개수를 소수점 8자리까지 내림
-        amount_to_buy = math.floor(amount_to_buy * 100000000) / 100000000
+        amount_to_buy = math.floor(amount_to_buy * 10000000) / 10000000
         # KRW 가격을 정수로 변환
         current_price = int(current_price)
 
-        if amount_to_buy * current_price < min_trade_amount:
-            logger.warning(f"매수 금액이 최소 거래 금액({min_trade_amount} KRW)보다 작습니다. 금액: {int(amount_to_buy * current_price)} KRW")
-            return {"success": False, "message": f"매수 금액이 최소 거래 금액({min_trade_amount} KRW)보다 작습니다."}
-
         # KRW 잔고 확인
         krw_balance = int(upbit_client.get_balance("KRW"))
-        if krw_balance < int(amount_to_buy * current_price):
-            logger.warning(f"KRW 잔고 부족. 필요: {int(amount_to_buy * current_price)} KRW, 보유: {krw_balance} KRW")
-            return {"success": False, "message": f"KRW 잔고 부족. 필요: {int(amount_to_buy * current_price)} KRW, 보유: {krw_balance} KRW"}
+        logger.info(f"현재 KRW 잔고: {krw_balance} KRW")
 
-        print(f'BUY: {current_price} | {amount_to_buy:.8f}')
+        # 수수료를 고려한 실제 구매 가능 금액 계산 (0.05% 수수료 가정)
+        fee_rate = 0.0005
+        max_buyable_amount = krw_balance / (current_price * (1 + fee_rate))
+
+        # 구매 가능한 최대 금액으로 조정
+        amount_to_buy = min(amount_to_buy, max_buyable_amount)
+
+        # 다시 소수점 8자리까지 내림
+        amount_to_buy = math.floor(amount_to_buy * 10000000) / 10000000
+
+        total_buy_amount = int(amount_to_buy * current_price)
+        logger.info(f"조정된 구매 금액: {total_buy_amount} KRW (BTC: {amount_to_buy})")
+
+        if total_buy_amount < min_trade_amount:
+            logger.warning(f"매수 금액이 최소 거래 금액({min_trade_amount} KRW)보다 작습니다. 금액: {total_buy_amount} KRW")
+            return {"success": False, "message": f"매수 금액이 최소 거래 금액({min_trade_amount} KRW)보다 작습니다."}
+
+        if krw_balance < total_buy_amount:
+            logger.warning(f"KRW 잔고 부족. 필요: {total_buy_amount} KRW, 보유: {krw_balance} KRW")
+            return {"success": False, "message": f"KRW 잔고 부족. 필요: {total_buy_amount} KRW, 보유: {krw_balance} KRW"}
+
+        logger.info(f'매수 주문 시도: {current_price} KRW | {amount_to_buy} BTC')
         result = upbit_client.buy_limit_order("KRW-BTC", current_price, amount_to_buy)
+        logger.info(f"업비트 API 응답: {result}")
+
         if result and isinstance(result, dict) and 'uuid' in result:
             logger.info(f"매수 주문 성공: {amount_to_buy:.8f} BTC at {current_price} KRW")
             return {"success": True, "amount": amount_to_buy, "price": current_price, "uuid": result['uuid']}
@@ -453,7 +373,7 @@ def execute_sell(upbit_client: UpbitClient, amount_to_sell: float, current_price
         min_trade_amount = config.get('min_trade_amount', 5000)
 
         # BTC 판매 개수를 소수점 8자리까지 내림
-        amount_to_sell = math.floor(amount_to_sell * 100000000) / 100000000
+        amount_to_sell = math.floor(amount_to_sell * 10000000)/ 10000000
         # KRW 가격을 정수로 변환
         current_price = int(current_price)
 
@@ -480,14 +400,3 @@ def execute_sell(upbit_client: UpbitClient, amount_to_sell: float, current_price
         logger.error(f"매도 주문 실행 중 오류 발생: {e}", exc_info=True)
         return {"success": False, "message": str(e)}
 
-def calculate_weights(ml_accuracy: float, rl_reward: float, gpt_accuracy: float) -> Dict[str, float]:
-    total = ml_accuracy + rl_reward + gpt_accuracy
-    if total == 0:
-        return {'ml': 1 / 3, 'rl': 1 / 3, 'gpt4': 1 / 3}
-
-    weights = {
-        'ml': ml_accuracy / total,
-        'rl': rl_reward / total,
-        'gpt4': gpt_accuracy / total
-    }
-    return weights

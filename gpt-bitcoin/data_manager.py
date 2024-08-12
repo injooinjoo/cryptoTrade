@@ -33,59 +33,6 @@ class DataManager:
                 )
             ''')
 
-    def recreate_technical_indicators_table(self):
-        with self.conn:
-            self.conn.execute("DROP TABLE IF EXISTS technical_indicators")
-            logger.info("Dropped existing technical_indicators table if it existed.")
-
-            self.conn.execute('''
-                CREATE TABLE technical_indicators (
-                    timestamp INTEGER PRIMARY KEY,
-                    sma REAL,
-                    ema REAL,
-                    rsi REAL,
-                    macd REAL,
-                    signal_line REAL,
-                    BB_Upper REAL,  -- 이 부분을 수정
-                    BB_Lower REAL   -- 이 부분을 수정
-                )
-            ''')
-            logger.info("Recreated technical_indicators table with the correct schema.")
-
-            # Log the schema to confirm it was created correctly
-            cursor = self.conn.cursor()
-            cursor.execute("PRAGMA table_info(technical_indicators)")
-            columns = [info[1] for info in cursor.fetchall()]
-            logger.info(f"Columns after table creation: {columns}")
-
-    def add_missing_columns(self):
-        cursor = self.conn.cursor()
-
-        cursor.execute("PRAGMA table_info(technical_indicators)")
-        columns = [info[1] for info in cursor.fetchall()]
-
-        logger.info(f"현재 technical_indicators 테이블의 열 목록: {columns}")
-
-        if 'BB_Upper' not in columns:
-            try:
-                cursor.execute("ALTER TABLE technical_indicators ADD COLUMN BB_Upper REAL")
-                logger.info("BB_Upper 열이 technical_indicators 테이블에 추가되었습니다.")
-            except sqlite3.OperationalError as e:
-                logger.error(f"BB_Upper 열 추가 중 오류 발생: {e}")
-
-        if 'BB_Lower' not in columns:
-            try:
-                cursor.execute("ALTER TABLE technical_indicators ADD COLUMN BB_Lower REAL")
-                logger.info("BB_Lower 열이 technical_indicators 테이블에 추가되었습니다.")
-            except sqlite3.OperationalError as e:
-                logger.error(f"BB_Lower 열 추가 중 오류 발생: {e}")
-
-        self.conn.commit()
-
-        cursor.execute("PRAGMA table_info(technical_indicators)")
-        updated_columns = [info[1] for info in cursor.fetchall()]
-        logger.info(f"열 추가 후 technical_indicators 테이블의 열 목록: {updated_columns}")
-
     def add_new_data(self, new_data: pd.DataFrame):
         logger.info(f"Adding new data. Shape: {new_data.shape}")
 
@@ -156,19 +103,6 @@ class DataManager:
             latest_data.reset_index(inplace=True)
             latest_data.rename(columns={'index': 'date'}, inplace=True)
             self.add_new_data(latest_data)
-
-    def calculate_indicators(self, data: pd.DataFrame) -> pd.DataFrame:
-        logger.info(f"데이터 프레임 컬럼: {data.columns}")
-        logger.info(f"데이터 프레임 샘플:\n{data.head()}")
-
-        indicators = pd.DataFrame(index=data.index)
-        indicators['sma'] = self.calculate_sma(data)
-        indicators['ema'] = self.calculate_ema(data)
-        indicators['rsi'] = self.calculate_rsi(data)
-        indicators['macd'], indicators['signal_line'] = self.calculate_macd(data)
-        indicators['BB_Upper'], indicators['BB_Lower'] = self.calculate_bollinger_bands(data)
-
-        return indicators.ffill()  # NaN 값을 앞의 유효한 값으로 채우기
 
     def calculate_sma(self, data, period=20):
         return data['close'].rolling(window=period).mean()
@@ -269,20 +203,6 @@ class DataManager:
             df = pd.read_sql_query(query, self.conn)
         return df.to_dict('records')
 
-    def add_technical_indicators_to_db(self, data: pd.DataFrame):
-        with self.conn:
-            try:
-                # UPSERT 구문 사용
-                data[['timestamp', 'sma', 'ema', 'rsi', 'macd', 'signal_line', 'BB_Upper', 'BB_Lower']].to_sql(
-                    'technical_indicators',
-                    self.conn,
-                    if_exists='replace',
-                    index=False
-                )
-                logger.info(f"Updated {len(data)} rows of technical indicators in the database")
-            except sqlite3.Error as e:
-                logger.error(f"Database error: {e}")
-
     def fetch_extended_historical_data(self, days: int = 365):
         end_date = pd.Timestamp.now()
         start_date = end_date - pd.Timedelta(days=days)
@@ -352,26 +272,6 @@ class DataManager:
 
         logger.info(f"ohlcv_data columns: {ohlcv_columns}")
         logger.info(f"technical_indicators columns: {indicator_columns}")
-
-    def add_timestamp_column(self):
-        with self.conn:
-            cursor = self.conn.cursor()
-            cursor.execute("PRAGMA table_info(ohlcv_data)")
-            columns = [info[1] for info in cursor.fetchall()]
-
-            if 'timestamp' not in columns:
-                if 'date' in columns:
-                    cursor.execute("ALTER TABLE ohlcv_data ADD COLUMN timestamp INTEGER")
-                    cursor.execute(
-                        "UPDATE ohlcv_data SET timestamp = CAST(strftime('%s', date) AS INTEGER) WHERE timestamp IS NULL")
-                else:
-                    # 첫 번째 컬럼이 날짜 정보일 경우
-                    date_column_name = columns[0]  # 첫 번째 컬럼을 date로 가정
-                    cursor.execute("ALTER TABLE ohlcv_data ADD COLUMN timestamp INTEGER")
-                    cursor.execute(
-                        f"UPDATE ohlcv_data SET timestamp = CAST(strftime('%s', {date_column_name}) AS INTEGER) WHERE timestamp IS NULL")
-
-                logger.info("Added timestamp column to ohlcv_data table")
 
     def debug_database(self):
         with self.conn:
