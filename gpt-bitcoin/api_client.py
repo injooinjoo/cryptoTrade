@@ -1,4 +1,6 @@
 import logging
+import random
+import time
 from datetime import datetime, timedelta
 
 import pandas as pd
@@ -18,8 +20,21 @@ class UpbitClient:
     def get_avg_buy_price(self, ticker: str) -> float:
         return self.upbit.get_avg_buy_price(ticker)
 
-    def get_current_price(self, ticker: str) -> float:
-        return pyupbit.get_current_price(ticker)
+    def get_current_price(self, ticker: str, max_retries=3, delay=1) -> float:
+        for attempt in range(max_retries):
+            try:
+                price = pyupbit.get_current_price(ticker)
+                if price is not None:
+                    return float(price)
+                logger.warning(f"가격 정보를 받아오지 못했습니다. 티커: {ticker}, 시도: {attempt + 1}/{max_retries}")
+            except Exception as e:
+                logger.error(f"현재 가격을 가져오는 중 오류 발생: {e}, 시도: {attempt + 1}/{max_retries}")
+
+            if attempt < max_retries - 1:
+                time.sleep(delay * (2 ** attempt) + random.uniform(0, 1))
+
+        logger.error(f"최대 재시도 횟수({max_retries})를 초과했습니다. 티커: {ticker}")
+        return None
 
     def get_ohlcv(self, ticker: str, interval: str, count: int, to=None):
         try:

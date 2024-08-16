@@ -272,14 +272,16 @@ def default_hold_decision() -> Dict[str, Any]:
     }
 
 
-def execute_trade(upbit_client: UpbitClient, decision: Dict[str, Any], config: Dict[str, Any]) -> Dict[str, Any]:
+def execute_trade(upbit_client: UpbitClient, decision: Dict[str, Any], config: Dict[str, Any], current_btc_holding: bool) -> Dict[str, Any]:
     try:
+
+
         if decision['decision'] == 'hold':
-            return {"success": True, "message": "Hold position", "uuid": None}
+            return {"success": True, "message": "Hold position", "uuid": None, "has_btc": current_btc_holding}
 
         current_price = upbit_client.get_current_price("KRW-BTC")
         if current_price is None:
-            return {"success": False, "message": "Failed to get current price", "uuid": None}
+            return {"success": False, "message": "Failed to get current price", "uuid": None, "has_btc": current_btc_holding}
 
         min_trade_amount = config.get('min_trade_amount', 5000)
 
@@ -297,25 +299,31 @@ def execute_trade(upbit_client: UpbitClient, decision: Dict[str, Any], config: D
             logger.info(f'매수 시도: {amount_to_buy:.8f} BTC (약 {amount_to_buy_krw:.2f} KRW)')
 
             if amount_to_buy_krw < min_trade_amount:
-                return {"success": False, "message": f"매수 금액이 최소 거래 금액({min_trade_amount} KRW)보다 작습니다.", "uuid": None}
+                return {"success": False, "message": f"매수 금액이 최소 거래 금액({min_trade_amount} KRW)보다 작습니다.", "uuid": None, "has_btc": current_btc_holding}
 
-            result = execute_buy(upbit_client, amount_to_buy, current_price, config)
-        else:  # sell
+            result = upbit_client.buy_limit_order("KRW-BTC", current_price, amount_to_buy)
+            if result and 'uuid' in result:
+                return {"success": True, "message": "Buy order placed", "uuid": result['uuid'], "amount": amount_to_buy, "price": current_price, "has_btc": True}
+            else:
+                return {"success": False, "message": "Failed to place buy order", "uuid": None, "has_btc": current_btc_holding}
+
+        elif decision['decision'] == 'sell':
             amount_to_sell_btc = min(btc_balance * trade_percentage / 100, btc_balance)
             amount_to_sell_krw = amount_to_sell_btc * current_price
             logger.info(f'매도 시도: {amount_to_sell_btc:.8f} BTC (약 {amount_to_sell_krw:.2f} KRW)')
 
             if amount_to_sell_krw < min_trade_amount:
-                return {"success": False, "message": f"매도 금액이 최소 거래 금액({min_trade_amount} KRW)보다 작습니다.", "uuid": None}
+                return {"success": False, "message": f"매도 금액이 최소 거래 금액({min_trade_amount} KRW)보다 작습니다.", "uuid": None, "has_btc": current_btc_holding}
 
-            result = execute_sell(upbit_client, amount_to_sell_btc, current_price, config)
-
-        logger.info(f'거래 결과: {result}')
-        return result
+            result = upbit_client.sell_limit_order("KRW-BTC", current_price, amount_to_sell_btc)
+            if result and 'uuid' in result:
+                return {"success": True, "message": "Sell order placed", "uuid": result['uuid'], "amount": amount_to_sell_btc, "price": current_price, "has_btc": False}
+            else:
+                return {"success": False, "message": "Failed to place sell order", "uuid": None, "has_btc": current_btc_holding}
 
     except Exception as e:
         logger.error(f"Error executing trade: {e}")
-        return {"success": False, "message": f"Error: {str(e)}", "uuid": None}
+        return {"success": False, "message": f"Error: {str(e)}", "uuid": None, "has_btc": current_btc_holding}
 
 
 def execute_buy(upbit_client: UpbitClient, amount_to_buy: float, current_price: float, config: Dict[str, Any]) -> Dict[

@@ -1,10 +1,10 @@
+import json
 import logging
-import os
-from datetime import datetime
+import time
+from typing import Dict, Any
 
-import numpy as np
 import pandas as pd
-from api_client import UpbitClient
+from tabulate import tabulate
 
 logger = logging.getLogger(__name__)
 
@@ -13,52 +13,160 @@ class PerformanceMonitor:
     def __init__(self, upbit_client, file_path='performance_data.csv'):
         self.upbit_client = upbit_client
         self.file_path = file_path
-        self.data = self.load_data()
-        self.total_trades = len(self.data)
-        self.initial_btc_price = self.data['current_price'].iloc[0] if not self.data.empty else None
-        self.initial_balance = self.data['balance'].iloc[0] if not self.data.empty else None
-        self.start_time = pd.to_datetime(self.data['timestamp'].iloc[0],
-                                         format='mixed') if not self.data.empty else datetime.now()
 
+        # 초기 잔액 및 가격 설정
+        self.initial_balance = self.upbit_client.get_balance("KRW")
+        self.initial_btc_balance = self.upbit_client.get_balance("BTC")
+        self.initial_btc_price = self.upbit_client.get_current_price("KRW-BTC")
+
+        # 현재 상태 변수들
+        self.current_balance = self.initial_balance
+        self.current_btc_balance = self.initial_btc_balance
+
+        # 거래 관련 변수들
+        self.total_trades = 0
+        self.total_buy_trades = 0
+        self.total_sell_trades = 0
+        self.total_hold_trades = 0
+        self.total_successful_trades = 0
+        self.total_successful_buys = 0
+        self.total_successful_sells = 0
+        self.total_successful_holds = 0
+        self.buy_hold_trades = 0
+        self.successful_buy_hold_trades = 0
+        self.sell_trades = 0
+        self.successful_sell_trades = 0
+
+        # 최근 거래 정보
+        self.last_decision = 'hold'
+        self.last_trade_price = 0
+        self.last_trade_percentage = 0
+        self.last_trade_success = False
+        self.last_trade_profit = 0
+
+        # 성과 관련 변수들
+        self.total_profit = 0
+        self.strategy_performance = 0
+        self.hodl_performance = 0
+        self.buy_hold_success_rate = 0.0
+        self.sell_success_rate = 0.0
+
+        # 모델 성능 관련 변수들
+        self.total_predictions = 0
+        self.model_accuracies: Dict[str, Dict[str, Any]] = {
+            model: {'correct': 0, 'total': 0, 'accuracy': 0.0}
+            for model in ['gpt', 'ml', 'xgboost', 'rl', 'lstm', 'arima', 'prophet', 'transformer']
+        }
+
+        self.model_weights = {
+            'gpt': 0.2, 'ml': 0.2, 'xgboost': 0.2, 'rl': 0.2, 'lstm': 0.2,
+            'arima': 0.2, 'prophet': 0.2, 'transformer': 0.2
+        }
+
+        # LSTM 관련 변수들
         self.lstm_accuracy_history = []
         self.lstm_loss_history = []
         self.lstm_mse_history = []
         self.lstm_mae_history = []
 
-        self.decision_history = []
-        self.improvement_suggestions = []
+        # 기타 메트릭스
+        self.mse = 0
+        self.mae = 0
 
-        # 전체 성과 추적을 위한 변수들
-        self.total_buy_trades = self.data['decision'].value_counts().get('buy', 0)
-        self.total_sell_trades = self.data['decision'].value_counts().get('sell', 0)
-        self.total_hold_trades = self.data['decision'].value_counts().get('hold', 0)
-        self.total_successful_trades = self.data['success'].sum() if 'success' in self.data.columns else 0
-        self.total_successful_buys = self.data[(self.data['decision'] == 'buy') & (self.data['success'] == True)].shape[
-            0] if 'success' in self.data.columns else 0
-        self.total_successful_sells = \
-        self.data[(self.data['decision'] == 'sell') & (self.data['success'] == True)].shape[
-            0] if 'success' in self.data.columns else 0
-        self.total_successful_holds = \
-        self.data[(self.data['decision'] == 'hold') & (self.data['success'] == True)].shape[
-            0] if 'success' in self.data.columns else 0
-        self.hodl_performance = 0
-        self.strategy_performance = 0
-        self.model_accuracies = {
-            'gpt': 0, 'ml': 0, 'xgboost': 0, 'rl': 0, 'lstm': 0
-        }
-        self.model_weights = {
-            'gpt': 0.2, 'ml': 0.2, 'xgboost': 0.2, 'rl': 0.2, 'lstm': 0.2
-        }
-        self.initial_balance = 0
-        self.current_balance = 0
-        self.last_decision = {'decision': 'hold', 'price': 0, 'percentage': 0}
-        self.last_result = {'success': False, 'profit': 0}
-        self.buy_hold_success_rate = 0
-        self.sell_success_rate = 0
-        self.total_trades = 0
-        self.total_profit = 0
+        # 거래 이력
         self.trades = []
+        self.weights = {}  # 이 줄을 추가
 
+        # 초기 총 자산 가치 계산
+        if self.initial_balance is None or self.initial_balance < 1000:
+            logger.warning("초기 KRW 잔액이 너무 적거나 가져오는 데 실패했습니다. 기본값 500,000 KRW를 사용합니다.")
+            self.initial_balance = 500_000
+
+        if self.initial_btc_price is None or self.initial_btc_price == 0:
+            logger.warning("초기 BTC 가격을 가져오는 데 실패했습니다. 현재 가격을 사용합니다.")
+            self.initial_btc_price = self.upbit_client.get_current_price("KRW-BTC")
+
+        self.initial_total_value = self.initial_balance + (self.initial_btc_balance * self.initial_btc_price)
+        logger.info(f"초기 총 자산 가치: {self.initial_total_value} KRW")
+
+        # 데이터 프레임 초기화
+        self.data = pd.DataFrame()
+
+        # 파일에서 기존 데이터 로드 (있는 경우)
+        try:
+            self.data = pd.read_csv(file_path)
+            logger.info(f"Loaded existing data from {file_path}")
+        except FileNotFoundError:
+            logger.info(f"No existing data file found at {file_path}. Starting with empty DataFrame.")
+
+        self.accuracy_history = {model: [] for model in
+                                 ['gpt', 'ml', 'xgboost', 'rl', 'lstm', 'arima', 'prophet', 'transformer']}
+        self.prediction_history = []
+
+        self.correct_predictions = {model: 0 for model in
+                                    ['gpt', 'ml', 'xgboost', 'rl', 'lstm', 'arima', 'prophet', 'transformer']}
+        self.total_predictions = {model: 0 for model in
+                                  ['gpt', 'ml', 'xgboost', 'rl', 'lstm', 'arima', 'prophet', 'transformer']}
+
+        self.last_known_btc_price = None
+
+    def update_prediction_accuracy(self, model: str, is_correct: bool):
+        if model not in self.model_accuracies or not isinstance(self.model_accuracies[model], dict):
+            logger.warning(f"Unknown or incorrectly initialized model: {model}. Re-initializing accuracy tracking.")
+            self.model_accuracies[model] = {'correct': 0, 'total': 0, 'accuracy': 0.0}
+
+        print(self.model_accuracies)
+        self.model_accuracies[model]['total'] = int(self.model_accuracies[model]['total']) + 1
+        if is_correct:
+            self.model_accuracies[model]['correct'] = int(self.model_accuracies[model]['correct']) + 1
+
+        total = int(self.model_accuracies[model]['total'])
+        correct = int(self.model_accuracies[model]['correct'])
+        self.model_accuracies[model]['accuracy'] = float(correct) / float(total) if total > 0 else 0.0
+
+        logger.debug(f"Updated accuracy for {model}: {self.model_accuracies[model]}")
+
+    def update_weights(self, weights):
+        self.weights = weights
+
+    def get_current_btc_price(self):
+        price = self.upbit_client.get_current_price("KRW-BTC")
+        if price is not None:
+            self.last_known_btc_price = price
+        return price
+
+    def update_model_accuracy(self, model: str, is_correct: bool):
+        if model in self.model_accuracies:
+            self.model_accuracies[model]['total'] += 1
+            if is_correct:
+                self.model_accuracies[model]['correct'] += 1
+
+    def get_model_accuracy(self, model: str) -> float:
+        if model not in self.model_accuracies:
+            print(f"No accuracy data for model: {model}")  # 디버깅을 위한 출력
+            return 0.0
+
+        data = self.model_accuracies[model]
+        if isinstance(data, dict) and 'accuracy' in data:
+            return data['accuracy']
+        elif isinstance(data, (int, float)):
+            return float(data)
+        else:
+            print(f"Unexpected data structure for model {model}: {data}")  # 디버깅을 위한 출력
+            return 0.0
+
+    def get_all_model_accuracies(self) -> Dict[str, float]:
+        return {model: self.get_model_accuracy(model) for model in self.model_accuracies}
+
+    def reset_accuracy_data(self):
+        for model in self.model_accuracies:
+            self.model_accuracies[model] = {'correct': 0, 'total': 0}
+        logger.info("All model accuracy data has been reset.")
+
+    def log_accuracy_summary(self):
+        logger.info("Current model accuracy summary:")
+        for model, accuracy in self.get_all_model_accuracies().items():
+            logger.info(f"{model}: {accuracy:.2%}")
 
     def record(self, decision: dict, current_price: float, balance: float, btc_amount: float,
                params: dict, regime: str, anomalies: bool, ml_accuracy: float, ml_loss: float):
@@ -103,6 +211,10 @@ class PerformanceMonitor:
 
         self.save_to_file()
 
+    def get_recent_prediction_accuracy(self):
+        return {model: sum(history[-50:]) / len(history[-50:]) if history else 0
+                for model, history in self.accuracy_history.items()}
+
     def _is_trade_successful(self, decision, current_price):
         if self.data.empty or len(self.data) < 2:
             return False
@@ -121,55 +233,94 @@ class PerformanceMonitor:
         total_balance = krw_balance + (btc_balance * btc_price)
         return krw_balance, btc_balance, total_balance
 
-    def get_performance_summary(self):
-        def safe_format(value, format_spec):
-            return format(value, format_spec) if value is not None else "N/A"
+    def get_performance_summary(self, weights: Dict[str, float]) -> str:
+        current_btc_price = self.get_current_btc_price()
+        if current_btc_price is None:
+            current_btc_price = self.last_known_btc_price or 0
 
-        current_krw, current_btc, current_total = self.get_current_balances()
+        total_asset_value = self.current_balance + (self.current_btc_balance * current_btc_price)
 
-        summary = f"""
-        트레이딩 성과 요약
-        ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        1. 수익률 비교:
-           • 전략 진행 수익률: {safe_format(self.strategy_performance, '.2f')}%
-           • HODL 수익률: {safe_format(self.hodl_performance, '.2f')}%
+        strategy_return, hodl_return = self.calculate_returns()
 
-        2. 모델별 예측 성공률:
-           • GPT: {safe_format(self.model_accuracies.get('gpt') * 100, '.2f')}%
-           • ML: {safe_format(self.model_accuracies.get('ml') * 100, '.2f')}%
-           • XGBoost: {safe_format(self.model_accuracies.get('xgboost') * 100, '.2f')}%
-           • RL: {safe_format(self.model_accuracies.get('rl') * 100, '.2f')}%
-           • LSTM: {safe_format(self.model_accuracies.get('lstm') * 100, '.2f')}%
+        summary = "\n📊 트레이딩 성능 요약 📊\n"
+        summary += "=" * 50 + "\n\n"
 
-        3. 모델별 의사결정 비중:
-           • GPT: {safe_format(self.model_weights.get('gpt'), '.2f')}
-           • ML: {safe_format(self.model_weights.get('ml'), '.2f')}
-           • XGBoost: {safe_format(self.model_weights.get('xgboost'), '.2f')}
-           • RL: {safe_format(self.model_weights.get('rl'), '.2f')}
-           • LSTM: {safe_format(self.model_weights.get('lstm'), '.2f')}
+        # 1. 수익률 비교
+        summary += "1. 수익률 비교\n"
+        returns_data = [
+            ["전략 진행 수익률", f"{strategy_return:.2f}%"],
+            ["HODL 수익률", f"{hodl_return:.2f}%"]
+        ]
+        summary += tabulate(returns_data, headers=["지표", "값"], tablefmt="grid") + "\n\n"
 
-        4. 자산 현황:
-           • 시작 금액: {safe_format(self.initial_balance, ',.0f')} KRW
-           • 현재 KRW: {safe_format(current_krw, ',.0f')} KRW
-           • 현재 BTC: {safe_format(current_btc, '.8f')} BTC
-           • 현재 총 자산 가치: {safe_format(current_total, ',.0f')} KRW
+        # 2. 모델별 예측 성공률 및 가중치
+        summary += "2. 모델별 성능\n"
+        model_data = []
+        for model in self.model_accuracies.keys():
+            accuracy = self.get_model_accuracy(model) * 100
+            weight = weights.get(model, 0) * 100
+            model_data.append([model.upper(), f"{accuracy:.2f}%", f"{weight:.2f}%"])
+        summary += tabulate(model_data, headers=["모델", "정확도", "가중치"], tablefmt="grid") + "\n\n"
 
-        5. 최근 거래 정보:
-           • 결정: {self.last_decision.get('decision', 'N/A')}
-           • 거래가: {safe_format(self.last_decision.get('price'), ',.0f')} KRW
-           • 거래 비율: {safe_format(self.last_decision.get('percentage'), '.2f')}%
+        # 3. 자산 현황
+        summary += "3. 자산 현황\n"
+        asset_data = [
+            ["시작 금액", f"{self.initial_balance:,.0f} KRW"],
+            ["현재 KRW", f"{self.current_balance:,.0f} KRW"],
+            ["현재 BTC", f"{self.current_btc_balance:.8f} BTC"],
+            ["현재 총 자산 가치", f"{total_asset_value:,.0f} KRW"]
+        ]
+        summary += tabulate(asset_data, headers=["항목", "값"], tablefmt="grid") + "\n\n"
 
-        6. 거래 성공률:
-           • 매수(+홀드) 성공률: {safe_format(self.buy_hold_success_rate, '.2f')}%
-           • 매도 성공률: {safe_format(self.sell_success_rate, '.2f')}%
+        # 4. 거래 통계
+        summary += "4. 거래 통계\n"
+        trade_data = [
+            ["총 거래 횟수", self.total_trades],
+            ["성공한 거래", self.total_successful_trades],
+            ["매수(+홀드) 성공률", f"{self.buy_hold_success_rate:.2f}%"],
+            ["매도 성공률", f"{self.sell_success_rate:.2f}%"]
+        ]
+        summary += tabulate(trade_data, headers=["지표", "값"], tablefmt="grid") + "\n\n"
 
-        7. 직전 거래 결과:
-           • 성공 여부: {'성공' if self.last_result.get('success') else '실패'}
-           • 수익: {safe_format(self.last_result.get('profit'), ',.0f')} KRW
+        # 5. 최근 거래 정보
+        summary += "5. 최근 거래 정보\n"
+        recent_trade_data = [
+            ["결정", self.last_decision],
+            ["거래가", f"{self.last_trade_price:,.0f} KRW"],
+            ["거래 비율", f"{self.last_trade_percentage:.2f}%"],
+            ["성공 여부", '성공' if self.last_trade_success else '실패'],
+            ["수익", f"{self.last_trade_profit:,.0f} KRW"]
+        ]
+        summary += tabulate(recent_trade_data, headers=["항목", "값"], tablefmt="grid") + "\n\n"
 
-        마지막 업데이트: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-        """
+        # 전체 성능 요약
+        overall_performance = "양호" if strategy_return > hodl_return else "개선 필요"
+        summary += f"📌 전체 성능 평가: {overall_performance}\n"
+        if strategy_return > hodl_return:
+            summary += "   현재 전략이 HODL 전략보다 좋은 성과를 보이고 있습니다.\n"
+        else:
+            summary += "   현재 전략의 성과가 HODL 전략에 미치지 못하고 있습니다. 전략 개선이 필요할 수 있습니다.\n"
+
+        summary += f"\n마지막 업데이트: {time.strftime('%Y-%m-%d %H:%M:%S')}\n"
+
         return summary
+
+
+    def get_accuracy(self, model):
+        total = self.total_predictions.get(model, 0)
+        if total > 0:
+            return self.correct_predictions.get(model, 0) / total
+        return 0
+
+    def load_model_weights(self):
+        try:
+            with open('model_weights.json', 'r') as f:
+                return json.load(f)
+        except FileNotFoundError:
+            return {
+                'gpt': 0.2, 'ml': 0.2, 'xgboost': 0.2, 'rl': 0.2, 'lstm': 0.2,
+                'arima': 0.2, 'prophet': 0.2, 'transformer': 0.2
+            }
 
     def save_to_file(self):
         new_record = {
@@ -178,14 +329,16 @@ class PerformanceMonitor:
             'hodl_performance': self.hodl_performance,
             'current_balance': self.current_balance,
             'total_trades': self.total_trades,
+            'trades': json.dumps(self.trades),
             'total_profit': self.total_profit,
             'buy_hold_success_rate': self.buy_hold_success_rate,
             'sell_success_rate': self.sell_success_rate,
-            'last_decision': self.last_decision['decision'],
-            'last_trade_price': self.last_decision['price'],
-            'last_trade_percentage': self.last_decision['percentage'],
-            'last_trade_success': self.last_result['success'],
-            'last_trade_profit': self.last_result['profit']
+            'last_decision': self.last_decision if isinstance(self.last_decision, str) else str(self.last_decision),
+            'last_trade_price': self.last_trade_price,
+            'last_trade_percentage': self.last_trade_percentage,
+            'last_trade_success': self.last_result.get('success', False) if isinstance(self.last_result,
+                                                                                       dict) else False,
+            'last_trade_profit': self.last_result.get('profit', 0) if isinstance(self.last_result, dict) else 0
         }
 
         # NaN 값을 None으로 대체
@@ -220,47 +373,28 @@ class PerformanceMonitor:
         # 로깅 추가
         logger.info(f"Data saved to {self.file_path}. Total records: {len(self.data)}")
 
-    def load_data(self) -> pd.DataFrame:
-        if os.path.exists(self.file_path):
-            df = pd.read_csv(self.file_path)
-            df['timestamp'] = pd.to_datetime(df['timestamp'], format='mixed')
-            return df
-        return pd.DataFrame()
+    def set_file_path(self, file_path):
+        self.file_path = file_path
 
-    def update_lstm_metrics(self, accuracy, loss=None, predictions=None, actual_values=None):
-        """
-        LSTM 모델의 성능 지표를 업데이트합니다.
+    def get_file_path(self):
+        return self.file_path
 
-        :param accuracy: LSTM 모델의 정확도
-        :param loss: LSTM 모델의 손실 값 (옵션)
-        :param predictions: LSTM 모델의 예측값 배열 (옵션)
-        :param actual_values: 실제 값 배열 (옵션)
-        """
-        global mse, mae
+    def update_lstm_metrics(self, accuracy, loss=None, mse=None, mae=None):
         self.lstm_accuracy_history.append(accuracy)
-
         if loss is not None:
             self.lstm_loss_history.append(loss)
-
-        if predictions is not None and actual_values is not None:
-            mse = np.mean((np.array(predictions) - np.array(actual_values)) ** 2)
-            mae = np.mean(np.abs(np.array(predictions) - np.array(actual_values)))
+        if mse is not None:
             self.lstm_mse_history.append(mse)
+            self.mse = mse  # 현재 MSE 값 업데이트
+        if mae is not None:
             self.lstm_mae_history.append(mae)
+            self.mae = mae  # 현재 MAE 값 업데이트
 
-        # 최근 N개의 지표만 유지 (예: 최근 100개)
-        max_history_length = 100
-        self.lstm_accuracy_history = self.lstm_accuracy_history[-max_history_length:]
-        self.lstm_loss_history = self.lstm_loss_history[-max_history_length:]
-        self.lstm_mse_history = self.lstm_mse_history[-max_history_length:]
-        self.lstm_mae_history = self.lstm_mae_history[-max_history_length:]
-
-        # 로깅
-        logger.info(f"LSTM Metrics Updated - Accuracy: {accuracy:.4f}")
+    def update_arima_metrics(self, accuracy, loss=None):
+        """ARIMA 모델의 정확도와 손실을 업데이트하는 메서드"""
+        self.arima_accuracy = accuracy
         if loss is not None:
-            logger.info(f"LSTM Loss: {loss:.4f}")
-        if predictions is not None and actual_values is not None:
-            logger.info(f"LSTM MSE: {mse:.4f}, MAE: {mae:.4f}")
+            self.arima_loss = loss
 
     def update_ml_metrics(self, accuracy, loss):
         self.ml_accuracy = accuracy
@@ -278,12 +412,10 @@ class PerformanceMonitor:
         self.model_accuracies = model_accuracies
         self.model_weights = model_weights
         self.current_balance = current_balance
-        self.last_decision = {
-            'decision': decision,
-            'price': trade_price,
-            'percentage': trade_percentage
-        }
-        self.save_to_file()
+        self.last_decision = decision
+        self.last_trade_price = trade_price
+        self.last_trade_percentage = trade_percentage
+        self.current_btc_balance = self.upbit_client.get_balance("BTC")
 
     def update_trade_result(self, success, profit):
         self.last_result = {'success': success, 'profit': profit}
@@ -296,8 +428,98 @@ class PerformanceMonitor:
     def update_success_rates(self, buy_hold_success_rate, sell_success_rate):
         self.buy_hold_success_rate = buy_hold_success_rate
         self.sell_success_rate = sell_success_rate
-        self.save_to_file()
+        if self.buy_hold_trades > 0:
+            self.buy_hold_success_rate = (self.successful_buy_hold_trades / self.buy_hold_trades) * 100
+        else:
+            self.buy_hold_success_rate = 0.0
+
+        if self.sell_trades > 0:
+            self.sell_success_rate = (self.successful_sell_trades / self.sell_trades) * 100
+        else:
+            self.sell_success_rate = 0.0
 
     def record_trade(self, trade_info):
         self.trades.append(trade_info)
-        logger.info(f"Trade recorded: {trade_info}")
+        self.total_trades += 1
+
+        if trade_info['decision'] in ['buy', 'hold']:
+            self.buy_hold_trades += 1
+            if trade_info.get('success', False):
+                self.successful_buy_hold_trades += 1
+        elif trade_info['decision'] == 'sell':
+            self.sell_trades += 1
+            if trade_info.get('success', False):
+                self.successful_sell_trades += 1
+
+        if trade_info.get('success', False):
+            self.total_successful_trades += 1
+            self.total_profit += trade_info.get('profit', 0)
+
+        # 성공률 계산
+        buy_hold_success_rate = (self.successful_buy_hold_trades / self.buy_hold_trades * 100) if self.buy_hold_trades > 0 else 0
+        sell_success_rate = (self.successful_sell_trades / self.sell_trades * 100) if self.sell_trades > 0 else 0
+
+        self.update_success_rates(buy_hold_success_rate, sell_success_rate)
+
+    def calculate_returns(self):
+        logger.info(f"초기 총 자산 가치: {self.initial_total_value} KRW")
+        logger.info(f"현재 KRW 잔액: {self.current_balance} KRW")
+        logger.info(f"현재 BTC 잔액: {self.current_btc_balance} BTC")
+        current_btc_price = self.get_current_btc_price()
+        logger.info(f"현재 BTC 가격: {current_btc_price} KRW")
+
+        current_total_value = self.current_balance + (self.current_btc_balance * current_btc_price)
+        logger.info(f"현재 총 자산 가치: {current_total_value} KRW")
+
+        absolute_return = current_total_value - self.initial_total_value
+        logger.info(f"절대 수익: {absolute_return} KRW")
+
+        if self.initial_total_value > 0:
+            strategy_return = (absolute_return / self.initial_total_value) * 100
+        else:
+            strategy_return = 0
+            logger.error("초기 총 자산 가치가 0 이하입니다. 수익률을 0으로 설정합니다.")
+
+        logger.info(f"계산된 전략 수익률: {strategy_return}%")
+
+        if strategy_return > 1000 or strategy_return < -100:
+            logger.warning(f"비정상적인 전략 수익률 감지: {strategy_return}%. ±1000%로 제한합니다.")
+            strategy_return = max(min(strategy_return, 1000), -100)
+
+        if self.initial_btc_price > 0:
+            hodl_return = ((current_btc_price - self.initial_btc_price) / self.initial_btc_price) * 100
+        else:
+            hodl_return = 0
+            logger.error("초기 BTC 가격이 0 이하입니다. HODL 수익률을 0으로 설정합니다.")
+
+        logger.info(f"계산된 HODL 수익률: {hodl_return}%")
+
+        return strategy_return, hodl_return
+
+    # def update_model_metrics(self, model_predictions, actual_outcome):
+    #     for model, prediction in model_predictions.items():
+    #         if prediction == actual_outcome:
+    #             self.model_accuracies[model] = (self.model_accuracies[model] * self.total_predictions + 1) / (
+    #                         self.total_predictions + 1)
+    #         else:
+    #             self.model_accuracies[model] = (self.model_accuracies[model] * self.total_predictions) / (
+    #                         self.total_predictions + 1)
+    #     self.total_predictions += 1
+
+    def update_trade_success_rates(self, decision, success):
+        if decision in ['buy', 'hold']:
+            self.buy_hold_trades += 1
+            if success:
+                self.successful_buy_hold_trades += 1
+        elif decision == 'sell':
+            self.sell_trades += 1
+            if success:
+                self.successful_sell_trades += 1
+
+        self.buy_hold_success_rate = (
+                                                 self.successful_buy_hold_trades / self.buy_hold_trades) * 100 if self.buy_hold_trades > 0 else 0
+        self.sell_success_rate = (self.successful_sell_trades / self.sell_trades) * 100 if self.sell_trades > 0 else 0
+
+    def update_last_trade_result(self, success, profit):
+        self.last_trade_success = success
+        self.last_trade_profit = profit

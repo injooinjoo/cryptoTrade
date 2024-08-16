@@ -1,0 +1,90 @@
+{
+  "gpt": {
+    "predictions": [
+      1.0,
+      1.0
+    ],
+    "actual_values": [
+      81523000.0,
+      81523000.0
+    ],
+    "accuracy": 0.0
+  },
+  "ml": {
+    "predictions": [
+      1.0,
+      1.0
+    ],
+    "actual_values": [
+      81523000.0,
+      81523000.0
+    ],
+    "accuracy": 0.0
+  },
+  "xgboost": {
+    "predictions": [
+      1.0,
+      0.0
+    ],
+    "actual_values": [
+      81523000.0,
+      81523000.0
+    ],
+    "accuracy": 0.0
+  },
+  "rl": {
+    "predictions": [
+      2.0,
+      1.0
+    ],
+    "actual_values": [
+      81523000.0,
+      81523000.0
+    ],
+    "accuracy": 0.0
+  },
+  "lstm": {
+    "predictions": [
+      81477984.0,
+      1.0
+    ],
+    "actual_values": [
+      81523000.0,
+      81523000.0
+    ],
+    "accuracy": 0.0
+  },
+  "arima": {
+    "predictions": [
+      81513186.31511256,
+      1.0
+    ],
+    "actual_values": [
+      81523000.0,
+      81523000.0
+    ],
+    "accuracy": 0.0
+  },
+  "prophet": {
+    "predictions": [
+      84222178.40683621,
+      1.0
+    ],
+    "actual_values": [
+      81523000.0,
+      81523000.0
+    ],
+    "accuracy": 0.0
+  },
+  "transformer": {
+    "predictions": [
+      -1.117355227470398,
+      -1.0
+    ],
+    "actual_values": [
+      81523000.0,
+      81523000.0
+    ],
+    "accuracy": 0.0
+  }
+}

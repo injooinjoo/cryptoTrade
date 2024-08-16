@@ -1,23 +1,33 @@
 import logging
 
 import pandas_ta as ta
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import accuracy_score, mean_squared_error
 from tensorflow import keras
 from xgboost import XGBClassifier
 
 logger = logging.getLogger(__name__)
-import torch
-from torch import nn
-from sklearn.preprocessing import MinMaxScaler
-
 import numpy as np
 import pandas as pd
+from sklearn.model_selection import TimeSeriesSplit, RandomizedSearchCV
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+from xgboost import XGBClassifier
+
+
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import train_test_split, RandomizedSearchCV
+from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.impute import SimpleImputer
 from sklearn.feature_selection import VarianceThreshold
 from typing import Tuple
+import numpy as np
+import pandas as pd
+from statsmodels.tsa.arima.model import ARIMA
+from prophet import Prophet
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from sklearn.preprocessing import MinMaxScaler
+import data_manager
 
 
 class MLPredictor:
@@ -49,8 +59,8 @@ class MLPredictor:
             # NaN 값을 앞뒤 값으로 채우기
             data = data.ffill().bfill()
 
-            logger.info(f"기술적 지표 추가 후 데이터 shape: {data.shape}")
-            logger.info(f"데이터 샘플:\n{data[self.features].head()}")
+            # logger.info(f"기술적 지표 추가 후 데이터 shape: {data.shape}")
+            # logger.info(f"데이터 샘플:\n{data[self.features].head()}")
 
             if data.empty:
                 logger.error("모든 행이 NaN 값으로 제거되었습니다.")
@@ -123,12 +133,12 @@ class MLPredictor:
             X = data[self.features].astype(float).values[-1].reshape(1, -1)
 
             logger.info(f"선택된 특성 데이터 shape: {X.shape}")
-            logger.info(f"선택된 특성 데이터:\n{X}")
+            # logger.info(f"선택된 특성 데이터:\n{X}")
 
             # NaN 값 처리
             X = self.imputer.transform(X)
 
-            logger.info(f"NaN 처리 후 데이터:\n{X}")
+            # logger.info(f"NaN 처리 후 데이터:\n{X}")
 
             # 분산이 0인 특성 제거
             X = self.feature_selector.transform(X)
@@ -137,11 +147,8 @@ class MLPredictor:
 
             # 스케일링
             X_scaled = self.scaler.transform(X)
-
-            logger.info(f"스케일링 후 데이터:\n{X_scaled}")
-
+            # logger.info(f"스케일링 후 데이터:\n{X_scaled}")
             prediction = self.model.predict(X_scaled)
-
             logger.info(f"예측 결과: {prediction[0]}")
 
             return prediction[0]
@@ -179,7 +186,7 @@ class XGBoostPredictor(MLPredictor):
     def train(self, X, y):
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
         self.model.fit(X_train, y_train)
-        self.is_fitted = True
+        self.is_fitted = True  # 모델이 학습되었음을 표시
         accuracy = self.model.score(X_test, y_test)
         return accuracy, 1 - accuracy, {}
 
@@ -241,6 +248,7 @@ class Backtester:
 
     def run_backtest(self, strategy, start_time: pd.Timestamp, end_time: pd.Timestamp, historical_data: pd.DataFrame):
         data = historical_data[(historical_data.index >= start_time) & (historical_data.index <= end_time)]
+        data = data.copy()
         data['date'] = data.index.strftime('%Y-%m-%d %H:%M:%S')
 
         if data.empty:
@@ -280,33 +288,6 @@ class Backtester:
             'num_trades': len(trades),
             'final_balance': final_balance
         }
-
-def simple_moving_average_strategy(data: pd.DataFrame) -> int:
-    if len(data) < 20:
-        return 0
-
-    sma_short = data['close'].rolling(window=5).mean().iloc[-1]
-    sma_long = data['close'].rolling(window=20).mean().iloc[-1]
-
-    if sma_short > sma_long:
-        return 1  # Buy signal
-    elif sma_short < sma_long:
-        return -1  # Sell signal
-    else:
-        return 0  # Hold
-
-
-def run_backtest(data_manager, historical_data):
-    backtester = Backtester(data_manager, initial_balance=10_000_000, fee_rate=0.0005)
-    end_time = pd.Timestamp.now()
-    start_time = end_time - pd.Timedelta(days=30)
-    historical_data.reset_index(inplace=True)
-    historical_data['date'] = pd.to_datetime(historical_data['date'])
-    historical_data.set_index('date', inplace=True)
-
-    results = backtester.run_backtest(simple_moving_average_strategy, start_time, end_time, historical_data)
-
-    return results
 
 
 class LSTMModel(nn.Module):
@@ -403,3 +384,370 @@ class LSTMPredictor:
         with torch.no_grad():
             prediction = self.model(X)
         return self.scaler.inverse_transform(prediction.cpu().numpy())[0, 0]
+
+
+class ARIMAPredictor:
+    def __init__(self, order=(1, 1, 1)):
+        self.order = order
+        self.model = None
+        self.model_fit = None  # model_fit 속성 추가
+        self.actual_values = None
+        self.predictions = None
+
+    def train(self, data):
+        if len(data) < 2:
+            raise ValueError("데이터가 충분하지 않습니다. ARIMA 모델 학습을 위해서는 최소 2개 이상의 데이터 포인트가 필요합니다.")
+        self.model = ARIMA(data['close'], order=self.order)
+        self.model_fit = self.model.fit()  # model_fit 초기화
+
+    def predict(self, steps=1):
+        if self.model_fit is None:
+            raise ValueError("모델이 학습되지 않았습니다. 먼저 train 메소드를 호출하세요.")
+        self.predictions = self.model_fit.forecast(steps=steps)
+        # 예측 결과가 Series인 경우 첫 번째 값만 반환
+        if isinstance(self.predictions, pd.Series):
+            return self.predictions.iloc[0]
+        # 예측 결과가 ndarray인 경우 첫 번째 값만 반환
+        elif isinstance(self.predictions, np.ndarray):
+            return self.predictions[0]
+        # 그 외의 경우 전체 예측 결과 반환
+        return self.predictions
+
+    def get_accuracy(self):
+        if self.actual_values is None or self.predictions is None:
+            return 0
+        mse = np.mean((self.actual_values - self.predictions) ** 2)
+        return 1 - (mse / np.var(self.actual_values))
+
+
+class ProphetPredictor:
+    def __init__(self):
+        self.model = None
+        self.actual_values = None
+        self.forecast = None
+        self.is_fitted = False
+
+    def train(self, data):
+        if len(data) < 2:
+            raise ValueError("데이터가 충분하지 않습니다. Prophet 모델 학습을 위해서는 최소 2개 이상의 데이터 포인트가 필요합니다.")
+        df = data.reset_index()
+        df = df.rename(columns={'date': 'ds', 'close': 'y'})
+        self.model = Prophet()  # 새로운 모델 인스턴스 생성
+        self.model.fit(df)
+        self.is_fitted = True
+
+    def predict(self, periods=1):
+        if not self.is_fitted:
+            raise ValueError("모델이 학습되지 않았습니다. 먼저 train 메소드를 호출하세요.")
+        future = self.model.make_future_dataframe(periods=periods, freq='10min')  # 주기를 10분으로 설정
+        self.forecast = self.model.predict(future)
+        return self.forecast.iloc[-1]['yhat']
+
+    def get_accuracy(self):
+        if self.actual_values is None or self.forecast is None:
+            return 0
+        mape = np.mean(np.abs((self.actual_values - self.forecast['yhat']) / self.actual_values)) * 100
+        return 1 - (mape / 100)
+
+
+class TransformerModel(nn.Module):
+    def __init__(self, input_dim, hidden_dim, output_dim, num_layers, batch_first=True):
+        super(TransformerModel, self).__init__()
+        self.encoder_layer = nn.TransformerEncoderLayer(d_model=hidden_dim, nhead=8, batch_first=batch_first)
+        self.transformer_encoder = nn.TransformerEncoder(self.encoder_layer, num_layers=num_layers)
+        self.input_linear = nn.Linear(input_dim, hidden_dim)
+        self.output_linear = nn.Linear(hidden_dim, output_dim)
+
+    def forward(self, src):
+        src = self.input_linear(src)
+        output = self.transformer_encoder(src)
+        output = self.output_linear(output)
+        return output
+
+
+class TransformerPredictor:
+    def __init__(self, input_dim, hidden_dim, output_dim, num_layers):
+        self.model = TransformerModel(input_dim, hidden_dim, output_dim, num_layers, batch_first=True)
+        self.optimizer = torch.optim.Adam(self.model.parameters())
+        self.criterion = nn.MSELoss()
+        self.predictions = None
+        self.actual_values = None
+
+    def train(self, data):
+        self.model.train()
+        X, y = self.prepare_data(data)
+        X = torch.FloatTensor(X)
+        y = torch.FloatTensor(y)
+
+        n_epochs = 100
+        batch_size = 32
+        for epoch in range(n_epochs):
+            for i in range(0, len(X), batch_size):
+                batch_X = X[i:i + batch_size]
+                batch_y = y[i:i + batch_size]
+
+                self.optimizer.zero_grad()
+                outputs = self.model(batch_X)
+                loss = self.criterion(outputs, batch_y)
+                loss.backward()
+                self.optimizer.step()
+
+            if (epoch + 1) % 10 == 0:
+                print(f'Epoch [{epoch + 1}/{n_epochs}], Loss: {loss.item():.4f}')
+
+        self.model.eval()
+        with torch.no_grad():
+            test_outputs = self.model(X)
+            test_loss = self.criterion(test_outputs, y)
+        print(f'Final Loss: {test_loss.item():.4f}')
+        return 1 - test_loss.item()  # Return accuracy as 1 - loss
+
+    def prepare_data(self, data):
+        # 데이터 전처리
+        features = ['open', 'high', 'low', 'close', 'volume']
+        X = data[features].values
+        y = data['close'].shift(-1).dropna().values
+        X = X[:-1]  # 마지막 행 제거 (y와 길이 맞추기)
+        return X, y
+
+    def predict(self, data):
+        self.model.eval()
+        with torch.no_grad():
+            X = self.prepare_prediction_data(data)
+            X = torch.FloatTensor(X)
+            self.predictions = self.model(X)
+        return self.predictions.numpy()
+
+    def prepare_prediction_data(self, data):
+        features = ['open', 'high', 'low', 'close', 'volume']
+        return data[features].values
+
+    def get_accuracy(self):
+        if self.actual_values is None or self.predictions is None:
+            return 0
+        mse = nn.MSELoss()(torch.FloatTensor(self.actual_values), self.predictions)
+        return 1 - mse.item()
+
+
+class ModelUpdater:
+    def __init__(self, data_manager, xgboost_predictor, lstm_predictor, ml_predictor, rl_agent):
+        self.data_manager = data_manager
+        self.xgboost_predictor = xgboost_predictor
+        self.lstm_predictor = lstm_predictor
+        self.ml_predictor = ml_predictor
+        self.rl_agent = rl_agent
+
+    def update_xgboost_model(self):
+        data = self.data_manager.ensure_sufficient_data()
+        X, y = self.data_manager.prepare_data_for_ml(data)
+
+        # 시계열 교차 검증 설정
+        tscv = TimeSeriesSplit(n_splits=5)
+
+        param_dist = {
+            'n_estimators': [100, 200, 300, 400, 500],
+            'learning_rate': [0.01, 0.05, 0.1, 0.2, 0.3],
+            'max_depth': [3, 4, 5, 6, 7],
+            'min_child_weight': [1, 3, 5, 7],
+            'subsample': [0.6, 0.7, 0.8, 0.9, 1.0],
+            'colsample_bytree': [0.6, 0.7, 0.8, 0.9, 1.0],
+            'gamma': [0, 0.1, 0.2, 0.3, 0.4]
+        }
+
+        xgb = XGBClassifier(use_label_encoder=False, eval_metric='logloss')
+        random_search = RandomizedSearchCV(
+            xgb, param_distributions=param_dist, n_iter=50,
+            cv=tscv, scoring='f1', n_jobs=-1, random_state=42, verbose=1
+        )
+        random_search.fit(X, y)
+
+        # 최적 모델 저장 및 성능 평가
+        self.xgboost_predictor.model = random_search.best_estimator_
+        y_pred = self.xgboost_predictor.model.predict(X)
+        performance = self.evaluate_performance(y, y_pred)
+
+        return random_search.best_params_, performance
+
+    def update_lstm_model(self):
+        data = self.data_manager.ensure_sufficient_data()
+        X, y = self.data_manager.prepare_data_for_ml(data)
+
+        # LSTM 모델 하이퍼파라미터 설정
+        input_dim = X.shape[2]  # 특성 수
+        hidden_dim = 64
+        num_layers = 2
+        output_dim = 1
+
+        # 새 LSTM 모델 생성
+        new_model = LSTMModel(input_dim, hidden_dim, num_layers, output_dim)
+
+        # 학습 파라미터 설정
+        epochs = 100
+        batch_size = 32
+        learning_rate = 0.001
+
+        # 옵티마이저 및 손실 함수 설정
+        optimizer = torch.optim.Adam(new_model.parameters(), lr=learning_rate)
+        criterion = nn.MSELoss()
+
+        # 학습 루프
+        for epoch in range(epochs):
+            new_model.train()
+            total_loss = 0
+            for i in range(0, len(X), batch_size):
+                batch_X = torch.FloatTensor(X[i:i + batch_size])
+                batch_y = torch.FloatTensor(y[i:i + batch_size])
+
+                optimizer.zero_grad()
+                outputs = new_model(batch_X)
+                loss = criterion(outputs, batch_y.unsqueeze(1))
+                loss.backward()
+                optimizer.step()
+
+                total_loss += loss.item()
+
+            avg_loss = total_loss / (len(X) // batch_size)
+            if (epoch + 1) % 10 == 0:
+                print(f'Epoch [{epoch + 1}/{epochs}], Loss: {avg_loss:.4f}')
+
+        # 모델 평가
+        new_model.eval()
+        with torch.no_grad():
+            X_tensor = torch.FloatTensor(X)
+            y_pred = new_model(X_tensor).numpy()
+
+        performance = self.evaluate_performance(y, y_pred)
+
+        # 새 모델을 lstm_predictor에 설정
+        self.lstm_predictor.model = new_model
+
+        return {"hidden_dim": hidden_dim, "num_layers": num_layers}, performance
+
+    def update_ml_model(self):
+        data = self.data_manager.ensure_sufficient_data()
+        X, y = self.data_manager.prepare_data_for_ml(data)
+
+        # RandomForestClassifier 사용 가정
+        from sklearn.ensemble import RandomForestClassifier
+
+        param_dist = {
+            'n_estimators': [100, 200, 300, 400, 500],
+            'max_depth': [None, 10, 20, 30, 40, 50],
+            'min_samples_split': [2, 5, 10],
+            'min_samples_leaf': [1, 2, 4],
+            'max_features': ['auto', 'sqrt', 'log2']
+        }
+
+        rf = RandomForestClassifier(random_state=42)
+        random_search = RandomizedSearchCV(
+            rf, param_distributions=param_dist, n_iter=50,
+            cv=TimeSeriesSplit(n_splits=5), scoring='f1', n_jobs=-1, random_state=42, verbose=1
+        )
+        random_search.fit(X, y)
+
+        # 최적 모델 저장 및 성능 평가
+        self.ml_predictor.model = random_search.best_estimator_
+        y_pred = self.ml_predictor.model.predict(X)
+        performance = self.evaluate_performance(y, y_pred)
+
+        return random_search.best_params_, performance
+
+    def update_rl_model(self):
+        # RL 모델 업데이트를 위한 환경 설정
+        class TradingEnv:
+            def __init__(self, data):
+                self.data = data
+                self.current_step = 0
+
+            def reset(self):
+                self.current_step = 0
+                return self._get_observation()
+
+            def step(self, action):
+                self.current_step += 1
+                done = self.current_step >= len(self.data) - 1
+
+                next_price = self.data['close'].iloc[self.current_step]
+                current_price = self.data['close'].iloc[self.current_step - 1]
+
+                if action == 0:  # Sell
+                    reward = current_price - next_price
+                elif action == 2:  # Buy
+                    reward = next_price - current_price
+                else:  # Hold
+                    reward = 0
+
+                return self._get_observation(), reward, done, {}
+
+            def _get_observation(self):
+                return self.data.iloc[self.current_step].values
+
+        data = self.data_manager.ensure_sufficient_data()
+        env = TradingEnv(data)
+
+        # DQN 에이전트 재학습
+        state_size = len(data.columns)
+        action_size = 3  # Sell, Hold, Buy
+        self.rl_agent.replay_memory.clear()  # 리플레이 메모리 초기화
+
+        for episode in range(100):  # 에피소드 수 조정 가능
+            state = env.reset()
+            state = np.reshape(state, [1, state_size])
+            done = False
+            while not done:
+                action = self.rl_agent.act(state)
+                next_state, reward, done, _ = env.step(action)
+                next_state = np.reshape(next_state, [1, state_size])
+                self.rl_agent.remember(state, action, reward, next_state, done)
+                state = next_state
+                self.rl_agent.replay(32)  # 배치 크기 32로 학습
+
+        # 성능 평가
+        total_reward = 0
+        state = env.reset()
+        state = np.reshape(state, [1, state_size])
+        done = False
+        while not done:
+            action = np.argmax(self.rl_agent.model.predict(state)[0])
+            next_state, reward, done, _ = env.step(action)
+            total_reward += reward
+            state = np.reshape(next_state, [1, state_size])
+
+        return {"total_reward": total_reward}
+
+    @staticmethod
+    def evaluate_performance(y_true, y_pred):
+        from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
+        return {
+            'mse': mean_squared_error(y_true, y_pred),
+            'mae': mean_absolute_error(y_true, y_pred),
+            'r2_score': r2_score(y_true, y_pred)
+        }
+
+def simple_moving_average_strategy(data: pd.DataFrame) -> int:
+    if len(data) < 20:
+        return 0
+
+    sma_short = data['close'].rolling(window=5).mean().iloc[-1]
+    sma_long = data['close'].rolling(window=20).mean().iloc[-1]
+
+    if sma_short > sma_long:
+        return 1  # Buy signal
+    elif sma_short < sma_long:
+        return -1  # Sell signal
+    else:
+        return 0  # Hold
+
+
+def run_backtest(data_manager, historical_data):
+    backtester = Backtester(data_manager, initial_balance=10_000_000, fee_rate=0.0005)
+    end_time = pd.Timestamp.now()
+    start_time = end_time - pd.Timedelta(days=30)
+    historical_data.reset_index(inplace=True)
+    historical_data['date'] = pd.to_datetime(historical_data['date'])
+    historical_data.set_index('date', inplace=True)
+
+    results = backtester.run_backtest(simple_moving_average_strategy, start_time, end_time, historical_data)
+
+    return results
+

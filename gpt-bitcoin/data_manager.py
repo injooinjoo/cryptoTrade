@@ -5,9 +5,8 @@ from datetime import datetime, timedelta
 from typing import Dict, Any, List, Tuple
 
 import numpy as np
-import pandas_ta as ta
 import pandas as pd
-from numpy import dtype
+import pandas_ta as ta
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +33,7 @@ class DataManager:
             ''')
 
     def add_new_data(self, new_data: pd.DataFrame):
-        logger.info(f"Adding new data. Shape: {new_data.shape}")
+        # logger.info(f"Adding new data. Shape: {new_data.shape}")
 
         # 'level_0' 열이 있다면 제거
         if 'level_0' in new_data.columns:
@@ -49,7 +48,7 @@ class DataManager:
             new_data['date'] = new_data['date'].apply(
                 lambda x: x.strftime('%Y-%m-%d %H:%M:%S') if hasattr(x, 'strftime') else str(x))
         else:
-            logger.warning("'date' column not found in new_data")
+            pass
 
         # 기존 데이터베이스에 있는 date를 조회
         existing_dates = pd.read_sql_query("SELECT date FROM ohlcv_data", self.conn)['date'].tolist()
@@ -70,22 +69,7 @@ class DataManager:
                     except sqlite3.IntegrityError:
                         logger.debug(f"Skipping duplicate data point at date {row['date']}")
         else:
-            logger.info("No new data to add")
-
-    def add_technical_indicators(self, data: pd.DataFrame):
-        indicators = pd.DataFrame(index=data.index)
-        indicators['sma'] = self.calculate_sma(data)
-        indicators['ema'] = self.calculate_ema(data)
-        indicators['rsi'] = self.calculate_rsi(data)
-        indicators['macd'], indicators['signal_line'] = self.calculate_macd(data)
-        indicators['BB_Upper'], indicators['BB_Lower'] = self.calculate_bollinger_bands(data)
-
-        # NaN 값을 앞뒤 값으로 채우기
-        indicators = indicators.ffill().bfill()
-
-        # 기존 데이터와 새로 계산한 지표를 병합
-        result = pd.concat([data, indicators], axis=1)
-        return result
+            pass
 
     def get_data_for_training(self, start_time: int, end_time: int) -> pd.DataFrame:
         query = f'''
@@ -104,43 +88,11 @@ class DataManager:
             latest_data.rename(columns={'index': 'date'}, inplace=True)
             self.add_new_data(latest_data)
 
-    def calculate_sma(self, data, period=20):
-        return data['close'].rolling(window=period).mean()
-
-    def calculate_ema(self, data, period=20):
-        return data['close'].ewm(span=period, adjust=False).mean()
-
-    def calculate_rsi(self, data, period=14):
-        close_data = data['close']
-        delta = close_data.diff()
-        gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
-        loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
-        rs = gain / loss
-        return 100 - (100 / (1 + rs))
-
-    def calculate_macd(self, data, fast_period=12, slow_period=26, signal_period=9):
-        close_data = data['close']
-        fast_ema = close_data.ewm(span=fast_period, adjust=False).mean()
-        slow_ema = close_data.ewm(span=slow_period, adjust=False).mean()
-        macd = fast_ema - slow_ema
-        signal_line = macd.ewm(span=signal_period, adjust=False).mean()
-        return macd, signal_line
-
-    def calculate_bollinger_bands(self, data, period=20, num_std=2):
-        close_data = data['close']
-        sma = close_data.rolling(window=period).mean()
-        std = close_data.rolling(window=period).std()
-        upper_bb = sma + (std * num_std)
-        lower_bb = sma - (std * num_std)
-        return upper_bb, lower_bb
-
-    def ensure_sufficient_data(self, required_length: int = 1440) -> pd.DataFrame:
+    def ensure_sufficient_data(self, required_length: int = 10000) -> pd.DataFrame:
         end_time = pd.Timestamp.now()
-        start_time = end_time - pd.Timedelta(minutes=required_length * 10)
+        start_time = end_time - pd.Timedelta(days=365)  # 1년치 데이터
         data = self.get_data_for_training(int(start_time.timestamp()), int(end_time.timestamp()))
-        print('ensure_sufficient_data')
-        print(data)
-        print(data.columns)
+
         if len(data) < required_length:
             self.fetch_and_store_historical_data(required_length - len(data))
             data = self.get_data_for_training(int(start_time.timestamp()), int(end_time.timestamp()))
@@ -148,11 +100,20 @@ class DataManager:
         return data
 
     def fetch_and_store_historical_data(self, count: int):
-        historical_data = self.upbit_client.get_ohlcv("KRW-BTC", interval="minute10", count=count)
+        end_date = pd.Timestamp.now()
+        start_date = end_date - pd.Timedelta(minutes=count * 10)  # 10분 간격 데이터 가정
+
+        historical_data = self.upbit_client.get_ohlcv("KRW-BTC", interval="minute10", to=end_date, count=count)
+
         if historical_data is not None and not historical_data.empty:
-            historical_data.reset_index(inplace=True)
-            historical_data.rename(columns={'index': 'date'}, inplace=True)
+            historical_data = historical_data.reset_index()
+            historical_data = historical_data.rename(columns={'index': 'date'})
+            historical_data['date'] = historical_data['date'].astype(str)
+
             self.add_new_data(historical_data)
+            # logger.info(f"Added {len(historical_data)} historical data points.")
+        else:
+            logger.warning("Failed to fetch historical data or no data available.")
 
     def get_average_accuracy(self, days: int = 7) -> float:
         end_time = datetime.now()
@@ -310,3 +271,4 @@ class DataManager:
         df = pd.read_sql_query(query, self.conn)
         df['date'] = pd.to_datetime(df['date'])
         return df
+
