@@ -44,6 +44,9 @@ def numpy_to_python(obj):
         return obj
 
 
+
+
+
 def analyze_data_with_gpt4(data: pd.DataFrame, openai_client: OpenAIClient, params: Dict[str, Any],
                            upbit_client: UpbitClient, average_accuracy: float, anomalies: List[bool],
                            anomaly_scores: List[float], market_regime: str, ml_prediction: Optional[int],
@@ -168,8 +171,6 @@ def summarize_backtest_results(backtest_results: Dict[str, Any]) -> Dict[str, An
     }
 
 
-
-
 def evaluate_decisions(recent_decisions: List[Dict[str, Any]], current_price: float) -> Dict[str, Any]:
     """최근 거래 결정을 평가합니다."""
     if not recent_decisions:
@@ -272,57 +273,72 @@ def default_hold_decision() -> Dict[str, Any]:
     }
 
 
-def execute_trade(upbit_client: UpbitClient, decision: Dict[str, Any], config: Dict[str, Any], current_btc_holding: bool) -> Dict[str, Any]:
+def execute_trade(upbit_client: UpbitClient, decision: Dict[str, Any], config: Dict[str, Any],
+                  current_btc_holding: bool) -> Dict[str, Any]:
     try:
-
-
         if decision['decision'] == 'hold':
             return {"success": True, "message": "Hold position", "uuid": None, "has_btc": current_btc_holding}
 
         current_price = upbit_client.get_current_price("KRW-BTC")
-        if current_price is None:
-            return {"success": False, "message": "Failed to get current price", "uuid": None, "has_btc": current_btc_holding}
+        logger.info(f"Current BTC price: {current_price}")
+
+        if current_price is None or current_price == 0:
+            logger.error(f"Invalid current price: {current_price}")
+            return {"success": False, "message": "Invalid current price", "uuid": None, "has_btc": current_btc_holding}
 
         min_trade_amount = config.get('min_trade_amount', 5000)
-
-        # 총 자산 가치 계산
         krw_balance = upbit_client.get_balance("KRW")
         btc_balance = upbit_client.get_balance("BTC")
         total_asset_value = krw_balance + (btc_balance * current_price)
+
         logger.info(f'총 자산 가치: {total_asset_value:.2f} KRW (KRW: {krw_balance:.2f}, BTC: {btc_balance:.8f})')
 
-        trade_percentage = decision.get('percentage', 100)  # 기본값을 100%로 설정
+        trade_strength = calculate_trade_strength(decision, decision.get('predictions', {}))
+        logger.info(f'거래 강도: {trade_strength:.2f}')
 
         if decision['decision'] == 'buy':
-            amount_to_buy_krw = min(total_asset_value * trade_percentage / 100, krw_balance)
-            amount_to_buy = amount_to_buy_krw / current_price
-            logger.info(f'매수 시도: {amount_to_buy:.8f} BTC (약 {amount_to_buy_krw:.2f} KRW)')
+            base_amount_to_buy_krw = min(total_asset_value, krw_balance)
+            adjusted_amount_to_buy_krw = adjust_trade_amount(base_amount_to_buy_krw, trade_strength)
+            amount_to_buy = adjusted_amount_to_buy_krw / current_price if current_price > 0 else 0
+            logger.info(f'매수 시도: {amount_to_buy:.8f} BTC (약 {adjusted_amount_to_buy_krw:.2f} KRW)')
 
-            if amount_to_buy_krw < min_trade_amount:
-                return {"success": False, "message": f"매수 금액이 최소 거래 금액({min_trade_amount} KRW)보다 작습니다.", "uuid": None, "has_btc": current_btc_holding}
+            if adjusted_amount_to_buy_krw < min_trade_amount:
+                return {"success": False, "message": f"매수 금액이 최소 거래 금액({min_trade_amount} KRW)보다 작습니다.", "uuid": None,
+                        "has_btc": current_btc_holding}
 
             result = upbit_client.buy_limit_order("KRW-BTC", current_price, amount_to_buy)
+            logger.info(f"Buy order result: {result}")
             if result and 'uuid' in result:
-                return {"success": True, "message": "Buy order placed", "uuid": result['uuid'], "amount": amount_to_buy, "price": current_price, "has_btc": True}
+                return {"success": True, "message": "Buy order placed", "uuid": result['uuid'], "amount": amount_to_buy,
+                        "price": current_price, "has_btc": True}
             else:
-                return {"success": False, "message": "Failed to place buy order", "uuid": None, "has_btc": current_btc_holding}
+                return {"success": False, "message": "Failed to place buy order", "uuid": None,
+                        "has_btc": current_btc_holding}
 
         elif decision['decision'] == 'sell':
-            amount_to_sell_btc = min(btc_balance * trade_percentage / 100, btc_balance)
-            amount_to_sell_krw = amount_to_sell_btc * current_price
-            logger.info(f'매도 시도: {amount_to_sell_btc:.8f} BTC (약 {amount_to_sell_krw:.2f} KRW)')
+            base_amount_to_sell_btc = btc_balance
+            adjusted_amount_to_sell_btc = adjust_trade_amount(base_amount_to_sell_btc, trade_strength)
+            amount_to_sell_krw = adjusted_amount_to_sell_btc * current_price
+            logger.info(f'매도 시도: {adjusted_amount_to_sell_btc:.8f} BTC (약 {amount_to_sell_krw:.2f} KRW)')
 
             if amount_to_sell_krw < min_trade_amount:
-                return {"success": False, "message": f"매도 금액이 최소 거래 금액({min_trade_amount} KRW)보다 작습니다.", "uuid": None, "has_btc": current_btc_holding}
+                logger.info(f"매도 금액이 최소 거래 금액({min_trade_amount} KRW)보다 작습니다. 전체 BTC를 매도합니다.")
+                adjusted_amount_to_sell_btc = btc_balance
+                amount_to_sell_krw = adjusted_amount_to_sell_btc * current_price
+                logger.info(f'수정된 매도 시도: {adjusted_amount_to_sell_btc:.8f} BTC (약 {amount_to_sell_krw:.2f} KRW)')
 
-            result = upbit_client.sell_limit_order("KRW-BTC", current_price, amount_to_sell_btc)
+            result = upbit_client.sell_limit_order("KRW-BTC", current_price, adjusted_amount_to_sell_btc)
+            logger.info(f"Sell order result: {result}")
             if result and 'uuid' in result:
-                return {"success": True, "message": "Sell order placed", "uuid": result['uuid'], "amount": amount_to_sell_btc, "price": current_price, "has_btc": False}
+                return {"success": True, "message": "Sell order placed", "uuid": result['uuid'],
+                        "amount": adjusted_amount_to_sell_btc, "price": current_price, "has_btc": False}
             else:
-                return {"success": False, "message": "Failed to place sell order", "uuid": None, "has_btc": current_btc_holding}
+                return {"success": False, "message": "Failed to place sell order", "uuid": None,
+                        "has_btc": current_btc_holding}
 
     except Exception as e:
         logger.error(f"Error executing trade: {e}")
+        logger.exception("Traceback:")
         return {"success": False, "message": f"Error: {str(e)}", "uuid": None, "has_btc": current_btc_holding}
 
 
@@ -408,3 +424,46 @@ def execute_sell(upbit_client: UpbitClient, amount_to_sell: float, current_price
         logger.error(f"매도 주문 실행 중 오류 발생: {e}", exc_info=True)
         return {"success": False, "message": str(e)}
 
+
+def calculate_trade_strength(decision: Dict[str, Any], predictions: Dict[str, float]) -> float:
+    strength = 0
+    total_weight = sum(decision.get('model_weights', {}).values())
+
+    logger.info(f"Decision: {decision}")
+    logger.info(f"Predictions: {predictions}")
+    logger.info(f"Total weight: {total_weight}")
+
+    if total_weight == 0:
+        logger.warning("Total weight is zero. Using default strength of 0.5")
+        return 0.5
+
+    for model, prediction in predictions.items():
+        weight = decision.get('model_weights', {}).get(model, 1)
+        if decision['decision'] == 'buy':
+            strength += weight * max(0, prediction)
+        elif decision['decision'] == 'sell':
+            strength += weight * max(0, -prediction)
+
+        logger.info(f"Model: {model}, Weight: {weight}, Prediction: {prediction}, Current Strength: {strength}")
+
+    strength /= total_weight  # 가중치로 정규화
+
+    # 시그모이드 함수를 사용하여 0~1 사이의 값으로 변환
+    strength = 1 / (1 + np.exp(-5 * (strength - 0.5)))
+
+    logger.info(f"Final calculated strength: {strength}")
+
+    return strength
+
+
+def adjust_trade_amount(base_amount: float, strength: float, min_percentage: float = 0.1, max_percentage: float = 1.0) -> float:
+    """
+    거래 강도에 따라 거래 금액을 조정합니다.
+    :param base_amount: 기본 거래 금액
+    :param strength: 거래 강도 (0~1)
+    :param min_percentage: 최소 거래 비율
+    :param max_percentage: 최대 거래 비율
+    :return: 조정된 거래 금액
+    """
+    adjusted_percentage = min_percentage + (max_percentage - min_percentage) * strength
+    return base_amount * adjusted_percentage

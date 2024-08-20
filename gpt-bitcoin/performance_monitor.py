@@ -53,10 +53,6 @@ class PerformanceMonitor:
 
         # 모델 성능 관련 변수들
         self.total_predictions = 0
-        self.model_accuracies: Dict[str, Dict[str, Any]] = {
-            model: {'correct': 0, 'total': 0, 'accuracy': 0.0}
-            for model in ['gpt', 'ml', 'xgboost', 'rl', 'lstm', 'arima', 'prophet', 'transformer']
-        }
 
         self.model_weights = {
             'gpt': 0.2, 'ml': 0.2, 'xgboost': 0.2, 'rl': 0.2, 'lstm': 0.2,
@@ -110,24 +106,99 @@ class PerformanceMonitor:
 
         self.last_known_btc_price = None
 
+        # 기존 초기화 코드
+        self.weight_adjustment_rate = 0.05  # 5%의 가중치 조정률
+        self.prediction_stats_file = 'prediction_stats.json'
+        self.model_accuracies = {
+            model: {'correct': 0, 'total': 0, 'accuracy': 0.0}
+            for model in ['gpt', 'ml', 'xgboost', 'rl', 'lstm', 'arima', 'prophet', 'transformer']
+        }
+        self.load_prediction_stats()
+
+    def load_prediction_stats(self):
+        try:
+            with open(self.prediction_stats_file, 'r') as f:
+                stats = json.load(f)
+            for model, data in stats.get('accuracies', {}).items():
+                if isinstance(data, dict):
+                    self.model_accuracies[model] = data
+                else:
+                    self.model_accuracies[model] = {'correct': 0, 'total': 1, 'accuracy': float(data)}
+            logger.info("예측 통계를 성공적으로 불러왔습니다.")
+            logger.info(f"Loaded model accuracies: {self.model_accuracies}")
+        except FileNotFoundError:
+            logger.info("예측 통계 파일이 없습니다. 새로운 통계를 시작합니다.")
+        except json.JSONDecodeError:
+            logger.error("예측 통계 파일이 손상되었습니다. 새로운 통계를 시작합니다.")
+
+
+    def save_prediction_stats(self):
+        with open(self.prediction_stats_file, 'w') as f:
+            json.dump({'accuracies': self.model_accuracies}, f, indent=2)
+        logger.info("예측 통계를 성공적으로 저장했습니다.")
+        logger.info(f"Saved model accuracies: {self.model_accuracies}")
+
+    def adjust_weight(self, model: str, success: bool):
+        if model not in self.weights:
+            return
+
+        total_weight = sum(self.weights.values())
+        current_weight = self.weights[model]
+
+        if success:
+            # 성공 시 가중치 증가
+            adjustment = current_weight * self.weight_adjustment_rate
+            self.weights[model] += adjustment
+        else:
+            # 실패 시 가중치 감소
+            adjustment = current_weight * self.weight_adjustment_rate
+            self.weights[model] = max(0.01, self.weights[model] - adjustment)  # 최소 1%의 가중치 보장
+
+        # 가중치 정규화
+        new_total = sum(self.weights.values())
+        for model in self.weights:
+            self.weights[model] /= new_total
+
+    def get_prediction_count(self, model: str) -> int:
+        if model not in self.model_accuracies:
+            logger.warning(f"No prediction count data for model: {model}")
+            return 0
+        data = self.model_accuracies[model]
+        if isinstance(data, dict) and 'total' in data:
+            return data['total']
+        else:
+            logger.warning(f"Unexpected data structure for model {model}: {data}")
+            return 0
+
+    def reset_prediction_count(self, model):
+        if model in self.model_accuracies:
+            self.model_accuracies[model]['total'] = 0
+            self.model_accuracies[model]['correct'] = 0
+            self.model_accuracies[model]['accuracy'] = 0.0
+        logger.info(f"{model} 모델의 예측 횟수와 정확도가 초기화되었습니다.")
+
     def update_prediction_accuracy(self, model: str, is_correct: bool):
         if model not in self.model_accuracies or not isinstance(self.model_accuracies[model], dict):
-            logger.warning(f"Unknown or incorrectly initialized model: {model}. Re-initializing accuracy tracking.")
             self.model_accuracies[model] = {'correct': 0, 'total': 0, 'accuracy': 0.0}
 
-        print(self.model_accuracies)
-        self.model_accuracies[model]['total'] = int(self.model_accuracies[model]['total']) + 1
+        self.model_accuracies[model]['total'] += 1
         if is_correct:
-            self.model_accuracies[model]['correct'] = int(self.model_accuracies[model]['correct']) + 1
+            self.model_accuracies[model]['correct'] += 1
 
-        total = int(self.model_accuracies[model]['total'])
-        correct = int(self.model_accuracies[model]['correct'])
-        self.model_accuracies[model]['accuracy'] = float(correct) / float(total) if total > 0 else 0.0
+        total = self.model_accuracies[model]['total']
+        correct = self.model_accuracies[model]['correct']
+        self.model_accuracies[model]['accuracy'] = (correct / total) if total > 0 else 0.0
 
-        logger.debug(f"Updated accuracy for {model}: {self.model_accuracies[model]}")
+        logger.info(
+            f"Updated accuracy for {model}: Total={total}, Correct={correct}, Is_correct={is_correct}, New Accuracy={self.model_accuracies[model]['accuracy']:.4f}")
+
+        self.save_prediction_stats()
 
     def update_weights(self, weights):
         self.weights = weights
+
+    def get_all_prediction_counts(self):
+        return {model: self.get_prediction_count(model) for model in self.model_accuracies}
 
     def get_current_btc_price(self):
         price = self.upbit_client.get_current_price("KRW-BTC")
@@ -136,27 +207,37 @@ class PerformanceMonitor:
         return price
 
     def update_model_accuracy(self, model: str, is_correct: bool):
-        if model in self.model_accuracies:
-            self.model_accuracies[model]['total'] += 1
-            if is_correct:
-                self.model_accuracies[model]['correct'] += 1
+        if model not in self.model_accuracies:
+            self.model_accuracies[model] = {'correct': 0, 'total': 0}
+
+        self.model_accuracies[model]['total'] += 1
+        if is_correct:
+            self.model_accuracies[model]['correct'] += 1
+
+        total = self.model_accuracies[model]['total']
+        correct = self.model_accuracies[model]['correct']
+        self.model_accuracies[model]['accuracy'] = (correct / total) * 100 if total > 0 else 0
 
     def get_model_accuracy(self, model: str) -> float:
         if model not in self.model_accuracies:
-            print(f"No accuracy data for model: {model}")  # 디버깅을 위한 출력
+            logger.warning(f"No accuracy data for model: {model}")
             return 0.0
-
         data = self.model_accuracies[model]
         if isinstance(data, dict) and 'accuracy' in data:
             return data['accuracy']
         elif isinstance(data, (int, float)):
             return float(data)
         else:
-            print(f"Unexpected data structure for model {model}: {data}")  # 디버깅을 위한 출력
+            logger.warning(f"Unexpected data structure for model {model}: {data}")
             return 0.0
 
     def get_all_model_accuracies(self) -> Dict[str, float]:
         return {model: self.get_model_accuracy(model) for model in self.model_accuracies}
+
+    def log_prediction_stats(self):
+        logger.info("현재 모델별 예측 횟수 및 정확도:")
+        for model, data in self.model_accuracies.items():
+            logger.info(f"  {model}: {data['total']}회 예측, 정확도 {data['accuracy']:.2f}%, 정답 수: {data['correct']}")
 
     def reset_accuracy_data(self):
         for model in self.model_accuracies:
@@ -253,13 +334,16 @@ class PerformanceMonitor:
         ]
         summary += tabulate(returns_data, headers=["지표", "값"], tablefmt="grid") + "\n\n"
 
-        # 2. 모델별 예측 성공률 및 가중치
+        # 2. 모델별 성능
         summary += "2. 모델별 성능\n"
         model_data = []
-        for model in self.model_accuracies.keys():
-            accuracy = self.get_model_accuracy(model) * 100
-            weight = weights.get(model, 0) * 100
-            model_data.append([model.upper(), f"{accuracy:.2f}%", f"{weight:.2f}%"])
+        for model, weight in weights.items():
+            try:
+                accuracy = self.get_model_accuracy(model) * 100
+                model_data.append([model.upper(), f"{accuracy:.2f}%", f"{weight * 100:.2f}%"])
+            except Exception as e:
+                logger.error(f"Error getting accuracy for model {model}: {e}")
+                model_data.append([model.upper(), "N/A", f"{weight * 100:.2f}%"])
         summary += tabulate(model_data, headers=["모델", "정확도", "가중치"], tablefmt="grid") + "\n\n"
 
         # 3. 자산 현황
@@ -304,7 +388,6 @@ class PerformanceMonitor:
         summary += f"\n마지막 업데이트: {time.strftime('%Y-%m-%d %H:%M:%S')}\n"
 
         return summary
-
 
     def get_accuracy(self, model):
         total = self.total_predictions.get(model, 0)
@@ -456,55 +539,21 @@ class PerformanceMonitor:
             self.total_profit += trade_info.get('profit', 0)
 
         # 성공률 계산
-        buy_hold_success_rate = (self.successful_buy_hold_trades / self.buy_hold_trades * 100) if self.buy_hold_trades > 0 else 0
-        sell_success_rate = (self.successful_sell_trades / self.sell_trades * 100) if self.sell_trades > 0 else 0
-
-        self.update_success_rates(buy_hold_success_rate, sell_success_rate)
+        self.buy_hold_success_rate = (
+                    self.successful_buy_hold_trades / self.buy_hold_trades * 100) if self.buy_hold_trades > 0 else 0
+        self.sell_success_rate = (self.successful_sell_trades / self.sell_trades * 100) if self.sell_trades > 0 else 0
 
     def calculate_returns(self):
-        logger.info(f"초기 총 자산 가치: {self.initial_total_value} KRW")
-        logger.info(f"현재 KRW 잔액: {self.current_balance} KRW")
-        logger.info(f"현재 BTC 잔액: {self.current_btc_balance} BTC")
+        initial_value = self.initial_balance
+        current_value = self.current_balance + (self.current_btc_balance * self.get_current_btc_price())
+
+        strategy_return = ((current_value - initial_value) / initial_value) * 100
+
+        initial_btc_price = self.initial_btc_price or self.get_current_btc_price()
         current_btc_price = self.get_current_btc_price()
-        logger.info(f"현재 BTC 가격: {current_btc_price} KRW")
-
-        current_total_value = self.current_balance + (self.current_btc_balance * current_btc_price)
-        logger.info(f"현재 총 자산 가치: {current_total_value} KRW")
-
-        absolute_return = current_total_value - self.initial_total_value
-        logger.info(f"절대 수익: {absolute_return} KRW")
-
-        if self.initial_total_value > 0:
-            strategy_return = (absolute_return / self.initial_total_value) * 100
-        else:
-            strategy_return = 0
-            logger.error("초기 총 자산 가치가 0 이하입니다. 수익률을 0으로 설정합니다.")
-
-        logger.info(f"계산된 전략 수익률: {strategy_return}%")
-
-        if strategy_return > 1000 or strategy_return < -100:
-            logger.warning(f"비정상적인 전략 수익률 감지: {strategy_return}%. ±1000%로 제한합니다.")
-            strategy_return = max(min(strategy_return, 1000), -100)
-
-        if self.initial_btc_price > 0:
-            hodl_return = ((current_btc_price - self.initial_btc_price) / self.initial_btc_price) * 100
-        else:
-            hodl_return = 0
-            logger.error("초기 BTC 가격이 0 이하입니다. HODL 수익률을 0으로 설정합니다.")
-
-        logger.info(f"계산된 HODL 수익률: {hodl_return}%")
+        hodl_return = ((current_btc_price - initial_btc_price) / initial_btc_price) * 100
 
         return strategy_return, hodl_return
-
-    # def update_model_metrics(self, model_predictions, actual_outcome):
-    #     for model, prediction in model_predictions.items():
-    #         if prediction == actual_outcome:
-    #             self.model_accuracies[model] = (self.model_accuracies[model] * self.total_predictions + 1) / (
-    #                         self.total_predictions + 1)
-    #         else:
-    #             self.model_accuracies[model] = (self.model_accuracies[model] * self.total_predictions) / (
-    #                         self.total_predictions + 1)
-    #     self.total_predictions += 1
 
     def update_trade_success_rates(self, decision, success):
         if decision in ['buy', 'hold']:
@@ -523,3 +572,4 @@ class PerformanceMonitor:
     def update_last_trade_result(self, success, profit):
         self.last_trade_success = success
         self.last_trade_profit = profit
+

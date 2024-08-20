@@ -1,0 +1,44 @@
+{
+  "accuracies": {
+    "gpt": {
+      "correct": 90,
+      "total": 458,
+      "accuracy": 0.1965065502183406
+    },
+    "ml": {
+      "correct": 331,
+      "total": 458,
+      "accuracy": 0.722707423580786
+    },
+    "xgboost": {
+      "correct": 390,
+      "total": 397,
+      "accuracy": 0.982367758186398
+    },
+    "rl": {
+      "correct": 6,
+      "total": 15,
+      "accuracy": 0.4
+    },
+    "lstm": {
+      "correct": 374,
+      "total": 458,
+      "accuracy": 0.8165938864628821
+    },
+    "arima": {
+      "correct": 375,
+      "total": 458,
+      "accuracy": 0.8187772925764192
+    },
+    "prophet": {
+      "correct": 84,
+      "total": 458,
+      "accuracy": 0.18340611353711792
+    },
+    "transformer": {
+      "correct": 374,
+      "total": 458,
+      "accuracy": 0.8165938864628821
+    }
+  }
+}

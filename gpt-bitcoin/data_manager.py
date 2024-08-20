@@ -205,9 +205,6 @@ class DataManager:
             # NaN 값을 앞뒤 값으로 채우기
             data = data.ffill().bfill()
 
-            logger.info(f"기술적 지표 추가 후 데이터 shape: {data.shape}")
-            logger.info(f"데이터 컬럼: {data.columns}")
-
             features = ['open', 'high', 'low', 'close', 'volume', 'sma', 'ema', 'rsi', 'macd', 'signal_line',
                         'BB_Upper', 'BB_Lower']
             X = data[features].values
@@ -215,13 +212,14 @@ class DataManager:
             X = X[:-1]  # 마지막 행 제거 (타겟 변수와 길이 맞추기)
 
             logger.info(f"최종 X shape: {X.shape}, y shape: {y.shape}")
+            logger.info(f"X 데이터 타입: {X.dtype}, y 데이터 타입: {y.dtype}")
 
             return X, y
 
         except Exception as e:
-            logger.error(f"데이터 준비 중 오류 발생: {e}")
-            logger.exception("상세 오류:")
-            raise
+                logger.error(f"데이터 준비 중 오류 발생: {e}")
+                logger.exception("상세 오류:")
+                raise
 
     def check_table_structure(self):
         with self.conn:
@@ -272,3 +270,9 @@ class DataManager:
         df['date'] = pd.to_datetime(df['date'])
         return df
 
+    def get_previous_price(self):
+        data = self.ensure_sufficient_data(2)  # 최소 2개의 데이터 포인트 필요
+        if len(data) >= 2:
+            return data['close'].iloc[-2]
+        else:
+            return None

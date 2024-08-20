@@ -17,6 +17,9 @@ class UpbitClient:
     def get_balance(self, ticker: str) -> float:
         return self.upbit.get_balance(ticker)
 
+    def set_initial_balance(self, balance: float):
+        self.initial_balance = balance
+
     def get_avg_buy_price(self, ticker: str) -> float:
         return self.upbit.get_avg_buy_price(ticker)
 

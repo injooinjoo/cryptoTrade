@@ -12,25 +12,22 @@ import numpy as np
 import pandas as pd
 import schedule
 from dotenv import load_dotenv
-from sklearn.metrics import accuracy_score, mean_squared_error
-from sklearn.model_selection import RandomizedSearchCV
+from sklearn.metrics import mean_squared_error
 from statsmodels.tools.sm_exceptions import ValueWarning
-from xgboost import XGBClassifier
 
 from api_client import UpbitClient, OpenAIClient, PositionManager
 from auto_adjustment import AutoAdjustment, AnomalyDetector, MarketRegimeDetector, DynamicTradingFrequencyAdjuster
 from backtesting_and_ml import MLPredictor, RLAgent, run_backtest, LSTMPredictor, XGBoostPredictor, ARIMAPredictor, \
-    ProphetPredictor, TransformerPredictor
+    ProphetPredictor, TransformerPredictor, ModelUpdater
 from config import load_config, setup_logging
 from data_manager import DataManager
 from discord_notifier import send_discord_message
 from performance_monitor import PerformanceMonitor
-from trading_logic import analyze_data_with_gpt4, execute_trade, data_manager
+from trading_logic import analyze_data_with_gpt4, execute_trade, data_manager, numpy_to_python
 
+logging.getLogger("prophet.plot").disabled = True
 warnings.filterwarnings("ignore", category=FutureWarning, module="statsmodels")
-
 warnings.filterwarnings("ignore", category=ValueWarning)
-
 load_dotenv()
 setup_logging()
 logger = logging.getLogger(__name__)
@@ -140,7 +137,8 @@ class TradingLoop:
         self.evaluation_delay = 600
         self.arima_predictor = ARIMAPredictor()
         self.prophet_predictor = ProphetPredictor()
-        self.transformer_predictor = TransformerPredictor(input_dim=5, hidden_dim=64, output_dim=1, num_layers=2)
+        self.transformer_predictor = TransformerPredictor(input_dim=5, hidden_dim=64, output_dim=1, num_layers=2,
+                                                          num_heads=8)
         self.weights = self.get_default_weights()
         self.prediction_accuracy = {model: 0.5 for model in self.weights}
         self.weight_adjustment = 0.01
@@ -151,27 +149,129 @@ class TradingLoop:
         self.report_interval = 50
         self.has_btc = False
         self.prediction_history_file = 'prediction_history.json'
+        self.load_prediction_history()
         self.model_update_interval = 100
         self.model_update_threshold = 0.4
         self.performance_monitor = performance_monitor
+        self.initial_balance = 500000  # 50만원으로 초기 잔액 설정
 
         # 파일 경로 초기화
         self.model_weights_file = 'model_weights.json'
         self.model_performance_file = 'model_performance.json'
 
-        self.load_model_weights()
+        self.model_updater = ModelUpdater(data_manager, self.xgboost_predictor, self.lstm_predictor, ml_predictor,
+                                          rl_agent)
+        self.weights = self.model_updater.load_model_weights()
         self.load_prediction_history()
         self.performance_evaluation_interval = 50  # 100회 반복마다 성능 평가
         self.min_predictions_for_update = 20  # 최소 50개의 예측 후 모델 업데이트 고려
         self.model_performance = {model: {'predictions': [], 'actual_values': []} for model in ['gpt', 'ml', 'xgboost', 'rl', 'lstm', 'arima', 'prophet', 'transformer']}
         self.initialize_model_performance()
+        self.prediction_history = []
+        self.max_prediction_history = 100  # 저장할 최대 예측 기록 수
+        self.performance_monitor.load_prediction_stats()  # 예측 통계 로드
+
+    def analyze_and_report_model_performance(self):
+        all_accuracies = self.performance_monitor.get_all_model_accuracies()
+        total_weight = sum(self.weights.values())
+
+        low_performance_threshold = 0.5
+        low_weight_threshold = 0.05
+        min_predictions = 30
+
+        low_performance_models = []
+        for model in self.weights.keys():
+            try:
+                accuracy = all_accuracies.get(model, 0.0)
+                weight = self.weights.get(model, 0)
+                weight_percentage = (weight / total_weight) * 100 if total_weight > 0 else 0
+                prediction_count = self.performance_monitor.get_prediction_count(model)
+
+                logger.info(
+                    f"Model: {model}, Accuracy: {accuracy:.2f}, Weight: {weight_percentage:.2f}%, Prediction Count: {prediction_count}")
+
+                if prediction_count >= min_predictions:
+                    if accuracy < low_performance_threshold or weight_percentage < low_weight_threshold:
+                        low_performance_models.append((model, accuracy, weight_percentage, prediction_count))
+                else:
+                    logger.info(f"{model} 모델은 아직 충분한 예측을 수행하지 않았습니다. (현재 {prediction_count}회)")
+            except Exception as e:
+                logger.error(f"Error processing model {model}: {e}")
+
+        if low_performance_models:
+            report = "🔍 저성능 모델 분석 및 재학습 진행 🔍\n"
+            report += "=" * 50 + "\n\n"
+
+            for model, accuracy, weight_percentage, prediction_count in low_performance_models:
+                report += f"{model.upper()}:\n"
+                report += f"  이전 정확도: {accuracy:.2f}%\n"
+                report += f"  이전 가중치: {weight_percentage:.2f}%\n"
+                report += f"  예측 횟수: {prediction_count}\n"
+                send_discord_message(report)
+
+                try:
+                    new_params, performance = getattr(self.model_updater, f"update_{model.lower()}_model")()
+                    new_accuracy = performance.get('accuracy', 0) * 100  # assuming accuracy is between 0 and 1
+
+                    report = f"{model.upper()} 모델 재학습 완료\n"
+                    report += f"재학습 후 정확도: {new_accuracy:.2f}%\n"
+                    report += f"새로운 파라미터: {new_params}\n"
+                    send_discord_message(report)
+
+                    # 성능 지표 업데이트
+                    self.performance_monitor.update_model_accuracy(model, new_accuracy / 100)  # 다시 0-1 범위로 변환
+
+                    # 가중치 업데이트
+                    self.weights[model] = max(self.weights[model], low_weight_threshold)  # 최소 가중치 보장
+
+                    # 예측 횟수 초기화
+                    self.performance_monitor.reset_prediction_count(model)
+
+                except AttributeError:
+                    error_message = f"{model} 모델에 대한 업데이트 메소드를 찾을 수 없습니다."
+                    logger.error(error_message)
+                    send_discord_message(error_message)
+                except Exception as e:
+                    error_message = f"{model} 모델 재학습 중 오류 발생: {str(e)}"
+                    logger.error(error_message)
+                    send_discord_message(error_message)
+
+            logger.info(report)
+            send_discord_message(report)
+
+            # 가중치 정규화
+            total_weight = sum(self.weights.values())
+            self.weights = {model: weight / total_weight for model, weight in self.weights.items()}
+
+            final_report = "모델 재학습 및 가중치 조정 완료\n"
+            final_report += "최종 조정된 가중치:\n"
+            for model, weight in self.weights.items():
+                final_report += f"  {model.upper()}: {weight:.4f}\n"
+            final_report += "\n최종 모델 정확도:\n"
+            for model, accuracy in self.performance_monitor.get_all_model_accuracies().items():
+                final_report += f"  {model.upper()}: {accuracy:.2f}%\n"
+
+            logger.info(final_report)
+            send_discord_message(final_report)
+        else:
+            message = "현재 재학습이 필요한 모델이 없습니다. 모든 모델이 충분한 예측을 수행하지 않았거나 양호한 성능을 보이고 있습니다."
+            logger.info(message)
+            send_discord_message(message)
+        # 전체 모델의 현재 예측 횟수와 정확도를 로깅
+        logger.info("현재 모델별 예측 횟수 및 정확도:")
+        for model in self.weights.keys():
+            count = self.performance_monitor.get_prediction_count(model)
+            accuracy = all_accuracies.get(model, 0.0)
+            logger.info(f"  {model}: {count}회 예측, 정확도 {accuracy * 100:.2f}%")
 
     def run(self, initial_strategy, initial_backtest_results, historical_data):
         global data
         self.data_manager.check_table_structure()
+        self.analyze_and_report_model_performance()  # 트레이딩 루프 시작 전 성능 분석 및 보고
         self.config['trading_parameters'] = initial_strategy
         last_backtest_results = initial_backtest_results
         self.data_manager.fetch_extended_historical_data(days=365)
+        self.upbit_client.set_initial_balance(self.initial_balance)
 
         initial_price = historical_data['close'].iloc[0]
         final_price = historical_data['close'].iloc[-1]
@@ -188,15 +288,24 @@ class TradingLoop:
 
                 self.evaluate_pending_trades()
                 data = self.data_manager.ensure_sufficient_data()
-                if len(data) < 2:
-                    logger.warning("데이터가 충분하지 않습니다. 다음 주기를 기다립니다.")
+                if data.empty or len(data) < 33:  # MACD에 필요한 최소 데이터 포인트
+                    logger.warning("충분한 데이터가 없습니다. 다음 주기를 기다립니다.")
                     time.sleep(60)
                     continue
+                # logger.info(f"현재 데이터 shape: {data.shape}")
 
                 if self.last_trade_time is None or (current_time - self.last_trade_time) >= self.trading_interval:
                     print('RUNNING NOW')
+                    self.analyze_and_report_model_performance()  # 트레이딩 루프 시작 전 성능 분석 및 보고
+
                     self.cancel_existing_orders()
                     data = self.data_manager.ensure_sufficient_data()
+                    if data.empty or len(data) < 2:
+                        logger.warning("충분한 데이터가 없습니다. 다음 주기를 기다립니다.")
+                        time.sleep(60)
+                        continue
+
+                    # logger.info(f"현재 데이터 shape: {data.shape}")
                     data['date'] = pd.to_datetime(data['date'])
                     data.set_index('date', inplace=True)
 
@@ -206,34 +315,19 @@ class TradingLoop:
                             logger.info(f"모델 업데이트 시작: {worst_model} (정확도: {worst_accuracy:.2%})")
                             self.update_model(worst_model)
 
-                            # 모델 업데이트 후 성능 재평가
-                            updated_accuracy = self.calculate_all_time_accuracy().get(worst_model)
-                            if updated_accuracy is not None:
-                                logger.info(f"{worst_model} 모델 업데이트 완료. 새 정확도: {updated_accuracy:.2%}")
-
-                                if updated_accuracy > worst_accuracy:
-                                    improvement = (updated_accuracy - worst_accuracy) / worst_accuracy * 100
-                                    logger.info(f"{worst_model} 모델 성능이 {improvement:.2f}% 향상되었습니다.")
-                                else:
-                                    logger.warning(f"{worst_model} 모델 성능이 개선되지 않았습니다. 추가적인 분석이 필요할 수 있습니다.")
-                            else:
-                                logger.warning(f"{worst_model} 모델의 업데이트된 정확도를 계산할 수 없습니다.")
-                        else:
-                            logger.info("모든 모델의 성능이 충분히 좋거나, 성능 데이터가 없어 업데이트가 필요하지 않습니다.")
-
                     self.arima_predictor.train(data)
                     self.prophet_predictor.train(data)
 
                     ml_prediction = self.ml_predictor.predict(data)
                     xgboost_prediction = self.xgboost_predictor.predict(data)
+                    if xgboost_prediction is None:
+                        logger.warning("XGBoost 예측 실패. 기본값 0으로 설정합니다.")
+                        xgboost_prediction = 0
                     rl_action = self.rl_agent.act(self.prepare_state(data))
                     lstm_prediction = self.lstm_predictor.predict(data)
                     arima_prediction = self.arima_predictor.predict()
-                    if isinstance(arima_prediction, (pd.Series, np.ndarray)):
-                        arima_prediction = arima_prediction[0]
-
                     prophet_prediction = self.prophet_predictor.predict()
-                    transformer_prediction = self.transformer_predictor.predict(data.tail(1))
+                    transformer_prediction = self.transformer_predictor.predict(data.tail(5))
 
                     latest_data = self.data_manager.ensure_sufficient_data()
                     latest_data['date'] = pd.to_datetime(latest_data['date'])
@@ -241,7 +335,7 @@ class TradingLoop:
                     historical_data = pd.concat([historical_data, latest_data])
                     historical_data = historical_data[~historical_data.index.duplicated(keep='last')]
                     historical_data.sort_index(inplace=True)
-                    print(len(historical_data))
+
                     market_analysis = self.analyze_market(data)
                     anomalies, anomaly_scores = self.anomaly_detector.detect_anomalies(data)
                     current_regime = self.regime_detector.detect_regime(data)
@@ -250,27 +344,33 @@ class TradingLoop:
                     self.dynamic_adjuster.adjust_threshold(market_volatility)
                     self.trading_interval = max(300, int(600 * self.dynamic_adjuster.decision_threshold))
 
-                    gpt4_advice = analyze_data_with_gpt4(
-                        data=data,
-                        openai_client=self.openai_client,
-                        params=self.config['trading_parameters'],
-                        upbit_client=self.upbit_client,
-                        average_accuracy=self.data_manager.get_average_accuracy(),
-                        anomalies=anomalies,
-                        anomaly_scores=anomaly_scores,
-                        market_regime=current_regime,
-                        ml_prediction=ml_prediction,
-                        xgboost_prediction=xgboost_prediction,
-                        rl_action=rl_action,
-                        lstm_prediction=lstm_prediction,
-                        backtest_results=last_backtest_results,
-                        market_analysis=market_analysis,
-                        current_balance=self.upbit_client.get_balance("KRW"),
-                        current_btc_balance=self.upbit_client.get_balance("BTC"),
-                        hodl_performance=self.hodl_performance,
-                        current_performance=self.calculate_current_performance(),
-                        trading_history=self.get_recent_trading_history()
-                    )
+                    # 여기서 오류가 발생할 수 있는 부분을 수정
+                    try:
+                        gpt4_advice = analyze_data_with_gpt4(
+                            data=data,
+                            openai_client=self.openai_client,
+                            params=self.config['trading_parameters'],
+                            upbit_client=self.upbit_client,
+                            average_accuracy=self.data_manager.get_average_accuracy(),
+                            anomalies=anomalies,
+                            anomaly_scores=anomaly_scores,
+                            market_regime=current_regime,
+                            ml_prediction=ml_prediction,
+                            xgboost_prediction=xgboost_prediction,
+                            rl_action=rl_action,
+                            lstm_prediction=lstm_prediction,
+                            backtest_results=last_backtest_results,
+                            market_analysis=market_analysis,
+                            current_balance=self.upbit_client.get_balance("KRW"),
+                            current_btc_balance=self.upbit_client.get_balance("BTC"),
+                            hodl_performance=self.hodl_performance,
+                            current_performance=self.calculate_current_performance(),
+                            trading_history=self.get_recent_trading_history()
+                        )
+                    except ValueError as ve:
+                        logger.error(f"GPT-4 분석 중 ValueError 발생: {ve}")
+                        gpt4_advice = self.default_gpt4_advice()  # 기본 조언을 반환하는 메서드 구현 필요
+
                     predictions = {
                         'gpt': 1 if gpt4_advice['decision'] == 'buy' else -1 if gpt4_advice[
                                                                                     'decision'] == 'sell' else 0,
@@ -282,50 +382,47 @@ class TradingLoop:
                         'prophet': prophet_prediction,
                         'transformer': transformer_prediction
                     }
+                    self.last_predictions = predictions
 
-                    # 각 모델의 예측 및 실제 값 업데이트
                     current_price = self.upbit_client.get_current_price("KRW-BTC")
                     for model_name, prediction in predictions.items():
                         self.update_model_performance(model_name, prediction, current_price)
 
-                    # 주기적으로 모델 성능 평가
                     if self.counter % self.performance_evaluation_interval == 0:
                         self.evaluate_model_performances()
 
-                    self.record_predictions(gpt4_advice['decision'], ml_prediction, xgboost_prediction, rl_action, lstm_prediction,
-                    arima_prediction, prophet_prediction, transformer_prediction)
+                    self.record_predictions(gpt4_advice['decision'], ml_prediction, xgboost_prediction, rl_action,
+                                            lstm_prediction, arima_prediction, prophet_prediction,
+                                            transformer_prediction)
 
                     self.evaluate_previous_predictions()
                     model_weights = self.calculate_model_weights()
-                    self.adjust_weights_based_on_performance()
+                    # 가중치 조정
+                    old_weights = self.weights.copy()
+                    self.weights = self.model_updater.adjust_weights_based_on_performance(self.model_performance)
+
+                    # 가중치 변화 로깅 (선택적)
+                    for model in self.weights:
+                        change = self.weights[model] - old_weights.get(model, 0)
+                        logger.info(f"  {model} 가중치 변화: {change:.4f}")
                     self.save_model_weights()
                     self.generate_prediction_report()
-
                     self.log_predictions_and_weights()
 
-                    if len(self.prediction_history) >= 2:
-                        previous_predictions, previous_price = self.prediction_history[-2]
-                        current_price = self.upbit_client.get_current_price("KRW-BTC")
-                        price_change = current_price - previous_price
+                    # 예측 후 정확도 업데이트
+                    self.update_prediction_accuracies(gpt4_advice, ml_prediction, xgboost_prediction, rl_action,
+                                                      lstm_prediction, arima_prediction, prophet_prediction,
+                                                      transformer_prediction)
 
-                        for model, prediction in previous_predictions.items():
-                            is_correct = (prediction > 0 and price_change > 0) or (
-                                        prediction < 0 and price_change < 0) or (
-                                                     prediction == 0 and abs(price_change) < previous_price * 0.005)
-                            self.performance_monitor.update_prediction_accuracy(model, is_correct)
-
-                    if self.counter % 10 == 0:
-                        self.adjust_weights_based_on_performance()
-
-                        # 가중치 기반 최종 결정
-                    decision = self.make_weighted_decision(gpt4_advice, ml_prediction, xgboost_prediction, rl_action,
-                                                           lstm_prediction, arima_prediction, prophet_prediction,
-                                                           transformer_prediction)
+                    decision = self.make_weighted_decision(gpt4_advice, ml_prediction, xgboost_prediction,
+                                                           rl_action, lstm_prediction, arima_prediction,
+                                                           prophet_prediction, transformer_prediction)
 
                     strategy_performance = self.calculate_strategy_performance()
                     hodl_performance = self.calculate_hodl_performance(historical_data)
                     current_balance = self.upbit_client.get_balance("KRW") + self.upbit_client.get_balance(
                         "BTC") * self.upbit_client.get_current_price("KRW-BTC")
+
                     self.performance_monitor.update(
                         strategy_performance,
                         hodl_performance,
@@ -352,27 +449,45 @@ class TradingLoop:
                                 'timestamp': time.time(),
                                 'decision': decision['decision'],
                                 'price': result['price'],
-                                'amount': result['amount']
+                                'amount': result['amount'],
+                                'success': True,  # 거래 성공 여부
+                                'profit': result.get('profit', 0)  # 거래에 따른 수익
                             }
                             self.performance_monitor.record_trade(trade_info)
+                            # 성공한 거래에 대해 가중치 조정
+                            for model, prediction in predictions.items():
+                                if (decision['decision'] == 'buy' and prediction > 0) or (decision['decision'] == 'sell' and prediction < 0):
+                                    self.performance_monitor.adjust_weight(model, success=True)
+                        else:
+                            # 실패한 거래에 대해 가중치 조정
+                            for model, prediction in predictions.items():
+                                if (decision['decision'] == 'buy' and prediction > 0) or (
+                                        decision['decision'] == 'sell' and prediction < 0):
+                                    self.performance_monitor.adjust_weight(model, success=False)
 
-                    self.last_trade_time = current_time
-                    all_time_accuracy = self.calculate_all_time_accuracy()
-                    accuracy_report = "전체 예측 성공률:\n" + "\n".join(
-                        [f"{model}: {acc:.2%}" for model, acc in all_time_accuracy.items()])
-                    logger.info(accuracy_report)
-                    send_discord_message(accuracy_report)
+                    # 예측 후 정확도 업데이트
+                    self.update_prediction_accuracies(gpt4_advice, ml_prediction, xgboost_prediction, rl_action,
+                                                      lstm_prediction, arima_prediction, prophet_prediction,
+                                                      transformer_prediction)
+
+                    # 주기적으로 예측 통계 로깅
+                    if self.counter % 10 == 0:  # 10회마다 로깅
+                        self.performance_monitor.log_prediction_stats()
+
+                    logger.info(
+                        f"Current predictions: GPT4: {gpt4_advice['decision']}, ML: {ml_prediction}, XGBoost: {xgboost_prediction}, RL: {rl_action}, LSTM: {lstm_prediction}, ARIMA: {arima_prediction}, Prophet: {prophet_prediction}, Transformer: {transformer_prediction}")
 
                     performance_summary = self.performance_monitor.get_performance_summary(self.weights)
                     send_discord_message(performance_summary)
 
-                    self.save_model_weights()
                     self.last_trade_time = current_time
                     self.counter += 1
 
-                # 주기적 업데이트 (예: 1시간마다)
                 if self.counter % 360 == 0:  # 6시간마다 (10분 * 36)
                     self.periodic_update(historical_data)
+
+                if self.counter % 10 == 0:  # 10회 반복마다 저장
+                    self.save_prediction_history()
 
                 time.sleep(10)  # 10초마다 체크
 
@@ -387,6 +502,101 @@ class TradingLoop:
                 logger.error(f"Trading loop error: {e}")
                 logger.exception("Traceback:")
                 time.sleep(60)
+
+    def update_prediction_accuracies(self, gpt4_advice, ml_prediction, xgboost_prediction, rl_action, lstm_prediction,
+                                     arima_prediction, prophet_prediction, transformer_prediction):
+        current_price = self.upbit_client.get_current_price("KRW-BTC")
+        previous_price = self.data_manager.get_previous_price()
+
+        logger.info(f"Current price: {current_price}, Previous price: {previous_price}")
+
+        if previous_price is None or current_price is None:
+            logger.warning("가격 정보가 부족하여 정확도를 업데이트할 수 없습니다.")
+            return
+
+        price_change_ratio = (current_price - previous_price) / previous_price
+        significant_change_threshold = 0.001  # 0.1% 변동을 유의미한 변화로 간주
+
+        if abs(price_change_ratio) < significant_change_threshold:
+            logger.info("가격 변동이 유의미하지 않아 정확도 업데이트를 건너뜁니다.")
+            return
+
+        price_increased = price_change_ratio > 0
+
+        # 각 모델의 예측이 맞았는지 확인
+        gpt_correct = (gpt4_advice['decision'] == 'buy' and price_increased) or (
+                    gpt4_advice['decision'] == 'sell' and not price_increased) or (
+                                  gpt4_advice['decision'] == 'hold' and abs(
+                              price_change_ratio) < significant_change_threshold)
+        ml_correct = (ml_prediction == 1 and price_increased) or (ml_prediction == 0 and not price_increased)
+        xgboost_correct = (xgboost_prediction == 1 and price_increased) or (
+                    xgboost_prediction == 0 and not price_increased)
+        rl_correct = (rl_action == 2 and price_increased) or (rl_action == 0 and not price_increased) or (
+                    rl_action == 1 and abs(price_change_ratio) < significant_change_threshold)
+        lstm_correct = (lstm_prediction > previous_price) == price_increased
+        arima_correct = (arima_prediction > previous_price) == price_increased
+        prophet_correct = (prophet_prediction > previous_price) == price_increased
+        transformer_correct = (transformer_prediction > previous_price) == price_increased
+
+        logger.info(f"Price change ratio: {price_change_ratio:.4f}")
+        logger.info(
+            f"Predictions: GPT: {gpt4_advice['decision']}, ML: {ml_prediction}, XGBoost: {xgboost_prediction}, RL: {rl_action}, "
+            f"LSTM: {lstm_prediction}, ARIMA: {arima_prediction}, Prophet: {prophet_prediction}, Transformer: {transformer_prediction}")
+        logger.info(
+            f"Prediction results: GPT: {gpt_correct}, ML: {ml_correct}, XGBoost: {xgboost_correct}, RL: {rl_correct}, "
+            f"LSTM: {lstm_correct}, ARIMA: {arima_correct}, Prophet: {prophet_correct}, Transformer: {transformer_correct}")
+
+        # 정확도 업데이트
+        self.performance_monitor.update_prediction_accuracy('gpt', gpt_correct)
+        self.performance_monitor.update_prediction_accuracy('ml', ml_correct)
+        self.performance_monitor.update_prediction_accuracy('xgboost', xgboost_correct)
+        self.performance_monitor.update_prediction_accuracy('rl', rl_correct)
+        self.performance_monitor.update_prediction_accuracy('lstm', lstm_correct)
+        self.performance_monitor.update_prediction_accuracy('arima', arima_correct)
+        self.performance_monitor.update_prediction_accuracy('prophet', prophet_correct)
+        self.performance_monitor.update_prediction_accuracy('transformer', transformer_correct)
+
+    def default_gpt4_advice(self):
+        return {
+            "decision": "hold",
+            "percentage": 0,
+            "target_price": None,
+            "stop_loss": None,
+            "take_profit": None,
+            "reasoning": "기본 홀드 결정 (GPT-4 분석 오류)"
+        }
+
+    def update_model(self, model_name):
+        if model_name == 'xgboost':
+            best_params, performance = self.model_updater.update_xgboost_model()
+        elif model_name == 'lstm':
+            best_params, performance = self.model_updater.update_lstm_model()
+        elif model_name == 'ml':
+            best_params, performance = self.model_updater.update_ml_model()
+        elif model_name == 'rl':
+            performance = self.model_updater.update_rl_model()
+        elif model_name == 'arima':
+            best_params, performance = self.model_updater.update_arima_model()
+        elif model_name == 'prophet':
+            best_params, performance = self.model_updater.update_prophet_model()
+        elif model_name == 'transformer':
+            best_params, performance = self.model_updater.update_transformer_model()
+        else:
+            logger.warning(f"Unknown model: {model_name}")
+            return
+
+        logger.info(f"{model_name} 모델이 업데이트되었습니다. 성능: {performance}")
+        return performance
+
+    def evaluate_model_performances(self):
+        for model_name in self.model_performance.keys():
+            predictions = self.model_performance[model_name]['predictions']
+            actual_values = self.model_performance[model_name]['actual_values']
+            if len(predictions) > 0 and len(actual_values) > 0:
+                mse = mean_squared_error(actual_values, predictions)
+                accuracy = 1 / (1 + mse)  # 간단한 정확도 변환
+                self.model_performance[model_name]['accuracy'] = accuracy
+                logger.info(f"{model_name} 모델 정확도: {accuracy:.4f}")
 
     def numpy_to_python(self, obj):
         if isinstance(obj, np.integer):
@@ -424,102 +634,14 @@ class TradingLoop:
         worst_accuracy = models_to_consider[worst_model]
         return worst_model, worst_accuracy
 
-    def update_model(self, model_name):
-        if model_name == 'xgboost':
-            self.update_xgboost_model()
-        elif model_name == 'lstm':
-            self.update_lstm_model()
-        elif model_name == 'ml':
-            self.update_ml_model()
-        elif model_name == 'rl':
-            self.update_rl_model()
-        # 다른 모델들에 대한 업데이트 로직 추가
-
-        logger.info(f"{model_name} 모델이 업데이트되었습니다.")
-
-        # 모델 업데이트 후 성능 재평가
-        updated_accuracy = self.calculate_model_accuracy(model_name)
-        previous_accuracy = self.model_performance[model_name]['accuracy']
-
-        if updated_accuracy > previous_accuracy:
-            if previous_accuracy > 0:
-                improvement = (updated_accuracy - previous_accuracy) / previous_accuracy * 100
-                logger.info(f"{model_name} 모델 성능이 {improvement:.2f}% 향상되었습니다.")
-            else:
-                logger.info(f"{model_name} 모델 성능이 향상되었습니다. 새 정확도: {updated_accuracy:.2%}")
-        else:
-            logger.warning(f"{model_name} 모델 성능이 개선되지 않았습니다. 추가적인 분석이 필요할 수 있습니다.")
-
-        # 모델 성능 정보 업데이트
-        self.model_performance[model_name]['accuracy'] = updated_accuracy
-        self.save_model_weights()  # 업데이트된 성능 정보 저장
-
-    def calculate_model_accuracy(self, model_name):
-        if model_name not in self.model_performance:
-            logger.warning(f"Model {model_name} not found in performance data.")
-            return 0.0
-
-        predictions = self.model_performance[model_name]['predictions']
-        actual_values = self.model_performance[model_name]['actual_values']
-
-        if len(predictions) < self.min_predictions_for_update:
-            return 0.0
-
-        if model_name in ['gpt', 'ml', 'xgboost', 'rl']:
-            # 분류 모델의 경우
-            accuracy = accuracy_score([1 if v > 0 else 0 for v in actual_values], [1 if p > 0 else 0 for p in predictions])
-        elif model_name in ['lstm', 'arima', 'prophet', 'transformer']:
-            # 회귀 모델의 경우
-            mse = mean_squared_error(actual_values, predictions)
-            accuracy = 1 / (1 + mse)  # 정규화된 정확도
-        else:
-            logger.warning(f"Unknown model: {model_name}")
-            return 0.0
-
-        self.model_performance[model_name]['accuracy'] = accuracy
-        return accuracy
-
-
-    def update_xgboost_model(self):
-        data = self.data_manager.ensure_sufficient_data()
-        X, y = self.data_manager.prepare_data_for_ml(data)
-
-        param_dist = {
-            'n_estimators': [100, 200, 300],
-            'learning_rate': [0.01, 0.1, 0.3],
-            'max_depth': [3, 4, 5],
-            'min_child_weight': [1, 3, 5]
-        }
-
-        xgb = XGBClassifier(use_label_encoder=False, eval_metric='logloss')
-        random_search = RandomizedSearchCV(xgb, param_distributions=param_dist, n_iter=10, cv=3, random_state=42)
-        random_search.fit(X, y)
-
-        self.xgboost_predictor.model = random_search.best_estimator_
-
-    def update_lstm_model(self):
-        data = self.data_manager.ensure_sufficient_data()
-        self.lstm_predictor.train(data)
-
-    def update_ml_model(self):
-        data = self.data_manager.ensure_sufficient_data()
-        self.ml_predictor.train(self.data_manager)
-
-    def update_rl_model(self):
-        # RL 모델 업데이트 로직 구현
-        # 예: 새로운 에피소드로 학습 또는 파라미터 조정
-        pass
-
     def save_model_weights(self):
-        self._safe_save(self.model_weights_file, self.weights)
-        self._safe_save(self.model_performance_file, self.model_performance)
-        logger.info("Model weights and performance data saved successfully.")
+        self.model_updater.save_model_weights(self.weights)
 
     def _safe_save(self, file_path, data):
         # 임시 파일에 저장
         temp_file = file_path + '.temp'
         with open(temp_file, 'w') as f:
-            json.dump(self.numpy_to_python(data), f, indent=2)
+            json.dump(data, f, indent=2)
 
         # 기존 파일 백업 (있는 경우)
         if os.path.exists(file_path):
@@ -528,36 +650,6 @@ class TradingLoop:
 
         # 임시 파일을 실제 파일로 이동
         os.replace(temp_file, file_path)
-
-    def save_prediction_history(self):
-        try:
-            # 저장 전 데이터 유효성 검사
-            if not isinstance(self.prediction_history, list):
-                raise ValueError("prediction_history는 리스트 형태여야 합니다.")
-
-            for item in self.prediction_history:
-                if not isinstance(item, tuple) or len(item) != 2:
-                    raise ValueError("prediction_history의 각 항목은 2개 요소를 가진 튜플이어야 합니다.")
-
-                predictions, price = item
-                if not isinstance(predictions, dict) or not isinstance(price, (int, float)):
-                    raise ValueError("prediction_history 항목의 형식이 올바르지 않습니다.")
-
-            with open(self.prediction_history_file, 'w') as f:
-                json.dump(self.prediction_history, f, default=self.json_default)
-            logger.info(f"예측 기록 {len(self.prediction_history)}개가 성공적으로 저장되었습니다.")
-        except Exception as e:
-            logger.error(f"예측 기록을 저장하는 중 오류 발생: {e}")
-
-    def json_default(self, obj):
-        if isinstance(obj, np.integer):
-            return int(obj)
-        elif isinstance(obj, np.floating):
-            return float(obj)
-        elif isinstance(obj, np.ndarray):
-            return obj.tolist()
-        else:
-            return str(obj)
 
     def load_prediction_history(self):
         try:
@@ -572,7 +664,7 @@ class TradingLoop:
                             logger.error(f"JSON 디코딩 오류: {json_err}")
                             logger.error(f"파일 내용 (처음 100자): {content[:100]}")
                             logger.info("손상된 prediction_history.json 파일을 백업하고 새로운 파일을 생성합니다.")
-                            self._backup_and_create_new_file()
+                            self._safe_backup_and_create_new_file()
                             self.prediction_history = []
                     else:
                         logger.warning("prediction_history.json 파일이 비어 있습니다. 새로운 예측 기록을 시작합니다.")
@@ -584,8 +676,44 @@ class TradingLoop:
         except Exception as e:
             logger.error(f"예측 기록을 로드하는 중 예외 발생: {e}")
             logger.exception("상세 오류:")
-            self._backup_and_create_new_file()
+            self._safe_backup_and_create_new_file()
             self.prediction_history = []
+
+    def _safe_backup_and_create_new_file(self):
+        timestamp = time.strftime("%Y%m%d-%H%M%S")
+        backup_file = f"{self.prediction_history_file}.{timestamp}.bak"
+        try:
+            if os.path.exists(self.prediction_history_file):
+                shutil.copy2(self.prediction_history_file, backup_file)
+                logger.info(f"기존 파일을 {backup_file}으로 백업했습니다.")
+            self._create_new_file()
+        except Exception as e:
+            logger.error(f"파일 백업 및 새 파일 생성 중 오류 발생: {e}")
+            logger.exception("상세 오류:")
+
+    def _create_new_file(self):
+        try:
+            with open(self.prediction_history_file, 'w') as f:
+                json.dump([], f)
+            logger.info(f"새로운 {self.prediction_history_file} 파일을 생성했습니다.")
+        except Exception as e:
+            logger.error(f"새 파일 생성 중 오류 발생: {e}")
+            logger.exception("상세 오류:")
+
+    def save_prediction_history(self):
+        try:
+            converted_history = [
+                (
+                    {k: numpy_to_python(v) for k, v in predictions.items()},
+                    float(price)
+                )
+                for predictions, price in self.prediction_history
+            ]
+            self._safe_save(self.prediction_history_file, converted_history)
+            logger.info(f"예측 기록이 성공적으로 저장되었습니다: {self.prediction_history_file}")
+        except Exception as e:
+            logger.error(f"예측 기록 저장 중 오류 발생: {e}")
+            logger.exception("상세 오류:")
 
     def _backup_and_create_new_file(self):
         if os.path.exists(self.prediction_history_file):
@@ -594,48 +722,8 @@ class TradingLoop:
             logger.info(f"기존 파일을 {backup_file}으로 백업했습니다.")
         self._create_new_file()
 
-    def _create_new_file(self):
-        with open(self.prediction_history_file, 'w') as f:
-            json.dump([], f)
-        logger.info(f"새로운 {self.prediction_history_file} 파일을 생성했습니다.")
-
-    def load_model_weights(self):
-        self.weights = self._safe_load(self.model_weights_file, self.get_default_weights)
-        self.model_performance = self._safe_load(self.model_performance_file, self.initialize_model_performance)
-
-    def _safe_load(self, file_path, default_function):
-        try:
-            with open(file_path, 'r') as f:
-                content = f.read()
-                if not content.strip():
-                    logger.warning(f"File {file_path} is empty. Using default values.")
-                    return default_function()
-                data = json.loads(content)
-            logger.info(f"Data loaded successfully from {file_path}.")
-            return data
-        except FileNotFoundError:
-            logger.warning(f"File {file_path} not found. Using default values.")
-            return default_function()
-        except json.JSONDecodeError as e:
-            logger.error(f"Error decoding JSON from {file_path}: {e}")
-            logger.error(f"Content of {file_path}: {content[:100]}...")  # Log first 100 characters
-            backup_file = file_path + '.error'
-            shutil.copy2(file_path, backup_file)
-            logger.info(f"Backup of problematic file created: {backup_file}")
-            return default_function()
     def get_default_weights(self):
         return {model: 1.0 / 8 for model in ['gpt', 'ml', 'xgboost', 'rl', 'lstm', 'arima', 'prophet', 'transformer']}
-
-    def adjust_model_weights(self):
-        total_accuracy = sum(self.prediction_accuracy.values())
-        if total_accuracy > 0:
-            for model in self.weights:
-                self.weights[model] = self.prediction_accuracy[model] / total_accuracy
-        else:
-            for model in self.weights:
-                self.weights[model] = 1 / len(self.weights)
-
-        self.save_model_weights()
 
     def add_pending_evaluation(self, decision, result):
         evaluation_time = time.time() + self.evaluation_delay
@@ -643,7 +731,8 @@ class TradingLoop:
             'decision': decision,
             'result': result,
             'evaluation_time': evaluation_time,
-            'strategy': decision.get('strategy', 'unknown')
+            'strategy': decision.get('strategy', 'unknown'),
+            'predictions': self.last_predictions  # 여기에 마지막 예측 정보를 추가합니다
         })
 
     def evaluate_pending_trades(self):
@@ -651,8 +740,20 @@ class TradingLoop:
         while self.pending_evaluations and self.pending_evaluations[0]['evaluation_time'] <= current_time:
             try:
                 trade = self.pending_evaluations.popleft()
+                logger.debug(f"Evaluating trade: {trade}")  # 평가 중인 거래 정보 로깅
                 success = self.evaluate_trade_success(trade['decision'], trade['result'])
                 self.update_strategy_performance(trade['decision'], success)
+
+                predictions = trade.get('predictions', {})
+                if not predictions:
+                    logger.warning(f"No predictions found for trade: {trade['decision']}")  # 예측 정보가 없는 경우 경고 로깅
+
+                for model, prediction in predictions.items():
+                    if (trade['decision']['decision'] == 'buy' and prediction > 0) or (
+                            trade['decision']['decision'] == 'sell' and prediction < 0):
+                        self.performance_monitor.adjust_weight(model, success)
+                        logger.debug(f"Adjusted weight for model {model}: success={success}")  # 가중치 조정 정보 로깅
+
             except Exception as e:
                 logger.error(f"Error evaluating trade: {e}")
                 logger.exception("Traceback:")
@@ -680,6 +781,9 @@ class TradingLoop:
         current_price = self.upbit_client.get_current_price("KRW-BTC")
         price_change_ratio = (current_price - previous_price) / previous_price
 
+        logger.info(
+            f"Evaluating predictions: Previous price: {previous_price}, Current price: {current_price}, Change ratio: {price_change_ratio:.2%}")
+
         for model, prediction in previous_predictions.items():
             if isinstance(prediction, np.ndarray):
                 prediction = prediction.item()
@@ -689,25 +793,18 @@ class TradingLoop:
             else:
                 is_correct = (prediction > 0 and price_change_ratio > 0) or (prediction < 0 and price_change_ratio < 0)
 
-            self.update_model_performance(model, prediction, current_price)
-            self.performance_monitor.update_prediction_accuracy(model, is_correct)  # 여기를 수정했습니다
+            logger.info(f"Model: {model}, Prediction: {prediction}, Is correct: {is_correct}")
+            self.performance_monitor.update_prediction_accuracy(model, is_correct)
 
-        logger.info(f"가격 변화율: {price_change_ratio:.2%}")
-        logger.info(f"예측 결과: {previous_predictions}")
-        logger.info(f"현재 예측 정확도: {self.performance_monitor.get_all_model_accuracies()}")
+        logger.info(f"Current prediction counts: {self.performance_monitor.get_all_prediction_counts()}")
+        logger.info(f"Current model accuracies: {self.performance_monitor.get_all_model_accuracies()}")
 
     def update_model_performance(self, model_name, prediction, actual_value):
         if model_name not in self.model_performance:
-            self.model_performance[model_name] = {'predictions': [], 'actual_values': [], 'accuracy': 0.0}
+            self.model_performance[model_name] = {'predictions': [], 'actual_values': []}
 
-        # NumPy 배열을 스칼라로 변환
-        if isinstance(prediction, np.ndarray):
-            prediction = prediction.item()
-        if isinstance(actual_value, np.ndarray):
-            actual_value = actual_value.item()
-
-        self.model_performance[model_name]['predictions'].append(float(prediction))
-        self.model_performance[model_name]['actual_values'].append(float(actual_value))
+        self.model_performance[model_name]['predictions'].append(prediction)
+        self.model_performance[model_name]['actual_values'].append(actual_value)
 
         # 저장된 데이터 개수 제한 (예: 최근 1000개만 유지)
         max_history = 1000
@@ -717,21 +814,26 @@ class TradingLoop:
             self.model_performance[model_name]['actual_values'] = self.model_performance[model_name]['actual_values'][
                                                                   -max_history:]
 
-        # 정확도 갱신
-        self.calculate_model_accuracy(model_name)
-
-    def evaluate_model_performances(self):
-        for model_name in self.model_performance.keys():
-            accuracy = self.calculate_model_accuracy(model_name)
-            logger.info(f"{model_name} 모델 정확도: {accuracy:.4f}")
-
     def generate_prediction_report(self):
         if len(self.prediction_history) % self.report_interval == 0:
-            report = "예측 성공률 및 가중치 보고서:\n"
+            report = "📊 모델별 성능 및 예측 성공률 보고서 📊\n"
+            report += "=" * 50 + "\n\n"
+
+            all_accuracies = self.performance_monitor.get_all_model_accuracies()
+
             for model in self.weights.keys():
-                accuracy = sum(self.accuracy_history[model][-self.report_interval:]) / self.report_interval
+                correct_predictions = sum(self.accuracy_history[model][-self.report_interval:])
+                total_predictions = self.report_interval
+                recent_accuracy = (correct_predictions / total_predictions) * 100 if total_predictions > 0 else 0
                 avg_weight = sum(w[model] for w in self.weight_history[-self.report_interval:]) / self.report_interval
-                report += f"{model.upper()}: 성공률 {accuracy:.2%}, 평균 가중치 {avg_weight:.4f}\n"
+
+                report += f"{model.upper()}:\n"
+                report += f"  전체 정확도: {all_accuracies.get(model, 0):.2f}%\n"
+                report += f"  현재 가중치: {self.weights[model]:.2f}%\n"
+                report += f"  최근 {self.report_interval}회 예측:\n"
+                report += f"    성공: {correct_predictions}/{total_predictions}\n"
+                report += f"    성공률: {recent_accuracy:.2f}%\n"
+                report += f"    평균 가중치: {avg_weight:.4f}\n\n"
 
             logger.info(report)
             send_discord_message(report)
@@ -745,30 +847,15 @@ class TradingLoop:
 
         cumulative_predictions = {model: {'correct': 0, 'total': 0} for model in self.weights.keys()}
 
-        recent_predictions = self.prediction_history[-5:] if len(self.prediction_history) >= 5 else self.prediction_history
+        for predictions, price in self.prediction_history[:-1]:  # 마지막 예측은 아직 결과를 모르므로 제외
+            next_price = self.prediction_history[self.prediction_history.index((predictions, price)) + 1][1]
+            price_change = (next_price - price) / price
 
-        for i, (predictions, price) in enumerate(recent_predictions):
-            logger.info(f"예측 {i + 1}:")
-            for model in self.weights.keys():
-                prediction = predictions[model]
-
-                if i < len(recent_predictions) - 1:
-                    next_price = recent_predictions[i + 1][1]
-                    price_change_ratio = (next_price - price) / price
-
-                    if prediction == 0:  # 홀드 예측
-                        success = (self.has_btc and price_change_ratio > 0) or (not self.has_btc and price_change_ratio < 0)
-                    else:
-                        success = (prediction > 0 and price_change_ratio > 0) or (prediction < 0 and price_change_ratio < 0)
-
-                    cumulative_predictions[model]['total'] += 1
-                    if success:
-                        cumulative_predictions[model]['correct'] += 1
-
-                    logger.info(
-                        f"  {model.upper()}: 예측 {prediction}, 실제 변동률 {price_change_ratio:.2%}, 성공 여부: {'성공' if success else '실패'}")
-                else:
-                    logger.info(f"  {model.upper()}: 예측 {prediction}, 실제 변동 아직 알 수 없음")
+            for model, prediction in predictions.items():
+                cumulative_predictions[model]['total'] += 1
+                if (prediction > 0 and price_change > 0) or (prediction < 0 and price_change < 0) or (
+                        prediction == 0 and abs(price_change) < 0.01):
+                    cumulative_predictions[model]['correct'] += 1
 
         logger.info("누적 예측 성공률:")
         for model, results in cumulative_predictions.items():
@@ -777,7 +864,6 @@ class TradingLoop:
                 logger.info(f"  {model.upper()}: {success_rate:.2f}% ({results['correct']}/{results['total']})")
             else:
                 logger.info(f"  {model.upper()}: 아직 충분한 데이터가 없습니다.")
-
     def analyze_market(self, data: pd.DataFrame) -> Dict[str, Any]:
         current_price = data['close'].iloc[-1]
         sma_20 = data['close'].rolling(window=20).mean().iloc[-1]
@@ -810,17 +896,6 @@ class TradingLoop:
 
     def get_recent_trading_history(self, n=5):
         return self.trading_history[-n:]
-
-    def adjust_weights_based_on_performance(self):
-        total_accuracy = sum(model_data.get('accuracy', 0.0) for model_data in self.model_performance.values())
-        if total_accuracy > 0:
-            for model in self.weights:
-                self.weights[model] = self.model_performance[model].get('accuracy', 0.0) / total_accuracy
-        else:
-            for model in self.weights:
-                self.weights[model] = 1 / len(self.weights)
-
-        self.save_model_weights()
 
     def periodic_update(self, historical_data):
         last_backtest_results = run_backtest(self.data_manager, historical_data)
@@ -902,7 +977,7 @@ class TradingLoop:
             'transformer': 1 if transformer_prediction > current_price else -1 if transformer_prediction < current_price else 0
         }
         self.prediction_history.append((predictions, current_price))
-        if len(self.prediction_history) > 100:
+        if len(self.prediction_history) > self.max_prediction_history:
             self.prediction_history.pop(0)
 
         logger.info(f"현재 예측: {predictions}")
@@ -926,7 +1001,8 @@ class TradingLoop:
             'hold': 0
         }
 
-        gpt_decision = 'buy' if gpt4_advice['decision'] == 'buy' else 'sell' if gpt4_advice['decision'] == 'sell' else 'hold'
+        gpt_decision = 'buy' if gpt4_advice['decision'] == 'buy' else 'sell' if gpt4_advice[
+                                                                                    'decision'] == 'sell' else 'hold'
         decisions[gpt_decision] += self.weights['gpt']
 
         ml_decision = 'buy' if ml_prediction == 1 else 'sell' if ml_prediction == 0 else 'hold'
@@ -959,12 +1035,14 @@ class TradingLoop:
         adjusted_ratio = self.adjust_trade_ratio(base_ratio, prediction_strength)
 
         if final_decision == 'buy':
-            target_price = gpt4_advice['potential_buy']['target_price'] if gpt4_advice['decision'] == 'hold' else \
-            gpt4_advice['target_price']
+            target_price = gpt4_advice.get('potential_buy', {}).get('target_price') if gpt4_advice[
+                                                                                           'decision'] == 'hold' else gpt4_advice.get(
+                'target_price')
             percentage = adjusted_ratio * 100
         elif final_decision == 'sell':
-            target_price = gpt4_advice['potential_sell']['target_price'] if gpt4_advice['decision'] == 'hold' else \
-            gpt4_advice['target_price']
+            target_price = gpt4_advice.get('potential_sell', {}).get('target_price') if gpt4_advice[
+                                                                                            'decision'] == 'hold' else gpt4_advice.get(
+                'target_price')
             percentage = adjusted_ratio * 100
         else:
             target_price = None
@@ -978,27 +1056,6 @@ class TradingLoop:
             'take_profit': gpt4_advice.get('take_profit'),
             'reasoning': f"Weighted voting decision ({final_decision}) based on individual model predictions. Prediction strength: {prediction_strength:.2f}, Adjusted trade ratio: {adjusted_ratio:.2f}"
         }
-
-    def calculate_all_time_accuracy(self):
-        if not self.prediction_history:
-            return {}
-
-        correct_predictions = {model: 0 for model in self.prediction_history[0][0].keys()}
-        total_predictions = {model: 0 for model in self.prediction_history[0][0].keys()}
-
-        for i in range(len(self.prediction_history) - 1):
-            predictions, price = self.prediction_history[i]
-            next_price = self.prediction_history[i + 1][1]
-
-            for model, prediction in predictions.items():
-                total_predictions[model] += 1
-                if (prediction > 0 and next_price > price) or (prediction < 0 and next_price < price) or (
-                        prediction == 0 and next_price == price):
-                    correct_predictions[model] += 1
-
-        accuracy = {model: correct_predictions[model] / total_predictions[model] if total_predictions[model] > 0 else 0
-                    for model in correct_predictions.keys()}
-        return accuracy
 
     def calculate_strategy_performance(self):
         if self.initial_balance is None:
@@ -1017,18 +1074,13 @@ class TradingLoop:
 
     def calculate_model_weights(self) -> Dict[str, float]:
         model_accuracies = self.performance_monitor.get_all_model_accuracies()
-        logger.debug(f"Current model accuracies: {model_accuracies}")
-
         total_accuracy = sum(model_accuracies.values())
 
         if total_accuracy == 0:
-            logger.warning("Total accuracy is 0. Using equal weights for all models.")
             return {model: 1.0 / len(model_accuracies) for model in model_accuracies}
 
         weights = {model: acc / total_accuracy for model, acc in model_accuracies.items()}
-        logger.info(f"Calculated model weights: {weights}")
         return weights
-
 
     def evaluate_trade_success(self, decision, result):
         current_price = self.upbit_client.get_current_price("KRW-BTC")
@@ -1036,8 +1088,7 @@ class TradingLoop:
             return current_price > result['price']
         elif decision['decision'] == 'sell':
             return current_price < result['price']
-        return False
-
+        return False  # For 'hold' decision
 
 
 def main():
@@ -1086,6 +1137,7 @@ def main():
         trading_loop.run(initial_strategy, initial_backtest_results, historical_data)
     finally:
         position_monitor.stop()
+
 
 if __name__ == "__main__":
     main()
