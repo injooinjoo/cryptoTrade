@@ -1,6 +1,5 @@
-# auto_adjustment.py
 import logging
-from typing import Dict, List, Tuple, Any
+from typing import Dict, List, Tuple
 
 import numpy as np
 import pandas as pd
@@ -23,43 +22,12 @@ class AutoAdjustment:
         self.param_history = []
         self.adjustment_threshold = 0.05
 
-    def generate_initial_strategy(self, backtest_results, ml_accuracy) -> Dict[str, float]:
-        initial_strategy = {
-            'risk_factor': 1.0,
-            'stop_loss_factor': 0.02,
-            'take_profit_factor': 0.03,
-            'trade_frequency': 1.0
-        }
-
-        if 'sharpe_ratio' in backtest_results:
-            sharpe_ratio = backtest_results['sharpe_ratio']
-            if sharpe_ratio > 1.5:
-                initial_strategy['risk_factor'] *= 1.2
-                initial_strategy['trade_frequency'] *= 1.1
-            elif sharpe_ratio < 0.5:
-                initial_strategy['risk_factor'] *= 0.8
-                initial_strategy['trade_frequency'] *= 0.9
-
-        if 'max_drawdown' in backtest_results:
-            max_drawdown = backtest_results['max_drawdown']
-            if max_drawdown > 0.2:
-                initial_strategy['stop_loss_factor'] *= 1.2
-            elif max_drawdown < 0.1:
-                initial_strategy['stop_loss_factor'] *= 0.8
-
-        if ml_accuracy > 0.7:
-            initial_strategy['take_profit_factor'] *= 1.2
-        elif ml_accuracy < 0.5:
-            initial_strategy['take_profit_factor'] *= 0.8
-
-        return initial_strategy
-
     def update_performance(self, performance: float):
         self.performance_history.append(performance)
         self.param_history.append(self.params.copy())
 
     def adjust_params(self) -> Dict[str, float]:
-        if len(self.performance_history) < 10:  # 충분한 데이터가 쌓일 때까지 기다림
+        if len(self.performance_history) < 10:
             return self.params
 
         recent_performance = np.mean(self.performance_history[-5:])
@@ -68,170 +36,28 @@ class AutoAdjustment:
         if recent_performance < overall_performance * (1 - self.adjustment_threshold):
             best_params = self.param_history[np.argmax(self.performance_history)]
 
-            # 현재 파라미터와 최고 성능 파라미터의 중간값으로 조정
             for key in self.params:
                 self.params[key] = (self.params[key] + best_params[key]) / 2
 
         return self.params
 
-    def generate_final_decision(self, gpt4_advice, ml_prediction, rl_action, current_regime, backtest_results,
-                                dynamic_target, upbit_client, ml_accuracy):
-        # gpt4_advice['decision']을 숫자로 변환
-        gpt4_decision_value = 1 if gpt4_advice['decision'] == 'buy' else -1 if gpt4_advice['decision'] == 'sell' else 0
+    def adjust_weights(self, model_performances: Dict[str, float]) -> Dict[str, float]:
+        total_performance = sum(model_performances.values())
+        if total_performance == 0:
+            return {model: 1.0 / len(model_performances) for model in model_performances}
 
-        weighted_decision = (
-                gpt4_decision_value * 0.4 +
-                ml_prediction * 0.3 +
-                (rl_action - 1) * 0.3  # rl_action을 -1, 0, 1로 변환 (0: sell, 1: hold, 2: buy)
-        )
+        adjusted_weights = {model: performance / total_performance for model, performance in model_performances.items()}
+        return adjusted_weights
 
-        should_trade = self.should_trade(weighted_decision, current_regime)
+    def adjust_trade_ratio(self, price_volatility: float, base_ratio: float) -> float:
+        volatility_factor = 1 + (price_volatility - 0.02) / 0.02  # 2% 변동성을 기준으로 조정
+        adjusted_ratio = base_ratio * volatility_factor
+        return max(0.1, min(adjusted_ratio, 1.0))  # 10% ~ 100% 범위로 제한
 
-        if not should_trade:
-            return {
-                "decision": "hold",
-                "percentage": 0,
-                "target_price": None,
-                "stop_loss": None,
-                "take_profit": None,
-                "reasoning": "Default hold decision due to analysis error",
-                "risk_assessment": "high",
-            }
-
-        try:
-            current_price = upbit_client.get_current_price("KRW-BTC")
-            if current_price is None:
-                logger.error("Failed to get current price from Upbit")
-                return {
-                    "decision": "hold",
-                    "percentage": 0,
-                    "target_price": None,
-                    "stop_loss": None,
-                    "take_profit": None,
-                    "reasoning": "Failed to get current price",
-                    "risk_assessment": "high",
-                }
-        except Exception as e:
-            logger.error(f"Error getting current price: {e}")
-            return {
-                "decision": "hold",
-                "percentage": 0,
-                "target_price": None,
-                "stop_loss": None,
-                "take_profit": None,
-                "reasoning": "Error getting current price",
-                "risk_assessment": "high",
-            }
-
-        base_position_size = float(gpt4_advice.get('percentage', 10))  # 기본 포지션 크기
-        adjusted_position_size = self.get_volatility_adjusted_position_size(base_position_size,
-                                                                            backtest_results.get('volatility', 0.01))
-
-        # 최소 거래 비율 설정 (예: 1%)
-        min_trade_percentage = 1.0
-        adjusted_position_size = max(adjusted_position_size, min_trade_percentage)
-
-        base_stop_loss = current_price * 0.98  # 기본 손절가 (2% 하락)
-        adjusted_stop_loss = self.get_volatility_adjusted_stop_loss(base_stop_loss,
-                                                                    backtest_results.get('volatility', 0.01))
-
-        target_price = gpt4_advice.get('target_price')
-        if target_price is None or not isinstance(target_price, (int, float)):
-            target_price = current_price
-
-        take_profit = gpt4_advice.get('take_profit')
-        if take_profit is None or not isinstance(take_profit, (int, float)):
-            take_profit = current_price * 1.03  # 기본 3% 이익 실현
-
-        decision = 'buy' if weighted_decision > 0 else 'sell' if weighted_decision < 0 else 'hold'
-
-        if decision == 'hold':
-            return {
-                "decision": "hold",
-                "percentage": 0,
-                "target_price": None,
-                "stop_loss": None,
-                "take_profit": None,
-                "reasoning": "Weighted decision resulted in hold",
-                "risk_assessment": "low",
-            }
-
-        return {
-            'decision': decision,
-            'percentage': adjusted_position_size,
-            'target_price': float(target_price),
-            'stop_loss': adjusted_stop_loss,
-            'take_profit': float(take_profit),
-            'reasoning': f"Decision based on weighted analysis. Market regime: {current_regime}, ML Accuracy: {ml_accuracy:.2f}",
-            'risk_assessment': 'medium',
-        }
-
-    def should_trade(self, weighted_decision: float, market_regime: str) -> bool:
-        """Determine if a trade should be executed based on the weighted decision and market regime."""
-        if market_regime == 'high_volatility':
-            return abs(weighted_decision) > self.decision_threshold * 1.5
-        elif market_regime == 'low_volatility':
-            return abs(weighted_decision) > self.decision_threshold * 0.5
-        else:
-            return abs(weighted_decision) > self.decision_threshold
-
-    def get_volatility_adjusted_position_size(self, base_position_size: float, market_volatility: float) -> float:
-        """Adjust position size based on market volatility."""
-        volatility_threshold = 0.02  # 예시 임계값, 필요에 따라 조정
-        if market_volatility > volatility_threshold:
-            return max(base_position_size * 0.8, 1.0)  # 최소 1% 유지
-        elif market_volatility < volatility_threshold / 2:
-            return min(base_position_size * 1.2, 100.0)  # 최대 100% 제한
-        else:
-            return base_position_size
-
-    def get_volatility_adjusted_stop_loss(self, base_stop_loss: float, market_volatility: float) -> float:
-        volatility_threshold = 0.02
-        if market_volatility > volatility_threshold * 1.5:
-            return base_stop_loss * 1.3  # 매우 높은 변동성
-        elif market_volatility > volatility_threshold:
-            return base_stop_loss * 1.2  # 높은 변동성
-        elif market_volatility < volatility_threshold / 2:
-            return base_stop_loss * 0.9  # 낮은 변동성
-        else:
-            return base_stop_loss * 1.1  # 보통 변동성
-
-    def adjust_strategy_based_on_performance(self, performance_metrics: Dict[str, Any]):
-        if 'win_rate' in performance_metrics:
-            if performance_metrics['win_rate'] < 40:
-                self.decision_threshold *= 1.1  # 승률이 낮으면 거래 빈도를 줄임
-            elif performance_metrics['win_rate'] > 60:
-                self.decision_threshold *= 0.9  # 승률이 높으면 거래 빈도를 늘림
-
-        if 'sharpe_ratio' in performance_metrics:
-            if performance_metrics['sharpe_ratio'] < 0.5:
-                self.params['risk_factor'] *= 0.9  # 샤프 비율이 낮으면 리스크를 줄임
-            elif performance_metrics['sharpe_ratio'] > 1.5:
-                self.params['risk_factor'] *= 1.1  # 샤프 비율이 높으면 리스크를 높임
-
-        if 'max_drawdown' in performance_metrics:
-            if performance_metrics['max_drawdown'] > 0.2:
-                self.params['stop_loss_factor'] *= 1.1  # 최대 낙폭이 크면 손절 기준을 높임
-
-    def adjust_strategy(self, backtest_results: Dict[str, Any], ml_accuracy: float, ml_performance: float) -> Dict[str, float]:
-        sharpe_ratio = backtest_results.get('sharpe_ratio', 0)
-        if sharpe_ratio > 1.5:
-            self.params['risk_factor'] *= 1.1
-        elif sharpe_ratio < 0.5:
-            self.params['risk_factor'] *= 0.9
-
-        max_drawdown = backtest_results.get('max_drawdown', 0)
-        if max_drawdown > 0.2:
-            self.params['stop_loss_factor'] *= 1.1
-        elif max_drawdown < 0.1:
-            self.params['stop_loss_factor'] *= 0.9
-
-        if ml_accuracy > 0.7:
-            self.params['risk_factor'] *= 1.1
-        elif ml_accuracy < 0.5:
-            self.params['risk_factor'] *= 0.9
-
-        return self.params
+    def adjust_stop_loss(self, price_volatility: float, base_stop_loss: float) -> float:
+        volatility_factor = 1 + (price_volatility - 0.02) / 0.02  # 2% 변동성을 기준으로 조정
+        adjusted_stop_loss = base_stop_loss * volatility_factor
+        return max(0.01, min(adjusted_stop_loss, 0.1))  # 1% ~ 10% 범위로 제한
 
 
 class AnomalyDetector:
@@ -335,7 +161,7 @@ class DynamicTradingFrequencyAdjuster:
 
     def update_recent_decisions(self, decision: str):
         self.recent_decisions.append(decision)
-        if len(self.recent_decisions) > 20:  # Keep only last 20 decisions
+        if len(self.recent_decisions) > 20:
             self.recent_decisions.pop(0)
 
     def get_trading_frequency(self) -> float:
@@ -345,16 +171,16 @@ class DynamicTradingFrequencyAdjuster:
 
     def get_volatility_adjusted_position_size(self, base_position_size: float, market_volatility: float) -> float:
         if market_volatility > self.volatility_threshold:
-            return max(base_position_size * 0.8, 1.0)  # 최소 1% 유지
+            return max(base_position_size * 0.8, 1.0)
         elif market_volatility < self.volatility_threshold / 2:
-            return min(base_position_size * 1.2, 100.0)  # 최대 100% 제한
+            return min(base_position_size * 1.2, 100.0)
         else:
             return base_position_size
 
     def get_volatility_adjusted_stop_loss(self, base_stop_loss: float, market_volatility: float) -> float:
         if market_volatility > self.volatility_threshold:
-            return base_stop_loss * 1.2  # Widen stop loss range in high volatility
+            return base_stop_loss * 1.2
         elif market_volatility < self.volatility_threshold / 2:
-            return base_stop_loss * 0.8  # Tighten stop loss range in low volatility
+            return base_stop_loss * 0.8
         else:
             return base_stop_loss

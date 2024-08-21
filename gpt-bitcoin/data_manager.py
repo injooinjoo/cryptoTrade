@@ -1,7 +1,6 @@
 import logging
 import sqlite3
-import time
-from datetime import datetime, timedelta
+from datetime import timedelta, datetime
 from typing import Dict, Any, List, Tuple
 
 import numpy as np
@@ -9,7 +8,6 @@ import pandas as pd
 import pandas_ta as ta
 
 logger = logging.getLogger(__name__)
-
 
 class DataManager:
     def __init__(self, upbit_client, db_path='crypto_data.db'):
@@ -28,32 +26,33 @@ class DataManager:
                     low REAL,
                     close REAL,
                     volume REAL,
-                    value REAL
+                    value REAL,
+                    decision TEXT
                 )
             ''')
 
+    def add_technical_indicators(self, data: pd.DataFrame) -> pd.DataFrame:
+        data = data.copy()
+        data['sma'] = ta.sma(data['close'], length=20)
+        data['ema'] = ta.ema(data['close'], length=20)
+        data['rsi'] = ta.rsi(data['close'], length=14)
+        macd = ta.macd(data['close'])
+        data['macd'] = macd['MACD_12_26_9']
+        data['signal_line'] = macd['MACDs_12_26_9']
+        bb = ta.bbands(data['close'], length=20)
+        data['BB_Upper'] = bb['BBU_20_2.0']
+        data['BB_Lower'] = bb['BBL_20_2.0']
+        return data.ffill().bfill()
+
     def add_new_data(self, new_data: pd.DataFrame):
-        # logger.info(f"Adding new data. Shape: {new_data.shape}")
-
-        # 'level_0' 열이 있다면 제거
-        if 'level_0' in new_data.columns:
-            new_data = new_data.drop('level_0', axis=1)
-
-        # 인덱스를 리셋하고 'index' 열 이름 변경
         new_data = new_data.reset_index(drop=True)
         new_data = new_data.rename(columns={'index': 'date'})
 
-        # 'date' 열을 문자열로 변환 (이미 문자열인 경우 처리)
         if 'date' in new_data.columns:
             new_data['date'] = new_data['date'].apply(
                 lambda x: x.strftime('%Y-%m-%d %H:%M:%S') if hasattr(x, 'strftime') else str(x))
-        else:
-            pass
 
-        # 기존 데이터베이스에 있는 date를 조회
         existing_dates = pd.read_sql_query("SELECT date FROM ohlcv_data", self.conn)['date'].tolist()
-
-        # 중복 제거
         new_data = new_data[~new_data['date'].isin(existing_dates)]
 
         if not new_data.empty:
@@ -62,14 +61,13 @@ class DataManager:
                 logger.info(f"Successfully added {len(new_data)} new data points")
             except sqlite3.IntegrityError as e:
                 logger.warning(f"Some data points already exist: {e}")
-                # 개별적으로 데이터 삽입 시도
                 for _, row in new_data.iterrows():
                     try:
                         row.to_frame().T.to_sql('ohlcv_data', self.conn, if_exists='append', index=False)
                     except sqlite3.IntegrityError:
-                        logger.debug(f"Skipping duplicate data point at date {row['date']}")
+                        pass
         else:
-            pass
+            logger.info("No new data to add")
 
     def get_data_for_training(self, start_time: int, end_time: int) -> pd.DataFrame:
         query = f'''
@@ -78,7 +76,14 @@ class DataManager:
             ORDER BY date
         '''
         df = pd.read_sql_query(query, self.conn)
+
+        # 'date' 열이 없는 경우 인덱스를 'date' 열로 변환
+        if 'date' not in df.columns:
+            df.reset_index(inplace=True)
+            df.rename(columns={'index': 'date'}, inplace=True)
+
         df['date'] = pd.to_datetime(df['date'])
+        df.set_index('date', inplace=True)
         return df
 
     def update_data(self):
@@ -96,7 +101,6 @@ class DataManager:
         if len(data) < required_length:
             self.fetch_and_store_historical_data(required_length - len(data))
             data = self.get_data_for_training(int(start_time.timestamp()), int(end_time.timestamp()))
-
         return data
 
     def fetch_and_store_historical_data(self, count: int):
@@ -111,9 +115,101 @@ class DataManager:
             historical_data['date'] = historical_data['date'].astype(str)
 
             self.add_new_data(historical_data)
-            # logger.info(f"Added {len(historical_data)} historical data points.")
+            logger.info(f"Added {len(historical_data)} historical data points.")
         else:
             logger.warning("Failed to fetch historical data or no data available.")
+
+    def prepare_data(self, data: pd.DataFrame) -> pd.DataFrame:
+        data = data.sort_values('date')
+        data = self.calculate_technical_indicators(data)
+        return data
+
+    def calculate_technical_indicators(self, data: pd.DataFrame) -> pd.DataFrame:
+        data['sma'] = ta.sma(data['close'], length=20)
+        data['ema'] = ta.ema(data['close'], length=20)
+        data['rsi'] = ta.rsi(data['close'], length=14)
+        macd = ta.macd(data['close'])
+        data['macd'] = macd['MACD_12_26_9']
+        data['signal_line'] = macd['MACDs_12_26_9']
+        bb = ta.bbands(data['close'], length=20)
+        data['BB_Upper'] = bb['BBU_20_2.0']
+        data['BB_Lower'] = bb['BBL_20_2.0']
+        return data.ffill().bfill()
+
+    def prepare_data_for_ml(self, data: pd.DataFrame) -> Tuple[np.ndarray, np.ndarray]:
+        logger.info(f"prepare_data_for_ml 메서드 시작. 데이터 shape: {data.shape}")
+
+        try:
+            data = self.add_technical_indicators(data)
+
+            features = ['open', 'high', 'low', 'close', 'volume', 'sma', 'ema', 'rsi', 'macd', 'signal_line',
+                        'BB_Upper', 'BB_Lower']
+            X = data[features].values
+            y = (data['close'].shift(-1) > data['close']).astype(int).values[:-1]
+            X = X[:-1]  # 마지막 행 제거 (타겟 변수와 길이 맞추기)
+
+            logger.info(f"최종 X shape: {X.shape}, y shape: {y.shape}")
+
+            return X, y
+
+        except Exception as e:
+            logger.error(f"데이터 준비 중 오류 발생: {e}")
+            logger.exception("상세 오류:")
+            raise
+
+    def get_recent_data(self, count: int = 100) -> pd.DataFrame:
+        query = f'''
+            SELECT * FROM ohlcv_data
+            ORDER BY date DESC
+            LIMIT {count}
+        '''
+        df = pd.read_sql_query(query, self.conn)
+        df['date'] = pd.to_datetime(df['date'])
+        df = df.sort_values('date')
+        return self.prepare_data(df)
+
+    def get_previous_price(self) -> float:
+        query = '''
+            SELECT close FROM ohlcv_data
+            ORDER BY date DESC
+            LIMIT 1
+        '''
+        result = self.conn.execute(query).fetchone()
+        return result[0] if result else None
+
+    def add_decision_column(self):
+        with self.conn:
+            cursor = self.conn.cursor()
+            cursor.execute("PRAGMA table_info(ohlcv_data)")
+            columns = [info[1] for info in cursor.fetchall()]
+
+            if 'decision' not in columns:
+                cursor.execute("ALTER TABLE ohlcv_data ADD COLUMN decision TEXT")
+                logger.info("Added 'decision' column to ohlcv_data table")
+
+    def update_decision(self, date: str, decision: str):
+        query = '''
+            UPDATE ohlcv_data
+            SET decision = ?
+            WHERE date = ?
+        '''
+        with self.conn:
+            self.conn.execute(query, (decision, date))
+
+    def get_recent_decisions(self, count: int = 5) -> List[Dict[str, Any]]:
+        query = f'''
+            SELECT date, decision, close as btc_krw_price
+            FROM ohlcv_data
+            WHERE decision IS NOT NULL
+            ORDER BY date DESC
+            LIMIT {count}
+        '''
+        with self.conn:
+            df = pd.read_sql_query(query, self.conn)
+        return df.to_dict('records')
+
+    def close(self):
+        self.conn.close()
 
     def get_average_accuracy(self, days: int = 7) -> float:
         end_time = datetime.now()
@@ -140,6 +236,7 @@ class DataManager:
                         LEAD(close) OVER (ORDER BY date) as lead_price
                     FROM ohlcv_data
                     WHERE date BETWEEN '{start_time_str}' AND '{end_time_str}'
+                    AND decision IS NOT NULL
                 )
             )
         '''
@@ -154,125 +251,11 @@ class DataManager:
             logger.error(f"Query: {query}")
             return 0.0
 
-    def get_recent_decisions(self, n: int = 5) -> List[Dict[str, Any]]:
-        query = f"""
-        SELECT * FROM decisions
-        ORDER BY timestamp DESC
-        LIMIT {n}
-        """
+    def save_decision(self, date: str, decision: str):
+        query = '''
+            UPDATE ohlcv_data
+            SET decision = ?
+            WHERE date = ?
+        '''
         with self.conn:
-            df = pd.read_sql_query(query, self.conn)
-        return df.to_dict('records')
-
-    def fetch_extended_historical_data(self, days: int = 365):
-        end_date = pd.Timestamp.now()
-        start_date = end_date - pd.Timedelta(days=days)
-        historical_data = self.upbit_client.get_ohlcv("KRW-BTC", interval="day", to=end_date, count=days)
-        if historical_data is not None and not historical_data.empty:
-            # 인덱스를 'date' 열로 변환
-            historical_data = historical_data.reset_index()
-            historical_data = historical_data.rename(columns={'index': 'date'})
-            historical_data['date'] = historical_data['date'].astype(str)
-            self.add_new_data(historical_data)
-            return True
-        return False
-
-    def add_decision_column(self):
-        with self.conn:
-            cursor = self.conn.cursor()
-            cursor.execute("PRAGMA table_info(ohlcv_data)")
-            columns = [info[1] for info in cursor.fetchall()]
-
-            if 'decision' not in columns:
-                cursor.execute("ALTER TABLE ohlcv_data ADD COLUMN decision TEXT")
-                logger.info("Added 'decision' column to ohlcv_data table")
-
-    def prepare_data_for_ml(self, data: pd.DataFrame) -> Tuple[np.ndarray, np.ndarray]:
-        logger.info(f"prepare_data_for_ml 메서드 시작. 데이터 shape: {data.shape}")
-
-        try:
-            # 기술적 지표 계산
-            data['sma'] = ta.sma(data['close'], length=20)
-            data['ema'] = ta.ema(data['close'], length=20)
-            data['rsi'] = ta.rsi(data['close'], length=14)
-            macd = ta.macd(data['close'])
-            data['macd'] = macd['MACD_12_26_9']
-            data['signal_line'] = macd['MACDs_12_26_9']
-            bb = ta.bbands(data['close'], length=20)
-            data['BB_Upper'] = bb['BBU_20_2.0']
-            data['BB_Lower'] = bb['BBL_20_2.0']
-
-            # NaN 값을 앞뒤 값으로 채우기
-            data = data.ffill().bfill()
-
-            features = ['open', 'high', 'low', 'close', 'volume', 'sma', 'ema', 'rsi', 'macd', 'signal_line',
-                        'BB_Upper', 'BB_Lower']
-            X = data[features].values
-            y = (data['close'].shift(-1) > data['close']).astype(int).values[:-1]
-            X = X[:-1]  # 마지막 행 제거 (타겟 변수와 길이 맞추기)
-
-            logger.info(f"최종 X shape: {X.shape}, y shape: {y.shape}")
-            logger.info(f"X 데이터 타입: {X.dtype}, y 데이터 타입: {y.dtype}")
-
-            return X, y
-
-        except Exception as e:
-                logger.error(f"데이터 준비 중 오류 발생: {e}")
-                logger.exception("상세 오류:")
-                raise
-
-    def check_table_structure(self):
-        with self.conn:
-            cursor = self.conn.cursor()
-            cursor.execute("PRAGMA table_info(ohlcv_data)")
-            ohlcv_columns = [info[1] for info in cursor.fetchall()]
-            cursor.execute("PRAGMA table_info(technical_indicators)")
-            indicator_columns = [info[1] for info in cursor.fetchall()]
-
-        logger.info(f"ohlcv_data columns: {ohlcv_columns}")
-        logger.info(f"technical_indicators columns: {indicator_columns}")
-
-    def debug_database(self):
-        with self.conn:
-            cursor = self.conn.cursor()
-
-            # 테이블 목록 확인
-            cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
-            tables = cursor.fetchall()
-            logger.info(f"Tables in database: {tables}")
-
-            # ohlcv_data 테이블 구조 확인
-            cursor.execute("PRAGMA table_info(ohlcv_data)")
-            columns = cursor.fetchall()
-            logger.info("ohlcv_data table structure:")
-            for column in columns:
-                logger.info(f"  {column}")
-
-            # 샘플 데이터 확인
-            cursor.execute("SELECT * FROM ohlcv_data LIMIT 5")
-            samples = cursor.fetchall()
-            logger.info("Sample data from ohlcv_data:")
-            for sample in samples:
-                logger.info(f"  {sample}")
-
-    def get_recent_trades(self, days=30):
-        """최근 거래 데이터를 가져옵니다."""
-        end_time = int(time.time())
-        start_time = end_time - (days * 24 * 60 * 60)  # days일 전의 timestamp
-
-        query = f"""
-        SELECT * FROM ohlcv_data
-        WHERE date BETWEEN datetime({start_time}, 'unixepoch') AND datetime({end_time}, 'unixepoch')
-        ORDER BY date
-        """
-
-        df = pd.read_sql_query(query, self.conn)
-        df['date'] = pd.to_datetime(df['date'])
-        return df
-
-    def get_previous_price(self):
-        data = self.ensure_sufficient_data(2)  # 최소 2개의 데이터 포인트 필요
-        if len(data) >= 2:
-            return data['close'].iloc[-2]
-        else:
-            return None
+            self.conn.execute(query, (decision, date))

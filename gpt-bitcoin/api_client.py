@@ -1,7 +1,6 @@
 import logging
 import random
 import time
-from datetime import datetime, timedelta
 
 import pandas as pd
 import pyupbit
@@ -26,18 +25,29 @@ class UpbitClient:
     def get_current_price(self, ticker: str, max_retries=3, delay=1) -> float:
         for attempt in range(max_retries):
             try:
+                # logger.info(f"Attempting to get current price for {ticker}. Attempt {attempt + 1}/{max_retries}")
                 price = pyupbit.get_current_price(ticker)
                 if price is not None:
-                    return float(price)
-                logger.warning(f"가격 정보를 받아오지 못했습니다. 티커: {ticker}, 시도: {attempt + 1}/{max_retries}")
+                    if isinstance(price, dict):
+                        # 만약 price가 딕셔너리라면, 'trade_price' 키를 사용
+                        return float(price.get('trade_price', 0))
+                    elif isinstance(price, (int, float)):
+                        # price가 이미 숫자라면 그대로 반환
+                        return float(price)
+                    else:
+                        logger.warning(f"Unexpected price format for {ticker}: {price}")
+                        return 0.0
+                # logger.warning(f"Received None price for {ticker}. Attempt {attempt + 1}/{max_retries}")
             except Exception as e:
-                logger.error(f"현재 가격을 가져오는 중 오류 발생: {e}, 시도: {attempt + 1}/{max_retries}")
+                logger.error(f"Error getting current price for {ticker}: {e}")
 
             if attempt < max_retries - 1:
-                time.sleep(delay * (2 ** attempt) + random.uniform(0, 1))
+                sleep_time = delay * (2 ** attempt) + random.uniform(0, 1)
+                logger.info(f"Retrying in {sleep_time:.2f} seconds")
+                time.sleep(sleep_time)
 
-        logger.error(f"최대 재시도 횟수({max_retries})를 초과했습니다. 티커: {ticker}")
-        return None
+        logger.error(f"Failed to get current price for {ticker} after {max_retries} attempts")
+        return 0.0  # 모든 시도가 실패하면 0을 반환
 
     def get_ohlcv(self, ticker: str, interval: str, count: int, to=None):
         try:

@@ -1,44 +1,44 @@
 {
   "accuracies": {
     "gpt": {
-      "correct": 90,
-      "total": 458,
-      "accuracy": 0.1965065502183406
+      "correct": 20,
+      "total": 43,
+      "accuracy": 0.46511627906976744
     },
     "ml": {
-      "correct": 331,
-      "total": 458,
-      "accuracy": 0.722707423580786
+      "correct": 33,
+      "total": 43,
+      "accuracy": 0.7674418604651163
     },
     "xgboost": {
-      "correct": 390,
-      "total": 397,
-      "accuracy": 0.982367758186398
+      "correct": 33,
+      "total": 43,
+      "accuracy": 0.7674418604651163
     },
     "rl": {
-      "correct": 6,
-      "total": 15,
-      "accuracy": 0.4
+      "correct": 18,
+      "total": 43,
+      "accuracy": 0.4186046511627907
     },
     "lstm": {
-      "correct": 374,
-      "total": 458,
-      "accuracy": 0.8165938864628821
+      "correct": 38,
+      "total": 43,
+      "accuracy": 0.8837209302325582
     },
     "arima": {
-      "correct": 375,
-      "total": 458,
-      "accuracy": 0.8187772925764192
+      "correct": 33,
+      "total": 43,
+      "accuracy": 0.7674418604651163
     },
     "prophet": {
-      "correct": 84,
-      "total": 458,
-      "accuracy": 0.18340611353711792
+      "correct": 33,
+      "total": 43,
+      "accuracy": 0.7674418604651163
     },
     "transformer": {
-      "correct": 374,
-      "total": 458,
-      "accuracy": 0.8165938864628821
+      "correct": 10,
+      "total": 43,
+      "accuracy": 0.23255813953488372
     }
   }
 }

@@ -13,7 +13,11 @@ def load_config(file_path: str = "config.json") -> Dict[str, Any]:
     default_config = {
         'min_krw_balance': 10000,
         'min_transaction_amount': 5000,
+        'max_trade_amount': 1000000,
         'database_path': 'crypto_data.db',  # 데이터베이스 경로 추가
+        'min_trade_amount': 5000,  # 최소 거래 금액 (KRW)
+        'max_trade_ratio': 0.99,  # 최대 거래 비율 (총 자산의 99%까지 사용)
+        'fee_rate': 0.0005,  # 거래 수수료율 (0.05%)
         'trading_parameters': {
             'buy_threshold': 0.01,
             'sell_threshold': 0.01,
