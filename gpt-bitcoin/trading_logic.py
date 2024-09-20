@@ -1,5 +1,7 @@
+import json
 import logging
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any
+from typing import List, Optional
 
 import numpy as np
 import pandas as pd
@@ -77,8 +79,8 @@ def make_weighted_decision(predictions: Dict[str, float], weights: Dict[str, flo
 
 def analyze_data_with_gpt4(data: pd.DataFrame, openai_client: OpenAIClient, params: Dict[str, Any],
                            upbit_client: UpbitClient, average_accuracy: float, anomalies: List[bool],
-                           anomaly_scores: List[float], market_regime: str, ml_prediction: Optional[int],
-                           xgboost_prediction: Optional[int], rl_action: Optional[int],
+                           anomaly_scores: List[float], market_regime: str, ml_prediction: Optional[float],
+                           xgboost_prediction: Optional[float], rl_action: Optional[float],
                            lstm_prediction: Optional[float], arima_prediction: Optional[float],
                            prophet_prediction: Optional[float], transformer_prediction: Optional[float],
                            backtest_results: Dict[str, Any], market_analysis: Dict[str, Any],
@@ -96,11 +98,22 @@ def analyze_data_with_gpt4(data: pd.DataFrame, openai_client: OpenAIClient, para
         "bb_lower": float(recent_data['BB_Lower'].fillna(current_price).iloc[-1]),
     })
 
+    # rl_action 처리
+    rl_prediction = current_price
+    if rl_action is not None:
+        if isinstance(rl_action, (float, int)):
+            rl_prediction = rl_action
+        elif isinstance(rl_action, (np.ndarray, list)) and len(rl_action) > 0:
+            if rl_action[0] == 2:
+                rl_prediction = current_price * 1.01
+            elif rl_action[0] == 0:
+                rl_prediction = current_price * 0.99
+
     predictions = {
         'gpt': current_price * 1.01,  # GPT의 예측은 별도로 처리해야 할 수 있습니다.
-        'ml': current_price * (1 + 0.01 if ml_prediction == 1 else -0.01 if ml_prediction == 0 else 0),
-        'xgboost': current_price * (1 + 0.01 if xgboost_prediction == 1 else -0.01 if xgboost_prediction == 0 else 0),
-        'rl': current_price * (1 + 0.01 if rl_action == 2 else -0.01 if rl_action == 0 else 0),
+        'ml': ml_prediction if ml_prediction is not None else current_price,
+        'xgboost': xgboost_prediction if xgboost_prediction is not None else current_price,
+        'rl': rl_prediction,
         'lstm': lstm_prediction if lstm_prediction is not None else current_price,
         'arima': arima_prediction if arima_prediction is not None else current_price,
         'prophet': prophet_prediction if prophet_prediction is not None else current_price,
@@ -128,79 +141,6 @@ def analyze_data_with_gpt4(data: pd.DataFrame, openai_client: OpenAIClient, para
     return final_decision
 
 
-def execute_trade(upbit_client: UpbitClient, decision: Dict[str, Any], config: Dict[str, Any],
-                  current_btc_holding: bool) -> Dict[str, Any]:
-    try:
-        if decision['decision'] == 'hold':
-            return {"success": True, "message": "Hold position", "uuid": None, "has_btc": current_btc_holding}
-
-        current_price = upbit_client.get_current_price("KRW-BTC")
-        logger.info(f"Current BTC price: {current_price}")
-
-        if current_price is None or current_price == 0:
-            logger.error(f"Invalid current price: {current_price}")
-            return {"success": False, "message": "Invalid current price", "uuid": None, "has_btc": current_btc_holding}
-
-        min_trade_amount = config.get('min_trade_amount', 5000)
-        max_trade_ratio = config.get('max_trade_ratio', 0.99)
-        fee_rate = config.get('fee_rate', 0.0005)
-
-        krw_balance = upbit_client.get_balance("KRW")
-        btc_balance = upbit_client.get_balance("BTC")
-        total_asset_value = krw_balance + (btc_balance * current_price)
-
-        logger.info(f'총 자산 가치: {total_asset_value:.2f} KRW (KRW: {krw_balance:.2f}, BTC: {btc_balance:.8f})')
-
-        trade_amount = min(total_asset_value * max_trade_ratio, total_asset_value * (decision['percentage'] / 100))
-        trade_amount = trade_amount * (1 - fee_rate)  # 수수료를 고려한 거래 금액 계산
-
-        if decision['decision'] == 'buy':
-            max_buy_amount = min(trade_amount, krw_balance * (1 - fee_rate))
-            amount_to_buy = max_buy_amount / current_price
-            amount_to_buy = round(amount_to_buy, 8)  # Upbit BTC 거래 단위에 맞춰 조정
-
-            logger.info(f'매수 시도: {amount_to_buy:.8f} BTC (약 {max_buy_amount:.2f} KRW)')
-
-            if max_buy_amount < min_trade_amount:
-                return {"success": False, "message": f"매수 금액이 최소 거래 금액({min_trade_amount} KRW)보다 작습니다.", "uuid": None, "has_btc": current_btc_holding}
-
-            result = upbit_client.buy_limit_order("KRW-BTC", current_price, amount_to_buy)
-            logger.info(f"Buy order result: {result}")
-            if result and 'uuid' in result:
-                print('Buy order placed')
-                return {"success": True, "message": "Buy order placed", "uuid": result['uuid'], "amount": amount_to_buy, "price": current_price, "has_btc": True}
-            else:
-                print('Failed to place buy order')
-                error_message = result.get('error', {}).get('message', 'Unknown error occurred')
-                logger.error(f"Failed to place buy order: {error_message}")
-                return {"success": False, "message": f"Failed to place buy order: {error_message}", "uuid": None, "has_btc": current_btc_holding}
-
-        elif decision['decision'] == 'sell':
-            amount_to_sell = min(btc_balance, trade_amount / current_price)
-            amount_to_sell = round(amount_to_sell, 8)  # Upbit BTC 거래 단위에 맞춰 조정
-
-            logger.info(f'매도 시도: {amount_to_sell:.8f} BTC (약 {amount_to_sell * current_price:.2f} KRW)')
-
-            if amount_to_sell * current_price < min_trade_amount:
-                return {"success": False, "message": f"매도 금액이 최소 거래 금액({min_trade_amount} KRW)보다 작습니다.", "uuid": None, "has_btc": current_btc_holding}
-
-            result = upbit_client.sell_limit_order("KRW-BTC", current_price, amount_to_sell)
-            logger.info(f"Sell order result: {result}")
-            if result and 'uuid' in result:
-                print('Sell order placed')
-                return {"success": True, "message": "Sell order placed", "uuid": result['uuid'], "amount": amount_to_sell, "price": current_price, "has_btc": btc_balance > amount_to_sell}
-            else:
-                print('Failed to place sell order')
-                error_message = result.get('error', {}).get('message', 'Unknown error occurred')
-                logger.error(f"Failed to place sell order: {error_message}")
-                return {"success": False, "message": f"Failed to place sell order: {error_message}", "uuid": None, "has_btc": current_btc_holding}
-
-    except Exception as e:
-        logger.error(f"Error executing trade: {e}")
-        logger.exception("Traceback:")
-        return {"success": False, "message": f"Error: {str(e)}", "uuid": None, "has_btc": current_btc_holding}
-
-
 def get_instructions(file_path):
     try:
         with open(file_path, "r", encoding="utf-8") as file:
@@ -211,11 +151,6 @@ def get_instructions(file_path):
     except Exception as e:
         logger.error(f"An error occurred while reading the instructions file: {e}")
     return ""
-
-
-import json
-from typing import Dict, Any
-import numpy as np
 
 
 class TradingDecisionMaker:
@@ -235,13 +170,11 @@ class TradingDecisionMaker:
                 'arima': 0.1, 'prophet': 0.1, 'transformer': 0.1
             }
 
-    def save_weights(self):
-        with open(self.weight_file, 'w') as f:
-            json.dump(self.weights, f)
-
     def make_decision(self, predictions: Dict[str, float], current_price: float) -> Dict[str, Any]:
-        weighted_diff = sum(self.weights[model] * (price - current_price) for model, price in predictions.items())
-        expected_price = current_price + weighted_diff
+        valid_predictions = self.validate_predictions(predictions, current_price)
+        weighted_diff = sum(self.weights[model] * (price - current_price) for model, price in valid_predictions.items())
+        total_weight = sum(self.weights[model] for model in valid_predictions)
+        expected_price = current_price + (weighted_diff / total_weight if total_weight > 0 else 0)
 
         decision = 'buy' if expected_price > current_price else 'sell'
         percentage = self.calculate_trade_percentage(expected_price, current_price)
@@ -251,15 +184,25 @@ class TradingDecisionMaker:
             'percentage': percentage,
             'target_price': expected_price,
             'current_price': current_price,
-            'predictions': predictions
+            'predictions': valid_predictions,
+            'weights': {model: self.weights[model] for model in valid_predictions}
         }
         self.decision_history.append(decision_info)
 
         return decision_info
 
+    def validate_predictions(self, predictions: Dict[str, float], current_price: float) -> Dict[str, float]:
+        valid_predictions = {}
+        for model, price in predictions.items():
+            if isinstance(price, (int, float)) and 0.5 * current_price <= price <= 2 * current_price:
+                valid_predictions[model] = price
+            else:
+                logger.warning(f"Invalid prediction from {model}: {price}. Using current price instead.")
+                valid_predictions[model] = current_price
+        return valid_predictions
+
     def calculate_trade_percentage(self, expected_price: float, current_price: float) -> float:
         price_diff_ratio = abs(expected_price - current_price) / current_price
-
         if price_diff_ratio < 0.005:
             return 10
         elif price_diff_ratio < 0.01:
@@ -271,58 +214,6 @@ class TradingDecisionMaker:
         else:
             return 50
 
-    def update_weights(self, actual_price: float):
-        if not self.decision_history:
-            return
-
-        last_decision = self.decision_history[-1]
-        predictions = last_decision['predictions']
-
-        for model, predicted_price in predictions.items():
-            if (predicted_price > last_decision['current_price'] and actual_price > last_decision['current_price']) or \
-                    (predicted_price < last_decision['current_price'] and actual_price < last_decision[
-                        'current_price']):
-                self.weights[model] = min(self.weights[model] + 0.02, 1.0)
-            else:
-                self.weights[model] = max(self.weights[model] - 0.02, 0.0)
-
-        # Normalize weights
-        total_weight = sum(self.weights.values())
-        self.weights = {model: weight / total_weight for model, weight in self.weights.items()}
-
-        self.save_weights()
-
-    def execute_trade(self, upbit_client: UpbitClient, decision: Dict[str, Any]) -> Dict[str, Any]:
-        try:
-            current_price = upbit_client.get_current_price("KRW-BTC")
-            krw_balance = upbit_client.get_balance("KRW")
-            btc_balance = upbit_client.get_balance("BTC")
-
-            trade_amount = min(krw_balance, btc_balance * current_price) * (decision['percentage'] / 100)
-            trade_amount = trade_amount * (1 - self.config['fee_rate'])
-
-            if decision['decision'] == 'buy':
-                amount_to_buy = trade_amount / current_price
-                amount_to_buy = round(amount_to_buy, 8)  # Upbit BTC 거래 단위에 맞춰 조정
-
-                if trade_amount < self.config['min_trade_amount']:
-                    return {"success": False, "message": f"매수 금액이 최소 거래 금액보다 작습니다.", "uuid": None}
-
-                result = upbit_client.buy_limit_order("KRW-BTC", current_price, amount_to_buy)
-            else:  # sell
-                amount_to_sell = min(btc_balance, trade_amount / current_price)
-                amount_to_sell = round(amount_to_sell, 8)
-
-                if amount_to_sell * current_price < self.config['min_trade_amount']:
-                    return {"success": False, "message": f"매도 금액이 최소 거래 금액보다 작습니다.", "uuid": None}
-
-                result = upbit_client.sell_limit_order("KRW-BTC", current_price, amount_to_sell)
-
-            if result and 'uuid' in result:
-                return {"success": True, "message": f"{decision['decision']} order placed", "uuid": result['uuid']}
-            else:
-                error_message = result.get('error', {}).get('message', 'Unknown error occurred')
-                return {"success": False, "message": f"Failed to place order: {error_message}", "uuid": None}
-
-        except Exception as e:
-            return {"success": False, "message": f"Error: {str(e)}", "uuid": None}
+    def save_weights(self):
+        with open(self.weight_file, 'w') as f:
+            json.dump(self.weights, f)

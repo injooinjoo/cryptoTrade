@@ -75,28 +75,24 @@ def save_to_database(df, db_path):
     conn.commit()
     conn.close()
 
-def fetch_and_save_all_coins():
+def fetch_and_save_btc():
     ensure_dir(DATA_DIR)
-    tickers = pyupbit.get_tickers(fiat="KRW")
+    ticker = "KRW-BTC"  # BTC 페어만 처리
+    logger.info(f"Fetching data for {ticker}...")
+    historical_data = fetch_all_historical_data(ticker)
 
-    for ticker in tickers:
-        logger.info(f"Fetching data for {ticker}...")
-        historical_data = fetch_all_historical_data(ticker)
-
-        if not historical_data.empty:
-            db_path = os.path.join(DATA_DIR, f"{ticker.replace('-', '_')}.db")
-            logger.info(f"Saving data for {ticker} to {db_path}...")
-            save_to_database(historical_data, db_path)
-            logger.info(f"Completed saving data for {ticker}.")
-        else:
-            logger.error(f"No data was fetched for {ticker}. Skipping...")
-
-        time.sleep(1)  # API 호출 제한을 고려한 대기 시간
+    if not historical_data.empty:
+        db_path = os.path.join(DATA_DIR, f"{ticker.replace('-', '_')}.db")
+        logger.info(f"Saving data for {ticker} to {db_path}...")
+        save_to_database(historical_data, db_path)
+        logger.info(f"Completed saving data for {ticker}.")
+    else:
+        logger.error(f"No data was fetched for {ticker}. Skipping...")
 
 def main():
-    logger.info("Starting to fetch and save data for all KRW coins on Upbit...")
-    fetch_and_save_all_coins()
-    logger.info("All data fetching and saving completed.")
+    logger.info("Starting to fetch and save data for BTC on Upbit...")
+    fetch_and_save_btc()
+    logger.info("BTC data fetching and saving completed.")
 
 if __name__ == "__main__":
     main()

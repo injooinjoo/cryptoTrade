@@ -1,13 +1,17 @@
 import logging
 import sqlite3
+import time
 from datetime import timedelta, datetime
 from typing import Dict, Any, List, Tuple
 
 import numpy as np
 import pandas as pd
 import pandas_ta as ta
+import pyupbit
+from pytz import timezone
 
 logger = logging.getLogger(__name__)
+
 
 class DataManager:
     def __init__(self, upbit_client, db_path='crypto_data.db'):
@@ -15,6 +19,7 @@ class DataManager:
         self.db_path = db_path
         self.conn = sqlite3.connect(db_path)
         self.create_tables()
+        self.korea_tz = timezone('Asia/Seoul')
 
     def create_tables(self):
         with self.conn:
@@ -26,8 +31,7 @@ class DataManager:
                     low REAL,
                     close REAL,
                     volume REAL,
-                    value REAL,
-                    decision TEXT
+                    value REAL
                 )
             ''')
 
@@ -44,13 +48,73 @@ class DataManager:
         data['BB_Lower'] = bb['BBL_20_2.0']
         return data.ffill().bfill()
 
-    def add_new_data(self, new_data: pd.DataFrame):
-        new_data = new_data.reset_index(drop=True)
-        new_data = new_data.rename(columns={'index': 'date'})
+    def check_and_fill_missing_data(self):
+        logger.info("Checking for missing data in BTC.DB...")
 
-        if 'date' in new_data.columns:
-            new_data['date'] = new_data['date'].apply(
-                lambda x: x.strftime('%Y-%m-%d %H:%M:%S') if hasattr(x, 'strftime') else str(x))
+        # Upbit 거래소 시작일 설정
+        upbit_start_date = datetime(2017, 9, 26)
+
+        # 1. DB에서 현재 저장된 데이터의 시작일과 종료일 확인
+        query = "SELECT MIN(date), MAX(date) FROM ohlcv_data"
+        with self.conn:
+            cursor = self.conn.cursor()
+            cursor.execute(query)
+            result = cursor.fetchone()
+
+        if result[0] is None or result[1] is None:
+            logger.info("Database is empty. Fetching all data from Upbit.")
+            self.fetch_all_data()
+            return
+
+        db_start_date = max(datetime.strptime(result[0], '%Y-%m-%d %H:%M:%S'), upbit_start_date)
+        db_end_date = datetime.strptime(result[1], '%Y-%m-%d %H:%M:%S')
+
+        # 2. Upbit 거래소 시작일부터 현재까지의 모든 날짜 생성
+        all_dates = pd.date_range(start=upbit_start_date, end=datetime.now(), freq='10min')
+
+        # 3. DB에 저장된 날짜들 가져오기
+        query = "SELECT date FROM ohlcv_data"
+        with self.conn:
+            cursor = self.conn.cursor()
+            cursor.execute(query)
+            db_dates = set([datetime.strptime(date[0], '%Y-%m-%d %H:%M:%S') for date in cursor.fetchall()])
+
+        # 4. 누락된 날짜 찾기 (Upbit 시작일 이후만 고려)
+        missing_dates = [date for date in all_dates if date not in db_dates and date >= upbit_start_date]
+
+        if not missing_dates:
+            logger.info("No missing data found in BTC.DB")
+            return
+
+        logger.info(f"Found {len(missing_dates)} missing data points. Fetching missing data...")
+
+        # 5. 누락된 데이터 가져오기 및 저장
+        for start_date in missing_dates:
+            end_date = start_date + timedelta(minutes=10)
+            df = pyupbit.get_ohlcv("KRW-BTC", interval="minute10", to=end_date, count=1)
+
+            if df is not None and not df.empty:
+                self.add_new_data(df)
+                logger.info(f"Fetched and saved data for {start_date}")
+            else:
+                logger.warning(f"Failed to fetch data for {start_date}")
+
+            time.sleep(0.1)  # API 호출 제한 고려
+
+    def add_new_data(self, new_data: pd.DataFrame):
+        logger.info(f"Adding new data. Shape: {new_data.shape}")
+        logger.info(f"Columns: {new_data.columns.tolist()}")
+        logger.info(f"Index: {new_data.index}")
+
+        # date 컬럼의 데이터 타입 확인
+        logger.info(f"Date column data type: {new_data['date'].dtype}")
+        logger.info(f"Sample date values: {new_data['date'].head().tolist()}")
+
+        # 중복된 날짜 처리: 가장 최근의 데이터만 유지
+        new_data = new_data.sort_values('date').drop_duplicates(subset='date', keep='last')
+
+        # date 컬럼이 이미 datetime 형식이므로 바로 문자열로 변환
+        new_data['date'] = new_data['date'].dt.strftime('%Y-%m-%d %H:%M:%S')
 
         existing_dates = pd.read_sql_query("SELECT date FROM ohlcv_data", self.conn)['date'].tolist()
         new_data = new_data[~new_data['date'].isin(existing_dates)]
@@ -69,6 +133,24 @@ class DataManager:
         else:
             logger.info("No new data to add")
 
+        logger.info(f"Final new data shape after processing: {new_data.shape}")
+        logger.info(f"Final date range: {new_data['date'].min()} to {new_data['date'].max()}")
+
+    def fetch_all_data(self):
+        end_date = datetime.now()
+        start_date = datetime(2017, 9, 26)  # Upbit 거래소 시작일
+
+        while start_date < end_date:
+            df = pyupbit.get_ohlcv("KRW-BTC", interval="minute10", to=end_date, count=200)
+            if df is not None and not df.empty:
+                self.add_new_data(df)
+                logger.info(f"Fetched and saved data from {df.index[0]} to {df.index[-1]}")
+                end_date = df.index[0] - timedelta(minutes=1)
+            else:
+                logger.warning(f"Failed to fetch data for period ending at {end_date}")
+            time.sleep(0.1)
+
+
     def get_data_for_training(self, start_time: int, end_time: int) -> pd.DataFrame:
         query = f'''
             SELECT * FROM ohlcv_data
@@ -76,12 +158,6 @@ class DataManager:
             ORDER BY date
         '''
         df = pd.read_sql_query(query, self.conn)
-
-        # 'date' 열이 없는 경우 인덱스를 'date' 열로 변환
-        if 'date' not in df.columns:
-            df.reset_index(inplace=True)
-            df.rename(columns={'index': 'date'}, inplace=True)
-
         df['date'] = pd.to_datetime(df['date'])
         df.set_index('date', inplace=True)
         return df
@@ -99,8 +175,9 @@ class DataManager:
         data = self.get_data_for_training(int(start_time.timestamp()), int(end_time.timestamp()))
 
         if len(data) < required_length:
-            self.fetch_and_store_historical_data(required_length - len(data))
+            self.update_db_with_new_data()
             data = self.get_data_for_training(int(start_time.timestamp()), int(end_time.timestamp()))
+
         return data
 
     def fetch_and_store_historical_data(self, count: int):
@@ -156,6 +233,54 @@ class DataManager:
             logger.error(f"데이터 준비 중 오류 발생: {e}")
             logger.exception("상세 오류:")
             raise
+
+    def update_db_with_new_data(self):
+        try:
+            logger.info("데이터베이스 업데이트 시작")
+
+            # 현재 데이터베이스의 최신 날짜 확인
+            query = "SELECT MAX(date) FROM ohlcv_data"
+            with self.conn:
+                cursor = self.conn.cursor()
+                cursor.execute(query)
+                last_date_in_db = cursor.fetchone()[0]
+
+            if last_date_in_db:
+                last_date_in_db = pd.to_datetime(last_date_in_db)
+                logger.info(f"현재 데이터베이스의 최신 날짜: {last_date_in_db}")
+            else:
+                logger.info("데이터베이스가 비어있습니다.")
+                last_date_in_db = pd.Timestamp.now() - pd.Timedelta(days=30)
+
+            # 최신 데이터 가져오기
+            latest_data = self.upbit_client.get_ohlcv("KRW-BTC", interval="minute10", count=200)
+
+            if latest_data is not None and not latest_data.empty:
+                latest_data.reset_index(inplace=True)
+                latest_data.rename(columns={'index': 'date'}, inplace=True)
+
+                # 새로운 데이터의 날짜 범위 확인
+                new_data_start = latest_data['date'].min()
+                new_data_end = latest_data['date'].max()
+                logger.info(f"새로운 데이터 범위: {new_data_start} ~ {new_data_end}")
+
+                # 중복 제거 및 새 데이터만 필터링
+                new_data = latest_data[latest_data['date'] > last_date_in_db]
+
+                if not new_data.empty:
+                    self.add_new_data(new_data)
+                    logger.info(f"새로운 데이터 {len(new_data)}개 추가됨")
+                    logger.info(f"추가된 최신 데이터의 날짜: {new_data['date'].max()}")
+                else:
+                    logger.info("추가할 새로운 데이터가 없습니다.")
+            else:
+                logger.warning("최신 데이터를 가져오는 데 실패했거나 데이터가 비어있습니다.")
+
+            logger.info("데이터베이스 업데이트 완료")
+
+        except Exception as e:
+            logger.error(f"데이터베이스 업데이트 중 오류 발생: {e}")
+            logger.exception("상세 오류:")
 
     def get_recent_data(self, count: int = 100) -> pd.DataFrame:
         query = f'''

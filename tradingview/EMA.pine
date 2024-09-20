@@ -1,0 +1,59 @@
+// Created By John Mann
+// This Indicator Plots a EMA with Color Based On Upward or Downward Slope
+// Created 06/06/2015
+
+study(title = "EMA Ribbon for BO", shorttitle="MA Ribbon", overlay=true)
+
+
+src1 = close, len1 = input(08, minval=1, title="EMA Length")
+src2 = close, len2 = input(14, minval=1, title="EMA Length")
+src3 = close, len3 = input(20, minval=1, title="EMA Length")
+src4 = close, len4 = input(26, minval=1, title="EMA Length")
+src5 = close, len5 = input(32, minval=1, title="EMA Length")
+src6 = close, len6 = input(38, minval=1, title="EMA Length")
+src7 = close, len7 = input(44, minval=1, title="EMA Length")
+src8 = close, len8 = input(50, minval=1, title="EMA Length")
+
+src0 = close, len0 = input(60, minval=1, title="EMA Length")
+
+
+
+ema1 = ema(src1, len1)
+ema2 = ema(src2, len2)
+ema3 = ema(src3, len3)
+ema4 = ema(src4, len4)
+ema5 = ema(src5, len5)
+ema6 = ema(src6, len6)
+ema7 = ema(src7, len7)
+ema8 = ema(src8, len8)
+
+ema0 = ema(src0, len0)
+
+
+
+//ema is smoothed to 2 periods, you can change smoothing by adjusting the number in the bracket below
+//example [1] would react quicker and [3] would increase smoothing
+
+plot_color1 = ema1 >= ema1[2]  ? #4985E7 : ema1 < ema1[2] ? #4985E6 : na
+plot_color2 = ema2 >= ema2[2]  ? #4985E7 : ema2 < ema2[2] ? #4985E6 : na
+plot_color3 = ema3 >= ema3[2]  ? #4985E7 : ema3 < ema3[2] ? #4985E6 : na
+plot_color4 = ema4 >= ema4[2]  ? #4985E7 : ema4 < ema4[2] ? #4985E6 : na
+plot_color5 = ema5 >= ema5[2]  ? #4985E7 : ema5 < ema5[2] ? #4985E6 : na
+plot_color6 = ema6 >= ema6[2]  ? #4985E7 : ema6 < ema6[2] ? #4985E6 : na
+plot_color7 = ema7 >= ema7[2]  ? #4985E7 : ema7 < ema7[2] ? #4985E6 : na
+plot_color8 = ema8 >= ema8[2]  ? #4985E7 : ema8 < ema8[2] ? #4985E6 : na
+
+plot_color0 = ema0 >= ema0[2]  ? lime: ema0 < ema0[2] ? red : na
+
+
+
+plot(ema1, title="EMA Plot", style=line, linewidth=1, color = plot_color1)
+plot(ema2, title="EMA Plot", style=line, linewidth=1, color = plot_color2)
+plot(ema3, title="EMA Plot", style=line, linewidth=1, color = plot_color3)
+plot(ema4, title="EMA Plot", style=line, linewidth=1, color = plot_color4)
+plot(ema5, title="EMA Plot", style=line, linewidth=1, color = plot_color5)
+plot(ema6, title="EMA Plot", style=line, linewidth=1, color = plot_color6)
+plot(ema7, title="EMA Plot", style=line, linewidth=1, color = plot_color7)
+plot(ema8, title="EMA Plot", style=line, linewidth=1, color = plot_color8)
+
+plot(ema0, title="EMA Plot", style=line, linewidth=3, color = plot_color0)

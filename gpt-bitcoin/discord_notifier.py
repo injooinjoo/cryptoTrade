@@ -2,14 +2,16 @@ import logging
 import os
 
 import requests
+from config import load_config
 
+config = load_config()
 logger = logging.getLogger(__name__)
 
 
 def send_discord_message(message: str) -> None:
-    webhook_url = os.getenv("DISCORD_WEBHOOK_URL")
+    webhook_url = config.get('discord_webhook_url')
     if not webhook_url:
-        logger.error("Discord webhook URL is not set in the environment variables.")
+        logger.error("Discord webhook URL is not set in the config file.")
         return
 
     payload = {"content": message[:2000]}  # Discord has a 2000-character limit

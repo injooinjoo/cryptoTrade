@@ -1,12 +1,14 @@
 import json
 import logging
+import os
 from typing import Dict, Any
 import sys
-from logging.handlers import RotatingFileHandler
+from logging.handlers import RotatingFileHandler, WatchedFileHandler
 
 logger = logging.getLogger(__name__)
 PERFORMANCE_CALCULATION_INTERVAL = 144  # 하루에 한 번 성능 계산
 SHARPE_RATIO_RISK_FREE_RATE = 0.02  # 연간 2%의 무위험 수익률 가정
+
 
 def load_config(file_path: str = "config.json") -> Dict[str, Any]:
     """Load configuration from a JSON file."""
@@ -18,6 +20,7 @@ def load_config(file_path: str = "config.json") -> Dict[str, Any]:
         'min_trade_amount': 5000,  # 최소 거래 금액 (KRW)
         'max_trade_ratio': 0.99,  # 최대 거래 비율 (총 자산의 99%까지 사용)
         'fee_rate': 0.0005,  # 거래 수수료율 (0.05%)
+        "discord_webhook_url": "https://discord.com/api/webhooks/1215950067895238719/3XkFH-ZoZ0GkW00kgbKS5evUGW3hmaL8a6S093BEBnf_X9anMQRYlT4jc_Ywz25e_BzY",
         'trading_parameters': {
             'buy_threshold': 0.01,
             'sell_threshold': 0.01,
@@ -51,27 +54,56 @@ def load_config(file_path: str = "config.json") -> Dict[str, Any]:
 
 
 def setup_logging():
+    # 루트 로거 설정
     root_logger = logging.getLogger()
     root_logger.setLevel(logging.INFO)
 
-    # Custom formatter with color support
-    formatter = CustomFormatter()
+    # 로그 포맷 설정
+    log_format = '%(asctime)s - %(levelname)s - %(message)s'
+    date_format = '%Y-%m-%d %H:%M:%S'
+    formatter = logging.Formatter(log_format, date_format)
 
-    file_handler = RotatingFileHandler(
-        "trading_bot.log",
-        maxBytes=10*1024*1024,  # 10MB
-        backupCount=5,
-        encoding='utf-8'
-    )
+    # 콘솔 핸들러 (UTF-8 인코딩 사용)
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setLevel(logging.INFO)
+    console_handler.setFormatter(formatter)
+    console_handler.stream.reconfigure(encoding='utf-8')
+
+    # 파일 핸들러 (UTF-8 인코딩 사용)
+    file_handler = RotatingFileHandler('trading_bot.log', maxBytes=10*1024*1024, backupCount=5, encoding='utf-8')
+    file_handler.setLevel(logging.DEBUG)
     file_handler.setFormatter(formatter)
+
+    # 기존 핸들러 제거 및 새 핸들러 추가
+    for handler in root_logger.handlers[:]:
+        root_logger.removeHandler(handler)
+    root_logger.addHandler(console_handler)
     root_logger.addHandler(file_handler)
 
-    console_handler = logging.StreamHandler(sys.stdout)
-    console_handler.setFormatter(formatter)
-    root_logger.addHandler(console_handler)
+    # 다른 라이브러리의 로그 레벨 조정
+    logging.getLogger('matplotlib').setLevel(logging.WARNING)
+    logging.getLogger('urllib3').setLevel(logging.WARNING)
+    logging.getLogger('prophet').setLevel(logging.WARNING)
+    logging.getLogger('cmdstanpy').setLevel(logging.WARNING)
 
-    logging.getLogger("urllib3").setLevel(logging.WARNING)
-    logging.getLogger("tweepy").setLevel(logging.WARNING)
+    return root_logger
+
+
+# 로깅 설정 함수 호출
+logger = setup_logging()
+
+
+# 로깅 에러 핸들러 추가
+def handle_logging_error(exc_type, exc_value, exc_traceback):
+    if isinstance(exc_value, logging.Handler.handleError):
+        # 로깅 오류 발생 시 콘솔에 출력
+        print(f"Logging error occurred: {exc_value}")
+    else:
+        # 기본 예외 처리
+        sys.__excepthook__(exc_type, exc_value, exc_traceback)
+
+
+sys.excepthook = handle_logging_error
 
 
 class CustomFormatter(logging.Formatter):
